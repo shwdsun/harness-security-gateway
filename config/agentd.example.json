@@ -1,0 +1,39 @@
+{
+  "schema": "agentd/v3",
+  "database": "../runtime/agentd.sqlite3",
+  "sandbox_socket": "../runtime/sandboxd.sock",
+  "run_timeout_seconds": 300,
+  "delivery_lease_seconds": 30,
+  "run_dispatch_lease_seconds": 30,
+  "ingress": {
+    "accept_window_seconds": 300,
+    "receipt_window_seconds": 3600,
+    "future_skew_seconds": 60,
+    "max_receipts_per_connector": 128,
+    "max_queued_runs_per_connector": 16,
+    "max_nonterminal_runs_per_connector": 32,
+    "max_pending_deliveries_per_connector": 128,
+    "max_retained_input_bytes_per_connector": 4194304,
+    "max_database_pages": 16384
+  },
+  "connectors": [
+    {
+      "id": "fake-personal",
+      "socket": "../runtime/connectors/fake-personal/agentd.sock",
+      "peer_uid": 1000,
+      "self_actor_ref": "user/fake-connector"
+    }
+  ],
+  "bindings": [
+    {
+      "id": "fake-private-dm",
+      "connector_id": "fake-personal",
+      "actor_ref": "user/demo",
+      "conversation_ref": "dm/demo",
+      "target": {
+        "id": "project-mock",
+        "revision": "project-mock-unset"
+      }
+    }
+  ]
+}

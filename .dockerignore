@@ -1,0 +1,14 @@
+**
+
+!go.mod
+!cmd/
+!cmd/mock-runner/
+!cmd/mock-runner/main.go
+!internal/
+!internal/strictjson/
+!internal/strictjson/decode.go
+!internal/runnerwire/
+!internal/runnerwire/codec.go
+!internal/runnerwire/sequence.go
+!internal/runnerwire/stream.go
+!internal/runnerwire/types.go

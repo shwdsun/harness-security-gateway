@@ -1,0 +1,60 @@
+{
+  "schema": "sandboxd/v2",
+  "socket": "../runtime/sandboxd.sock",
+  "peer_uid": 1000,
+  "state_database": "../runtime/sandboxd.sqlite3",
+  "workspace_root": "../runtime/workspaces",
+  "runner_state_root": "../runtime/runner-state",
+  "runtime": {
+    "kind": "rootless-docker",
+    "endpoint": "unix:///run/user/1000/docker.sock",
+    "cli": "/usr/bin/docker"
+  },
+  "workspaces": [
+    {
+      "ref": "project-main",
+      "directory": "project-main"
+    }
+  ],
+  "runner_states": [
+    {
+      "ref": "project-mock-unset-state",
+      "directory": "project-mock-unset-state"
+    }
+  ],
+  "targets": [
+    {
+      "schema": "harness-target/v1",
+      "id": "project-mock",
+      "revision": "project-mock-unset",
+      "runner": {
+        "family": "mock",
+        "adapter_version": "0.1.0",
+        "protocol": "hrp/1",
+        "image": "harness-gateway/mock-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "required_features": ["progress.text", "session.resume"]
+      },
+      "workspace_ref": "project-main",
+      "workspace_mode": "rw",
+      "state_ref": "project-mock-unset-state",
+      "policy_ref": "builtin.locked-down-v1",
+      "auth_profile_ref": "builtin.none",
+      "skill_bundle_ref": "builtin.none",
+      "network_profile_ref": "builtin.none",
+      "session_mode": "opaque_resume",
+      "limits": {
+        "timeout_seconds": 60,
+        "memory_bytes": 134217728,
+        "cpu_millis": 1000,
+        "pids": 64,
+        "max_input_bytes": 32768,
+        "max_output_bytes": 32768,
+        "max_progress_bytes": 4096,
+        "max_stderr_bytes": 4096,
+        "max_events": 16,
+        "max_session_age_seconds": 604800,
+        "max_session_turns": 128
+      }
+    }
+  ]
+}

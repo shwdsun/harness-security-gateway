@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build, test, and deterministic witnesses
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify module checksums
+        run: go mod verify
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l cmd demo internal)"
+
+      - name: Build commands
+        run: make build
+
+      - name: Run tests
+        run: go test -count=1 ./...
+
+      - name: Run race detector
+        run: go test -race -count=1 -p=1 ./...
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Run security witness
+        run: make demo-security
+
+      - name: Validate example configuration
+        run: make config-check
+
+      - name: Validate bake-off schema
+        run: make bakeoff-check
+
+  mock-image:
+    name: Build deterministic mock Runner image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build mock Runner image
+        run: docker build --network=none --provenance=false --tag hsg/mock-runner:ci --file runners/mock/Dockerfile .
+
+  vulnerabilities:
+    name: Reachable Go vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
+        with:
+          repo-checkout: false
+          go-version-input: 1.26.7
+          check-latest: false
+          cache-dependency-path: go.sum
+          go-package: ./...
