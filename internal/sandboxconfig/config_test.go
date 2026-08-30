@@ -75,6 +75,12 @@ func writeConfig(t *testing.T, root, document string, mode os.FileMode) string {
 	if err := os.WriteFile(path, []byte(document), mode); err != nil {
 		t.Fatal(err)
 	}
+	// os.WriteFile applies the process umask when creating a file. Force the
+	// requested fixture mode so permission tests mean the same thing on local
+	// hosts and CI runners with different umasks.
+	if err := os.Chmod(path, mode); err != nil {
+		t.Fatal(err)
+	}
 	return path
 }
 
