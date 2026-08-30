@@ -40,7 +40,7 @@ jobs:
         run: make build
 
       - name: Run tests
-        run: go test -count=1 ./...
+        run: .github/scripts/run-go-tests.sh
 
       - name: Run race detector
         run: go test -race -count=1 -p=1 ./...
