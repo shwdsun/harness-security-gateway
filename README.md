@@ -99,6 +99,35 @@ The advanced rootless-Docker mock flow requires a repository-digest workflow
 registry) and is described in the
 [local runbook](docs/runbook.md).
 
+## Deployment model
+
+There is deliberately no production installer or `docker compose up` path yet.
+Today this repository supports two bounded uses: the offline security witness
+above, and the advanced mock flow in the local runbook. The latter runs the
+control services on the host and creates one digest-pinned mock Runner
+container per Run; it is not a Discord or Codex deployment.
+
+The intended real topology keeps long-lived control services separate from
+ephemeral harness execution. A Connector may be packaged as one long-running
+service or container per platform credential. `agentd` owns durable admission,
+and `sandboxd` alone owns the exact local rootless-runtime socket. Each Run is
+executed in one container created from a preloaded, digest-pinned harness
+Runner image containing its thin HRP adapter and pinned harness executable.
+Secrets and deployment-local bindings are provisioned into their own trust
+domains; they are never baked into images or selected by a message.
+
+Dependency and image acquisition is an operator-controlled build/provision
+operation, not a message-time feature. A deployment may fetch reviewed,
+version-pinned inputs or use a controlled offline cache while producing and
+recording immutable artifacts. Before a Run can execute, its target's exact
+image digest must already exist in the selected rootless image store. Run
+creation uses `--pull=never`, and the closed target/runtime contract provides
+no message-time package, harness-update, or dynamic skill/plugin mechanism.
+
+See [Deployment and artifact lifecycle](docs/deployment.md) for the current
+paths, intended placement, dependency policy, and the gates that intentionally
+block a turnkey real-platform deployment.
+
 ## Security model
 
 - An exact `(Connector, actor, conversation)` Binding selects one immutable
@@ -173,6 +202,7 @@ matrix are deliberately deferred.
 - [Access-control model](docs/access-control.md)
 - [Connector protocol](docs/connector-protocol.md)
 - [Harness Runner Protocol](docs/runner-protocol.md)
+- [Deployment and artifact lifecycle](docs/deployment.md)
 - [Implementation status](docs/implementation-status.md)
 - [Product scope](docs/positioning.md)
 - [Competitive security bake-off](docs/competitive-bakeoff.md)

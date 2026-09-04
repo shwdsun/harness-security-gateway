@@ -34,6 +34,8 @@ repository. Human maintainers own scope, security claims, and release decisions.
 - `docs/implementation-status.md`: implemented scope and open gates.
 - `docs/design-principles.md`: stable design doctrine.
 - `docs/architecture.md`: trust domains and lifecycle boundaries.
+- `docs/deployment.md`: supported execution paths, component placement, and
+  artifact-acquisition boundaries.
 - `docs/access-control.md`: authorization model and falsification cases.
 - `docs/connector-protocol.md` and `docs/runner-protocol.md`: wire contracts.
 - `docs/codex-profile-v1.md`: sealed, blocked first-Codex runtime contract and
