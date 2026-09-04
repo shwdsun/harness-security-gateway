@@ -757,8 +757,9 @@ P1, before a second actor or any egress profile: confidentiality-domain
 validation, richer audit retention, explicit revocation design, safe outbound
 mention policy, and operational target startup validation.
 
-P2, only upon real demand: exact-Binding session reset, trusted dynamic groups,
-a general policy engine, or ACP-backed harness session/permission adapters.
+P2, only upon real demand: remote/chat reset for an exact Binding, trusted
+dynamic groups, a general policy engine, or ACP-backed harness
+session/permission adapters.
 Message-supplied or message-selected targets, execution credentials, and runtime
 options remain outside the boundary. A pre-authorized zero-parameter
 `auth.begin` may trigger only a fixed sandbox-owned SetupSession; it is not

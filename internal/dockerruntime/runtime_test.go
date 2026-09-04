@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
+	"github.com/shwdsun/harness-security-gateway/internal/runnerwire"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
@@ -115,6 +117,31 @@ func TestCreateReadOnlyWorkspaceMount(t *testing.T) {
 }
 
 func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
+	t.Run("Codex V1 manifest projection remains disabled", func(t *testing.T) {
+		fixture := newFixture(t)
+		manifest := fixture.config.Targets[0]
+		manifest.Runner.Family = codexprofile.RunnerFamilyV1
+		manifest.Runner.AdapterVersion = codexprofile.AdapterVersionV1
+		manifest.Runner.Protocol = codexprofile.RunnerProtocolV1
+		manifest.Runner.RequiredFeatures = []runnerwire.Feature{}
+		manifest.PolicyRef = codexprofile.PolicyProfileRefV1
+		manifest.AuthProfileRef = codexprofile.AuthProfileRefV1
+		manifest.SkillBundleRef = codexprofile.SkillBundleRefV1
+		manifest.NetworkProfileRef = codexprofile.NetworkProfileRefV1
+		manifest.SessionMode = targetmanifest.SessionMode(codexprofile.SessionModeV1)
+		manifest.Limits.MaxSessionAgeSeconds = 0
+		manifest.Limits.MaxSessionTurns = 0
+		fixture.config.Targets[0] = manifest
+
+		_, err := New(fixture.config)
+		if !errors.Is(err, ErrUnsupportedProfile) {
+			t.Fatalf("Codex manifest projection error = %v, want ErrUnsupportedProfile", err)
+		}
+		if calls := fixture.calls(t); len(calls) != 0 {
+			t.Fatalf("profile validation invoked Docker: %#v", calls)
+		}
+	})
+
 	t.Run("unsupported configured profile", func(t *testing.T) {
 		fixture := newFixture(t)
 		fixture.config.Targets[0].NetworkProfileRef = "network.internet"

@@ -11,8 +11,8 @@ immutable harness targets without implementing another agent loop or
 orchestrator.
 
 > **Status: research prototype / pre-alpha.** The control-plane walking
-> skeleton and offline security witness are implemented. A credential-free,
-> `new_only` Codex adapter exists in code, but no Codex Runner image or
+> skeleton and offline security witness are implemented. Two sealed `new_only`
+> Codex adapter behavior profiles exist in code, but no Codex Runner image or
 > TargetManifest is shipped and the default build omits its entrypoint. No
 > provider-authenticated Codex target or Discord Connector exists yet. Do not
 > deploy this repository as a production gateway or treat it as evidence of a
@@ -70,7 +70,7 @@ Runner; it is not yet a real platform-to-provider integration.
 | Sandbox lifecycle and uncertain-create reconciliation | Implemented and deterministically tested with a fake runtime; the digest-pinned mock Runner was exercised locally on rootless Docker, outside public CI |
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
-| Codex adapter | First credential-free, `new_only` code cut implemented and unit-tested; not wired into a shipped target |
+| Codex adapter | Context-free v1 and fixed private-messaging v2 `new_only` cuts implemented and unit-tested; neither is wired into a shipped target |
 | Real Codex target | Not implemented; blocked on image, context, auth, egress, cancellation, and teardown gates |
 | Discord Connector | Not implemented |
 | Production deployment | Not ready |

@@ -9,6 +9,7 @@ package codexadapter
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,12 +21,15 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
 	"github.com/shwdsun/harness-security-gateway/internal/runnerwire"
 )
 
 const (
-	AdapterFamily  = "codex"
-	AdapterVersion = "0.1.0-new-only"
+	AdapterFamily = codexprofile.RunnerFamilyV1
+	// AdapterVersion is the legacy V1 compatibility identity. New code must use
+	// the adapter version from the resolved profile, as Run does below.
+	AdapterVersion = codexprofile.AdapterVersionV1
 
 	maxCodexStdoutBytes = 8 << 20
 	maxCodexStderrBytes = 64 << 10
@@ -43,30 +47,53 @@ var (
 // Config is baked into a reviewed runner image. None of these values may come
 // from HRP, a message, a workspace file, or ambient process configuration.
 type Config struct {
+	ProfileID       string
 	Binary          string
 	Model           string
+	ReasoningEffort string
 	Workspace       string
 	CodexHome       string
 	OutputDirectory string
 }
 
-// ProductionConfig returns the closed filesystem contract for the first Codex
-// adapter. CodexHome must be a writable, per-Run disposable directory. A future
-// auth profile may bind only its dedicated auth.json into that directory; it
-// must never persist the whole CODEX_HOME. Today's Docker runtime cannot express
-// that reviewed profile, so the adapter remains disabled.
+// ProductionConfig returns the closed filesystem and reasoning contract for
+// the first Codex adapter. The supplied build value must equal the sealed V1
+// model alias or validation fails before readiness. CodexHome must be a
+// writable, per-Run disposable directory. A future auth profile may bind only
+// its dedicated auth.json into that directory; it must never persist the whole
+// CODEX_HOME. Today's Docker runtime cannot express that reviewed profile, so
+// the adapter remains disabled.
 func ProductionConfig(model string) Config {
 	return Config{
-		Binary:          "/usr/local/bin/codex",
+		ProfileID:       codexprofile.IDV1,
+		Binary:          codexprofile.CLIBinaryPathV1,
 		Model:           model,
+		ReasoningEffort: codexprofile.ModelReasoningEffortV1,
 		Workspace:       "/workspace",
-		CodexHome:       "/tmp/hgw-codex-home",
-		OutputDirectory: "/tmp/hgw-codex-runner",
+		CodexHome:       codexprofile.CodexHomePathV1,
+		OutputDirectory: codexprofile.SQLiteHomePathV1,
+	}
+}
+
+// MessagingConfig returns the closed V2 invocation contract used by a new
+// TargetRevision. Its fixed instruction profile changes only model-visible
+// behavior; it does not widen the V1 filesystem, credential, tool, network, or
+// session envelope.
+func MessagingConfig(model string) Config {
+	return Config{
+		ProfileID:       codexprofile.IDV2,
+		Binary:          codexprofile.CLIBinaryPathV1,
+		Model:           model,
+		ReasoningEffort: codexprofile.ModelReasoningEffortV1,
+		Workspace:       "/workspace",
+		CodexHome:       codexprofile.CodexHomePathV1,
+		OutputDirectory: codexprofile.SQLiteHomePathV1,
 	}
 }
 
 // Invocation is the complete child-process request assembled by the adapter.
-// Stdin contains the prompt; Args never do.
+// Stdin contains the untrusted user prompt; Args never do. A V2 Args value
+// contains only the fixed, non-secret developer instruction profile.
 type Invocation struct {
 	Path   string
 	Args   []string
@@ -92,7 +119,8 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 	if ctx == nil || input == nil || output == nil || launcher == nil {
 		return fmt.Errorf("%w: missing dependency", errInvalidConfig)
 	}
-	if err := config.validate(); err != nil {
+	profile, developerInstructions, err := config.resolve()
+	if err != nil {
 		return err
 	}
 
@@ -101,8 +129,8 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 		Protocol: runnerwire.ProtocolV1,
 		Type:     runnerwire.TypeRunnerReady,
 		Adapter: runnerwire.Adapter{
-			Family:  AdapterFamily,
-			Version: AdapterVersion,
+			Family:  profile.Runner.Family,
+			Version: profile.Runner.AdapterVersion,
 		},
 		Features: []runnerwire.Feature{},
 	}); err != nil {
@@ -146,7 +174,7 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 
 	stdout := &boundedDiscard{limit: maxCodexStdoutBytes, cancel: cancel}
 	stderr := &boundedDiscard{limit: maxCodexStderrBytes, cancel: cancel, needle: []byte(finalWriteErrorText)}
-	invocation := config.invocation(start.Input.Text, finalPath, stdout, stderr)
+	invocation := config.invocation(start.Input.Text, developerInstructions, finalPath, stdout, stderr)
 	process, err := launcher.Start(runCtx, invocation)
 	if err != nil {
 		return emitFailure(encoder, start.RunID, 2, runnerwire.ErrorCodeRunnerInternal, "Codex runner could not start")
@@ -185,7 +213,11 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 	return nil
 }
 
-func (c Config) validate() error {
+func (c Config) resolve() (codexprofile.Contract, string, error) {
+	profile, err := codexprofile.Resolve(c.ProfileID)
+	if err != nil {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: profile", errInvalidConfig)
+	}
 	for name, value := range map[string]string{
 		"binary":           c.Binary,
 		"workspace":        c.Workspace,
@@ -193,95 +225,116 @@ func (c Config) validate() error {
 		"output directory": c.OutputDirectory,
 	} {
 		if value == "" || !filepath.IsAbs(value) || filepath.Clean(value) != value || !safeConfigPath(value) {
-			return fmt.Errorf("%w: %s path", errInvalidConfig, name)
+			return codexprofile.Contract{}, "", fmt.Errorf("%w: %s path", errInvalidConfig, name)
 		}
 	}
 	if c.Workspace == c.CodexHome || pathContains(c.Workspace, c.CodexHome) || pathContains(c.CodexHome, c.Workspace) {
-		return fmt.Errorf("%w: workspace and Codex home overlap", errInvalidConfig)
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: workspace and Codex home overlap", errInvalidConfig)
 	}
 	if pathsOverlap(c.OutputDirectory, c.Workspace) || pathsOverlap(c.OutputDirectory, c.CodexHome) {
-		return fmt.Errorf("%w: output directory overlaps another trust domain", errInvalidConfig)
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: output directory overlaps another trust domain", errInvalidConfig)
 	}
 	if pathsOverlap(c.Binary, c.Workspace) || pathsOverlap(c.Binary, c.CodexHome) || pathsOverlap(c.Binary, c.OutputDirectory) {
-		return fmt.Errorf("%w: binary overlaps a writable trust domain", errInvalidConfig)
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: binary overlaps a writable trust domain", errInvalidConfig)
 	}
-	if c.Model == "" || len(c.Model) > 128 {
-		return fmt.Errorf("%w: model", errInvalidConfig)
+	if c.Model != profile.Model.Name {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: model", errInvalidConfig)
 	}
-	for index := 0; index < len(c.Model); index++ {
-		char := c.Model[index]
-		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("-._:", rune(char)) {
-			continue
-		}
-		return fmt.Errorf("%w: model", errInvalidConfig)
+	if c.ReasoningEffort != profile.Model.ReasoningEffort {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: reasoning effort", errInvalidConfig)
 	}
-	return nil
+	if profile == codexprofile.V1() {
+		return profile, "", nil
+	}
+	instruction := codexprofile.MessagingInstructionV1()
+	fingerprint, err := instruction.Fingerprint()
+	if err != nil || fingerprint != profile.Context.InstructionProfileFingerprint ||
+		instruction.ID != profile.Context.InstructionProfileRef ||
+		profile.Context.InstructionRole != codexprofile.InstructionRoleV2 ||
+		profile.Context.InstructionInjection != codexprofile.InstructionInjectionV2 {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: messaging instruction profile", errInvalidConfig)
+	}
+	if !utf8.ValidString(instruction.Text) || strings.ContainsRune(instruction.Text, 0) {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: messaging instruction text", errInvalidConfig)
+	}
+	encoded, err := json.Marshal(instruction.Text)
+	if err != nil {
+		return codexprofile.Contract{}, "", fmt.Errorf("%w: encode messaging instruction text", errInvalidConfig)
+	}
+	return profile, string(encoded), nil
 }
 
-func (c Config) invocation(prompt, finalPath string, stdout, stderr io.Writer) Invocation {
+func (c Config) invocation(prompt, developerInstructions, finalPath string, stdout, stderr io.Writer) Invocation {
+	args := []string{
+		"exec",
+		"--json",
+		"--ephemeral",
+		"--ignore-user-config",
+		"--ignore-rules",
+		"--strict-config",
+		"--color", "never",
+		"--sandbox", "workspace-write",
+		"--model", c.Model,
+		"--config", `model_reasoning_effort="` + c.ReasoningEffort + `"`,
+	}
+	if developerInstructions != "" {
+		args = append(args, "--config", "developer_instructions="+developerInstructions)
+	}
+	args = append(args,
+		"--cd", c.Workspace,
+		"--output-last-message", finalPath,
+		"--config", `approval_policy="never"`,
+		"--config", `sandbox_workspace_write.network_access=false`,
+		"--config", `sandbox_workspace_write.exclude_slash_tmp=true`,
+		"--config", `sandbox_workspace_write.exclude_tmpdir_env_var=true`,
+		"--config", `shell_environment_policy.inherit="none"`,
+		"--config", `shell_environment_policy.ignore_default_excludes=false`,
+		"--config", `shell_environment_policy.set={PATH="/usr/local/bin:/usr/bin:/bin",LANG="C.UTF-8",LC_ALL="C.UTF-8",HOME="/nonexistent"}`,
+		"--config", `projects={"`+c.Workspace+`"={trust_level="untrusted"}}`,
+		"--config", `project_doc_max_bytes=0`,
+		"--config", `web_search="disabled"`,
+		"--config", `tools.web_search=false`,
+		"--config", `forced_login_method="chatgpt"`,
+		"--config", `cli_auth_credentials_store="file"`,
+		"--config", `check_for_update_on_startup=false`,
+		"--config", `allow_login_shell=false`,
+		"--config", `apps._default.enabled=false`,
+		"--config", `features.apps=false`,
+		"--config", `features.auth_elicitation=false`,
+		"--config", `features.browser_use=false`,
+		"--config", `features.browser_use_external=false`,
+		"--config", `features.browser_use_full_cdp_access=false`,
+		"--config", `features.code_mode.enabled=false`,
+		"--config", `features.code_mode_host=false`,
+		"--config", `features.computer_use=false`,
+		"--config", `features.fast_mode=false`,
+		"--config", `features.goals=false`,
+		"--config", `features.guardian_approval=false`,
+		"--config", `features.hooks=false`,
+		"--config", `features.image_generation=false`,
+		"--config", `features.memories=false`,
+		"--config", `features.multi_agent=false`,
+		"--config", `features.network_proxy=false`,
+		"--config", `features.plugin_sharing=false`,
+		"--config", `features.plugins=false`,
+		"--config", `features.recommended_plugins=false`,
+		"--config", `features.remote_compaction_v2=false`,
+		"--config", `features.remote_plugin=false`,
+		"--config", `features.shell_snapshot=false`,
+		"--config", `features.skill_mcp_dependency_install=false`,
+		"--config", `features.skill_search=false`,
+		"--config", `features.tool_call_mcp_elicitation=false`,
+		"--config", `features.tool_suggest=false`,
+		"--config", `features.unbounded_connection_retries=false`,
+		"--config", `features.view_image=false`,
+		"--config", `features.workspace_dependencies=false`,
+		"--config", `feedback.enabled=false`,
+		"--config", `history.persistence="none"`,
+		"-",
+	)
 	return Invocation{
 		Path: c.Binary,
-		Args: []string{
-			"exec",
-			"--json",
-			"--ephemeral",
-			"--ignore-user-config",
-			"--ignore-rules",
-			"--strict-config",
-			"--color", "never",
-			"--sandbox", "workspace-write",
-			"--model", c.Model,
-			"--cd", c.Workspace,
-			"--output-last-message", finalPath,
-			"--config", `approval_policy="never"`,
-			"--config", `sandbox_workspace_write.network_access=false`,
-			"--config", `sandbox_workspace_write.exclude_slash_tmp=true`,
-			"--config", `sandbox_workspace_write.exclude_tmpdir_env_var=true`,
-			"--config", `shell_environment_policy.inherit="none"`,
-			"--config", `shell_environment_policy.ignore_default_excludes=false`,
-			"--config", `shell_environment_policy.set={PATH="/usr/local/bin:/usr/bin:/bin",LANG="C.UTF-8",LC_ALL="C.UTF-8",HOME="/nonexistent"}`,
-			"--config", `projects={"` + c.Workspace + `"={trust_level="untrusted"}}`,
-			"--config", `project_doc_max_bytes=0`,
-			"--config", `web_search="disabled"`,
-			"--config", `tools.web_search=false`,
-			"--config", `forced_login_method="chatgpt"`,
-			"--config", `cli_auth_credentials_store="file"`,
-			"--config", `check_for_update_on_startup=false`,
-			"--config", `allow_login_shell=false`,
-			"--config", `apps._default.enabled=false`,
-			"--config", `features.apps=false`,
-			"--config", `features.auth_elicitation=false`,
-			"--config", `features.browser_use=false`,
-			"--config", `features.browser_use_external=false`,
-			"--config", `features.browser_use_full_cdp_access=false`,
-			"--config", `features.code_mode.enabled=false`,
-			"--config", `features.code_mode_host=false`,
-			"--config", `features.computer_use=false`,
-			"--config", `features.fast_mode=false`,
-			"--config", `features.goals=false`,
-			"--config", `features.guardian_approval=false`,
-			"--config", `features.hooks=false`,
-			"--config", `features.image_generation=false`,
-			"--config", `features.memories=false`,
-			"--config", `features.multi_agent=false`,
-			"--config", `features.network_proxy=false`,
-			"--config", `features.plugin_sharing=false`,
-			"--config", `features.plugins=false`,
-			"--config", `features.recommended_plugins=false`,
-			"--config", `features.remote_compaction_v2=false`,
-			"--config", `features.remote_plugin=false`,
-			"--config", `features.shell_snapshot=false`,
-			"--config", `features.skill_mcp_dependency_install=false`,
-			"--config", `features.skill_search=false`,
-			"--config", `features.tool_call_mcp_elicitation=false`,
-			"--config", `features.tool_suggest=false`,
-			"--config", `features.unbounded_connection_retries=false`,
-			"--config", `features.view_image=false`,
-			"--config", `features.workspace_dependencies=false`,
-			"--config", `feedback.enabled=false`,
-			"--config", `history.persistence="none"`,
-			"-",
-		},
+		Args: args,
 		Env: []string{
 			"CODEX_HOME=" + c.CodexHome,
 			"CODEX_SQLITE_HOME=" + c.OutputDirectory,

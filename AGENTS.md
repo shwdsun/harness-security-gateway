@@ -36,6 +36,10 @@ repository. Human maintainers own scope, security claims, and release decisions.
 - `docs/architecture.md`: trust domains and lifecycle boundaries.
 - `docs/access-control.md`: authorization model and falsification cases.
 - `docs/connector-protocol.md` and `docs/runner-protocol.md`: wire contracts.
+- `docs/codex-profile-v1.md`: sealed, blocked first-Codex runtime contract and
+  its enablement gates.
+- `docs/codex-profile-v2.md`: sealed, blocked private-messaging behavior
+  profile and its native Codex instruction mapping.
 - `docs/runbook.md`: local mock execution.
 
 Code and deterministic evidence outrank prose if they disagree. Report the
@@ -43,6 +47,9 @@ disagreement; do not silently expand a claim to make documentation pass.
 
 ## Working rules
 
+- This repository is the sole write surface for product code, tests, and public
+  specifications. Private review, runtime, credential, and host-evidence trees
+  stay outside it and must never overwrite its product source.
 - Make minimal, reviewable changes. Do not reinterpret an untrusted option map
   as a convenience feature.
 - Preserve the three documented legacy hash-domain strings when changing module

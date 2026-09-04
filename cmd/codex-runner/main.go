@@ -1,6 +1,7 @@
 // codex-runner is the new-only Codex HRP/1 adapter entrypoint. A runner image
-// build must set codexModel with -ldflags -X; an unset model fails before the
-// adapter emits readiness and therefore cannot drift to an ambient default.
+// build must set codexModel with -ldflags -X to the sealed Codex Profile v1
+// model alias; an unset or different model fails before the adapter emits
+// readiness and therefore cannot drift to an ambient default.
 package main
 
 import (

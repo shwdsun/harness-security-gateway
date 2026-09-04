@@ -61,8 +61,20 @@ offer labels without placing alias selection in the wire or authority model.
 
 An `ExecutionTarget` is an immutable combination of a runner image, workspace
 reference, harness-specific state reference, skill bundle, auth/network policy,
-and limits. The authoritative manifest exists only in the sandbox domain.
+fixed model-visible operator context, and limits. The authoritative manifest
+exists only in the sandbox domain.
 `agentd` stores the target ID and expected revision, not a copy of its policy.
+
+Fixed operator context belongs to the Target/Runner boundary, not to the
+Connector or Core. A harness adapter may map a content-bound instruction
+profile to a native developer/system layer, but it must keep the message as
+user-role data. Changing those bytes changes Target semantics and therefore
+requires a new profile fingerprint, adapter identity, image digest, and
+TargetRevision. Such context is behavior configuration, not access control.
+Workspace files remain readable untrusted task data: the closed invocation
+prevents tested project files from being promoted into operator configuration,
+but it neither promises nor seeks to prevent their content from influencing a
+Run that reads them.
 
 The intended packaging contains harness differences inside digest-pinned Runner
 images:
@@ -282,11 +294,17 @@ recreated by a host reboot.
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;
 - `agentd` reconciles durable running Runs before claiming newer queued work;
-- `sandboxd` has one global execution lane. A terminal result may become
-  visible before container cleanup finishes, but any durable runtime reference,
-  pending intent, running/cancelling row, or reconciliation-store read failure
-  closes that lane before the next Create/Attach. It reopens only after cleanup
-  crosses the durable proof boundary;
+- `sandboxd` has one global execution lane. In the implemented mock path, a
+  terminal result may become visible before container cleanup finishes, but any
+  durable runtime reference, pending intent, running/cancelling row, or
+  reconciliation-store read failure closes that lane before the next
+  Create/Attach. It reopens only after cleanup crosses the durable proof
+  boundary. Codex Profile v1 is stricter: its terminal output remains
+  provisional until outer-container quiescence and removal are proved. That
+  release gate is not implemented, so the profile cannot be enabled. It needs
+  a generic durable staged-terminal mechanism that withholds output until
+  cleanup proof, then atomically publishes the terminal state and releases
+  locks; a Codex-specific controller branch or canary alone is insufficient;
 - before its one allowed container-create call, `sandboxd` durably records a
   pending runtime intent together with the current host boot ID;
 - a successful create stores the exact runtime reference. A definitely
@@ -389,21 +407,26 @@ permitted operation and credential, not merely compare destination names; its
 canaries and claim must still acknowledge any unavoidable provider data path.
 
 The first planned Codex target is an explicit exception: it will use ChatGPT
-subscription login and must be labelled `credential-exposed personal` unless a
+subscription login and must be labelled `credential-exposed-personal` unless a
 canary proves model-controlled tools cannot read reusable login state. OpenAI's
 Codex authentication documentation says ChatGPT sign-in provides subscription
 access, uses a browser flow, and caches reusable credentials locally in either
-`auth.json` or the OS credential store. Therefore the login state must be
-dedicated to the exact sandbox Instance/profile, kept out of Core, Connector,
-Workspace, messages, logs, and the user's general home directory, and never
-shared across Cells. Exact storage, refresh, revocation, and SetupSession
-handling remain release gates; read-only mounting alone is not a confidentiality
-claim. See <https://developers.openai.com/codex/auth>.
+`auth.json` or the OS credential store. Therefore a future local binding, keyed
+by the exact workspace and auth-profile refs, must resolve the login state
+outside Core, Connector, Workspace, messages, logs, and the user's general home
+directory. That scope key does not make a Target, Binding, Cell, or future
+Instance a confidentiality boundary; cross-actor overlap must be rejected by
+deployment validation unless the operator explicitly declares a shared domain.
+Exact slot ownership, storage, refresh, revocation, and SetupSession handling
+remain release gates; read-only mounting alone is not a confidentiality claim.
+See <https://developers.openai.com/codex/auth>.
 
 The first candidate storage shape is now narrower than a persistent auth
-directory. `CODEX_HOME` is writable but disposable per Run because the pinned
-CLI writes helper aliases, bundled skills, locks, and other mutable runtime
-state there even for an ephemeral execution. Only the dedicated profile's
+directory. A prior local CLI 0.148 probe observed helper aliases, bundled
+skills, locks, and other mutable runtime state under `CODEX_HOME` even for an
+ephemeral execution; the selected 0.151 candidate and final image must repeat
+that residue/context canary rather than inherit the observation. `CODEX_HOME`
+is therefore writable but disposable per Run. Only the dedicated profile's
 `auth.json` may be a refreshable file bind inside that temporary directory;
 the user's normal Codex home and the directory containing it are never mounted.
 `CODEX_SQLITE_HOME` points to separate private Run tmpfs so state/log/goals/
@@ -417,6 +440,29 @@ authority: mount-type enforcement, file-bind refresh, exact write residue,
 credential reachability, system-skill injection, revocation, and teardown must
 all pass against the digest-pinned image before the profile can enter a
 TargetRevision. Persisting the whole `CODEX_HOME` is explicitly rejected.
+
+`codex-profile-v1.md` now freezes this candidate as a sealed, fingerprinted
+contract: CLI 0.151.0 for the selected platform and binary digest,
+`gpt-5.6-sol` with explicit `medium` reasoning, a ChatGPT auth-file delivery
+mechanism whose concrete local slot remains unresolved, mediated provider
+control traffic, no persistent Runner `/state`, an empty customization
+allow-set, and output release only after outer quiescence. The contract digest
+excludes the local slot ref, slot generation, resolved source identity, and
+token bytes. It is not yet the complete revision authority: a versioned target
+schema must first represent the closed `none` versus `persistent(ref)`
+Runner-state choice. A future sandboxd v3 resolver must then combine the
+contract with resolved policy/auth/network content, any nontrivial skill
+content, and the complete local credential binding under a new fingerprint
+domain while preserving the legacy locked-down/three-none fingerprint. The
+current runtime continues to reject the expressible Codex projection.
+
+`codex-profile-v2.md` preserves that blocked authority envelope but composes
+one exact private-messaging instruction profile at Codex's documented
+developer-instruction layer. It reports adapter `0.2.0-new-only` and is intended
+for a distinct `project-codex-r2` experimental revision. Validated Run input
+remains byte-exact stdin; Connector/Core/HRP do not wrap it, and the bounded
+exact-CLI canary observes it as a user-role part. This does not close the
+existing system/managed-context, image, credential, egress, or quiescence gates.
 
 ## Explicit non-goals
 

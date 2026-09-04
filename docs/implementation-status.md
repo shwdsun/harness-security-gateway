@@ -1,15 +1,17 @@
 # Implementation status
 
-Last verified: 2026-08-29
+Last verified: 2026-09-04
 
 Release posture: **research prototype / pre-alpha**
 
 The control plane, durable authorization path, sandbox lifecycle, mock Runner,
-and offline security witness are implemented. A first credential-free
-`new_only` Codex adapter is present, but no Codex image or TargetManifest is
-shipped and the default build omits its entrypoint. There is no Discord
-Connector, provider-authenticated target, or production deployment. The project
-therefore does not yet demonstrate a secure Discord-to-Codex path.
+and offline security witness are implemented. Two sealed but blocked
+`new_only` Codex behavior contracts are present: unchanged v1 has no added
+model context, while v2 maps one fixed private-messaging behavior profile to
+Codex's developer-instruction layer. No Codex image or TargetManifest is
+shipped and the default build omits its entrypoint. There is no public Discord
+Connector, provider-authenticated target, or production deployment. The
+project therefore does not yet demonstrate a secure Discord-to-Codex path.
 
 This document is the public source of truth for what is implemented, what is
 only represented in code, and what remains work in progress.
@@ -25,6 +27,8 @@ only represented in code, and what remains work in progress.
 | Scoped opaque-session lifecycle | Implemented for the mock path | One-use references, age/turn bounds, exact-scope fences, reset and migration tests |
 | Offline security witness | Implemented | Production decoder/policy/service/Core store with synthetic input; no network or credentials |
 | Codex HRP/1 adapter | Implemented and unit-tested for the first `new_only` cut; not shipped as a target | Translation and failure-redaction tests; no image, TargetManifest, or accepted runtime profile |
+| Codex Profile v1 contract | Sealed but blocked; not accepted by the runtime | Exact CLI/model/auth/state/network/context/teardown semantics and stable contract fingerprint; live gates remain failed closed |
+| Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Real Codex target | Not implemented | No approved image/auth/network/context profile or provider canary evidence |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
@@ -90,24 +94,52 @@ open a network listener, contact Discord or a model provider, or read provider
 credentials. It is intentionally not evidence for container isolation,
 credential safety, whole-system crash recovery, or formal verification.
 
-## Codex adapter: present but not wired into a target
+## Codex adapter and profile: present but not wired into a target
 
 `internal/codexadapter` and `cmd/codex-runner` implement the first closed
 `new_only` HRP/1 translation cut. The adapter:
 
-- requires an explicitly build-pinned model;
+- requires the sealed `gpt-5.6-sol` model alias and `medium` reasoning effort;
 - constructs a fixed Codex invocation rather than accepting message-selected
   options;
 - accepts only the closed terminal event needed by the outer protocol;
 - bounds and redacts provider output and failures; and
 - rejects resume, non-text input, and unsupported profiles.
 
+`internal/codexprofile` seals the candidate CLI 0.151.0 artifact digest,
+model/effort, profile-ref projection, single-file ChatGPT credential mechanism,
+disposable state, mediated-control-only network claim, empty customization
+allow-set, and post-quiescence output rule. The concrete local credential slot
+is deliberately unresolved and excluded. Its contract fingerprint is pinned in
+code and every contract field is fingerprint-relevant. This is configuration
+evidence, not runtime evidence: the current Docker profile gate still rejects
+the expressible Codex projection before any CLI call. See
+`codex-profile-v1.md`.
+
+The separate v2 contract preserves that authority envelope and adds one exact,
+content-hashed private-messaging behavior profile. `codexadapter.MessagingConfig`
+maps it to the documented `developer_instructions` config key, while the
+untrusted user message remains byte-exact stdin and absent from argv/env. It
+reports adapter `0.2.0-new-only`, so a future manifest cannot confuse it with
+the context-free v1 behavior. Unit tests pin both contract fingerprints, the
+fixed instruction bytes, the native role mapping, and pre-readiness rejection
+of unknown profiles. An opt-in exact-CLI canary additionally checks byte-exact
+developer/user role placement and absence of three hostile workspace-file
+sentinels under an empty home. The debug subcommand cannot accept two
+exec-only ignore flags, so that canary is decoding/placement evidence rather
+than complete exec or provider-context closure. See `codex-profile-v2.md`.
+This is model-behavior configuration, not prompt-injection protection or an
+authorization boundary.
+
 The repository ships no Codex Runner image or Codex TargetManifest, and
 `make build` does not produce `cmd/codex-runner`. Enabling a real path therefore
 requires an explicit, reviewable image and target addition; configuration in the
-shipped examples cannot select it. Context, credential, network, cancellation,
-and teardown gates remain open, including proof that repository, system, and
-managed customization cannot enter the harness unexpectedly.
+shipped examples cannot select it. The profile also requires no persistent
+Runner `/state`, while TargetManifest v1 and the current runtime always resolve
+and mount one. No valid v1 manifest therefore conforms to the whole profile.
+Context, credential, network, cancellation, and teardown gates remain open,
+including proof that repository-level, system, or managed customization cannot
+enter the harness unexpectedly.
 
 ## Open gates
 
@@ -122,10 +154,18 @@ managed customization cannot enter the harness unexpectedly.
 
 ### Real Codex target
 
-- build and digest-pin the runner image and Codex CLI;
-- define immutable auth, network, context, resource, and teardown profiles and
-  include their resolved content or digest in the target revision;
+- materialize and attest the sealed CLI artifact in a digest-pinned runner
+  image;
+- add a versioned, closed `none` versus `persistent(ref)` Runner-state schema
+  without changing TargetManifest v1 or its fingerprint;
+- resolve immutable policy, auth, network, context, resource, and teardown
+  authority plus the local credential slot/generation/source identity into a
+  new target-revision security fingerprint;
+- validate overlapping workspace/credential confidentiality domains before any
+  egress-enabled target is selectable;
 - close repository/system customization injection;
+- implement a generic durable provisional-terminal mechanism that publishes
+  output only after cleanup/quiescence proof and atomically releases locks;
 - run credential reach, refresh, revocation, output-redaction, provider-egress,
   tool-egress, cancellation, detached-descendant, and quiescence canaries; and
 - exercise fake ingress against the real target before introducing any
