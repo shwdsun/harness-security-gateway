@@ -52,7 +52,7 @@ func TestResolvePinsRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if entry.Manifest.ID != manifest.ID || len(entry.Fingerprint) != 64 {
+	if entry.Manifest.ID() != manifest.ID || len(entry.Fingerprint) != 64 {
 		t.Fatalf("entry = %#v", entry)
 	}
 	if _, err := registry.Resolve(manifest.ID, "replacement"); !errors.Is(err, ErrRevisionMismatch) {

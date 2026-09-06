@@ -34,7 +34,7 @@ func (r *DockerRuntime) ListManaged(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (string, error) {
+func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error) {
 	ref, err := r.runtime.Create(ctx, runID, manifest)
 	return ref.String(), err
 }
@@ -42,7 +42,7 @@ func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targe
 func (r *DockerRuntime) LookupIntent(
 	ctx context.Context,
 	runID string,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) (string, bool, error) {
 	ref, found, err := r.runtime.LookupIntent(ctx, runID, manifest)
 	return ref.String(), found, err

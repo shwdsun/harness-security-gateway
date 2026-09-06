@@ -1,6 +1,7 @@
 MOCK_IMAGE ?= harness-gateway/mock-runner:dev
+MOCK_NEW_ONLY_IMAGE ?= harness-gateway/mock-runner-new-only:dev
 
-.PHONY: fmt build test test-race vet mock-image config-check demo-security bakeoff-check
+.PHONY: fmt build test test-race vet mock-image mock-new-only-image config-check demo-security bakeoff-check
 
 fmt:
 	gofmt -w $$(find cmd demo internal -name '*.go' -type f)
@@ -29,6 +30,11 @@ config-check:
 	jq -e '(.schema == "agentd/v3") and (.bindings | length == 1)' config/agentd.example.json >/dev/null
 	jq -e '(.schema == "sandboxd/v2") and (.targets | length == 1) and (.runner_states | length == 1)' config/sandboxd.example.json >/dev/null
 	jq -e -s '.[0] as $$agent | .[1] as $$sandbox | ($$agent.bindings[0].target.id == $$sandbox.targets[0].id) and ($$agent.bindings[0].target.revision == $$sandbox.targets[0].revision) and ($$sandbox.targets[0].state_ref == $$sandbox.runner_states[0].ref)' config/agentd.example.json config/sandboxd.example.json >/dev/null
+	jq -e '(.schema == "sandboxd/v3") and (.runner_states == []) and (.targets | length == 1) and (.targets[0] | (.schema == "harness-target/v2") and (.runner_state == {"kind":"none"}) and (has("state_ref") | not) and (.session_mode == "new_only") and (.limits.max_session_age_seconds == 0) and (.limits.max_session_turns == 0))' config/sandboxd.v3-none.example.json >/dev/null
+
+mock-new-only-image:
+	docker build --network=none --provenance=false --target new-only --tag $(MOCK_NEW_ONLY_IMAGE) --file runners/mock/Dockerfile .
+	docker image inspect --format 'RepoDigests={{json .RepoDigests}}' $(MOCK_NEW_ONLY_IMAGE)
 
 demo-security:
 	@go run ./demo/security

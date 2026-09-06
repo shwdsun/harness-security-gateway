@@ -10,10 +10,9 @@ import (
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
-// AppendEvent records the next contiguous typed event and performs its
-// legal state transition. A terminal event deliberately retains the workspace
-// lock and runtime reference; ConfirmRuntimeStopped must follow only after the
-// runtime is known to be gone.
+// AppendEvent records a contiguous public event. Controllers use this only for
+// nonterminal events and StageTerminal for outcomes. Direct terminal append is
+// retained for legacy/offline callers; it is forbidden once a candidate exists.
 //
 // mapping is required exactly when a completed event contains SessionRef, and
 // is forbidden otherwise.
@@ -38,49 +37,81 @@ func (s *Store) AppendEvent(
 	if err != nil {
 		return Run{}, err
 	}
+	if run.TerminalPending {
+		return Run{}, ErrIllegalTransition
+	}
+	run, err = appendEventTx(ctx, tx, run, event, mapping)
+	if err != nil {
+		return Run{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Run{}, fmt.Errorf("commit run event: %w", err)
+	}
+	return run, nil
+}
+
+// validateRunEvent is shared by staging and publication; staging does not bind
+// a resumable capability or insert anything into public event history.
+func validateRunEvent(run Run, event executionwire.RunEvent, mapping *SessionMapping) (executionwire.RunState, error) {
+	if err := event.Validate(); err != nil {
+		return "", fmt.Errorf("%w: %v", ErrInvalidArgument, err)
+	}
 	if event.Seq != run.LastEventSeq+1 {
-		return Run{}, ErrEventSequence
+		return "", ErrEventSequence
 	}
 	if event.Type != executionwire.RunEventCompleted && mapping != nil {
-		return Run{}, fmt.Errorf("%w: session mapping is allowed only on completion", ErrInvalidArgument)
+		return "", fmt.Errorf("%w: session mapping is allowed only on completion", ErrInvalidArgument)
 	}
 	if (event.Type == executionwire.RunEventStarted || event.Type == executionwire.RunEventProgress) && event.Seq >= executionwire.MaxEvents {
-		return Run{}, fmt.Errorf("%w: terminal event capacity must be reserved", ErrEventSequence)
+		return "", fmt.Errorf("%w: terminal event capacity must be reserved", ErrEventSequence)
 	}
 
 	nextState, err := transition(run.State, event.Type)
 	if err != nil {
-		return Run{}, err
+		return "", err
 	}
 	if run.RuntimeIntentPending && isTerminal(nextState) && nextState != executionwire.RunStateInterrupted {
-		return Run{}, ErrIllegalTransition
+		return "", ErrIllegalTransition
 	}
-	now := time.Now().UTC().UnixMilli()
 
 	if event.Type == executionwire.RunEventCompleted {
 		hasRef := event.Result != nil && event.Result.SessionRef != nil
 		if hasRef != (mapping != nil) {
-			return Run{}, fmt.Errorf("%w: result session reference and mapping must appear together", ErrInvalidArgument)
+			return "", fmt.Errorf("%w: result session reference and mapping must appear together", ErrInvalidArgument)
 		}
 		switch run.SessionMode {
 		case targetmanifest.SessionNewOnly:
 			if hasRef {
-				return Run{}, fmt.Errorf("%w: new_only completion cannot publish a session", ErrInvalidArgument)
+				return "", fmt.Errorf("%w: new_only completion cannot publish a session", ErrInvalidArgument)
 			}
 		case targetmanifest.SessionOpaqueResume:
 			if !hasRef {
-				return Run{}, fmt.Errorf("%w: opaque_resume completion requires a successor session", ErrInvalidArgument)
+				return "", fmt.Errorf("%w: opaque_resume completion requires a successor session", ErrInvalidArgument)
 			}
 		default:
-			return Run{}, fmt.Errorf("%w: Run lacks session lifecycle authority", ErrInvalidArgument)
+			return "", fmt.Errorf("%w: Run lacks session lifecycle authority", ErrInvalidArgument)
 		}
 		if mapping != nil {
 			if mapping.Ref != *event.Result.SessionRef {
-				return Run{}, fmt.Errorf("%w: result session reference does not match mapping", ErrInvalidArgument)
+				return "", fmt.Errorf("%w: result session reference does not match mapping", ErrInvalidArgument)
 			}
-			if err := bindSession(ctx, tx, run, *mapping, now); err != nil {
-				return Run{}, err
+			if err := validateSessionMapping(*mapping); err != nil {
+				return "", err
 			}
+		}
+	}
+	return nextState, nil
+}
+
+func appendEventTx(ctx context.Context, tx *sql.Tx, run Run, event executionwire.RunEvent, mapping *SessionMapping) (Run, error) {
+	nextState, err := validateRunEvent(run, event, mapping)
+	if err != nil {
+		return Run{}, err
+	}
+	now := time.Now().UTC().UnixMilli()
+	if mapping != nil {
+		if err := bindSession(ctx, tx, run, *mapping, now); err != nil {
+			return Run{}, err
 		}
 	}
 
@@ -131,14 +162,7 @@ func (s *Store) AppendEvent(
 		return Run{}, fmt.Errorf("advance run state: %w", err)
 	}
 
-	run, err = getRunQuerier(ctx, tx, event.RunID)
-	if err != nil {
-		return Run{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return Run{}, fmt.Errorf("commit run event: %w", err)
-	}
-	return run, nil
+	return getRunQuerier(ctx, tx, event.RunID)
 }
 
 // ReconcileInterrupted atomically marks a nonterminal Run interrupted and
@@ -162,9 +186,9 @@ func (s *Store) ReconcileInterrupted(ctx context.Context, runID, message string)
 	}
 	// ReconcileInterrupted is a legacy convenience for Runs that provably
 	// never acquired runtime authority. Runtime-bearing or pending-intent Runs
-	// must first record a terminal event and then cross the explicit
+	// must first stage a terminal outcome and then cross the explicit
 	// ConfirmRuntimeStopped proof boundary after deterministic cleanup.
-	if run.RuntimeRef != nil || run.RuntimeIntentPending {
+	if run.RuntimeRef != nil || run.RuntimeIntentPending || run.TerminalPending {
 		return Run{}, ErrIllegalTransition
 	}
 	now := time.Now().UTC().UnixMilli()

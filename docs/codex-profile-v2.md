@@ -131,7 +131,10 @@ operator-owned agentd binding configuration, and recorded source/config/binary
 digests. These identify the experiment but do not satisfy the production
 resolver gate.
 
-A future target schema/resolver must bind the resolved instruction fingerprint,
+The offline [candidate preflight](codex-candidate-preflight.md) now matches this
+profile to TargetManifest v2 and pins a conservative `rw`/300-second/2,000-byte
+configuration envelope. It never authorizes execution. A future runtime
+resolver must bind the resolved instruction fingerprint,
 adapter and image digest, all authority-bearing profiles, and the local
 credential binding before V2 can become production-selectable. All v1 readiness
 gates still apply, including credential/egress containment and terminal release

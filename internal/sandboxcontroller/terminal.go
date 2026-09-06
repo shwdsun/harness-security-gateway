@@ -76,7 +76,7 @@ func (c *Controller) commitTerminal(ctx context.Context, runID string, spec term
 		if err != nil {
 			return sandboxstore.Run{}, err
 		}
-		if terminalState(run.State) {
+		if terminalDecided(run) {
 			return run, nil
 		}
 		// This is the final typed guard before the Store transaction. A pending
@@ -95,7 +95,7 @@ func (c *Controller) commitTerminal(ctx context.Context, runID string, spec term
 		if spec.eventType == executionwire.RunEventFailed || spec.eventType == executionwire.RunEventInterrupted {
 			event.Failure = &executionwire.RunFailure{Code: spec.code, Message: spec.message}
 		}
-		run, err = c.store.AppendEvent(ctx, event, nil)
+		run, err = c.store.StageTerminal(ctx, event, nil)
 		if err == nil {
 			return run, nil
 		}
@@ -104,7 +104,7 @@ func (c *Controller) commitTerminal(ctx context.Context, runID string, spec term
 		}
 	}
 	run, err := c.store.GetRun(ctx, runID)
-	if err == nil && terminalState(run.State) {
+	if err == nil && terminalDecided(run) {
 		return run, nil
 	}
 	if err != nil {
@@ -121,6 +121,12 @@ func terminalState(state executionwire.RunState) bool {
 	default:
 		return false
 	}
+}
+
+// A staged decision is immutable but not yet public. Recovery must preserve it
+// rather than synthesizing an interrupted outcome after a daemon restart.
+func terminalDecided(run sandboxstore.Run) bool {
+	return run.TerminalPending || terminalState(run.State)
 }
 
 func (c *Controller) rememberDesiredTerminal(runID string, spec terminalSpec) {

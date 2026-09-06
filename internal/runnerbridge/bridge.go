@@ -70,7 +70,7 @@ type Sink func(context.Context, Emission) error
 func Run(
 	ctx context.Context,
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	resolvedVendorToken *string,
 	runnerOutput io.Reader,
 	runnerInput io.Writer,
@@ -88,10 +88,10 @@ func Run(
 	if err := manifest.Validate(); err != nil {
 		return bridgeError(ErrorInternal, err)
 	}
-	if request.TargetID != manifest.ID || request.ExpectedRevision != manifest.Revision {
+	if request.TargetID != manifest.ID() || request.ExpectedRevision != manifest.Revision() {
 		return bridgeError(ErrorInternal, errors.New("request target does not match resolved manifest"))
 	}
-	if len(request.Input.Text) > manifest.Limits.MaxInputBytes {
+	if len(request.Input.Text) > manifest.Common().Limits.MaxInputBytes {
 		return bridgeError(ErrorPolicyDenied, errors.New("input exceeds target limit"))
 	}
 
@@ -100,7 +100,7 @@ func Run(
 		return err
 	}
 
-	runCtx, cancel := withRunDeadline(ctx, request.Deadline, manifest.Limits.TimeoutSeconds)
+	runCtx, cancel := withRunDeadline(ctx, request.Deadline, manifest.Common().Limits.TimeoutSeconds)
 	defer cancel()
 	if err := contextBridgeError(runCtx.Err()); err != nil {
 		return err
@@ -115,10 +115,10 @@ func Run(
 	if !ok {
 		return bridgeError(ErrorProtocolViolation, errors.New("first runner frame is not runner.ready"))
 	}
-	if ready.Adapter.Family != manifest.Runner.Family || ready.Adapter.Version != manifest.Runner.AdapterVersion {
+	if ready.Adapter.Family != manifest.Common().Runner.Family || ready.Adapter.Version != manifest.Common().Runner.AdapterVersion {
 		return bridgeError(ErrorProtocolViolation, errors.New("runner adapter does not match target manifest"))
 	}
-	for _, required := range manifest.Runner.RequiredFeatures {
+	for _, required := range manifest.Common().Runner.RequiredFeatures {
 		if !ready.Supports(required) {
 			return bridgeError(ErrorProtocolViolation, errors.New("runner omitted a required feature"))
 		}
@@ -163,7 +163,7 @@ func Run(
 		if !ok {
 			return bridgeError(ErrorProtocolViolation, errors.New("runner emitted a non-event after start"))
 		}
-		if event.EventSequence() > uint64(manifest.Limits.MaxEvents) {
+		if event.EventSequence() > uint64(manifest.Common().Limits.MaxEvents) {
 			return bridgeError(ErrorOutputLimit, errors.New("runner exceeded target event limit"))
 		}
 		if err := sequence.Accept(event); err != nil {
@@ -173,25 +173,25 @@ func Run(
 			if !ready.Supports(runnerwire.FeatureProgressText) {
 				return bridgeError(ErrorProtocolViolation, errors.New("runner emitted unadvertised text progress"))
 			}
-			if len(progress.Text) > manifest.Limits.MaxProgressBytes {
+			if len(progress.Text) > manifest.Common().Limits.MaxProgressBytes {
 				return bridgeError(ErrorOutputLimit, errors.New("runner exceeded target progress limit"))
 			}
 		}
 		if completed, ok := event.(*runnerwire.RunCompleted); ok {
-			if len(completed.Output.Text) > manifest.Limits.MaxOutputBytes {
+			if len(completed.Output.Text) > manifest.Common().Limits.MaxOutputBytes {
 				return bridgeError(ErrorOutputLimit, errors.New("runner exceeded target output limit"))
 			}
-			if manifest.SessionMode == targetmanifest.SessionNewOnly && completed.SessionToken != "" {
+			if manifest.Common().SessionMode == targetmanifest.SessionNewOnly && completed.SessionToken != "" {
 				// new_only targets cannot create hidden resumable state. Reject the
 				// terminal before it reaches durable execution events.
 				return bridgeError(ErrorPolicyDenied, errors.New("new_only runner returned a session token"))
 			}
-			if manifest.SessionMode == targetmanifest.SessionOpaqueResume && completed.SessionToken == "" {
+			if manifest.Common().SessionMode == targetmanifest.SessionOpaqueResume && completed.SessionToken == "" {
 				return bridgeError(ErrorProtocolViolation, errors.New("opaque_resume runner omitted the successor session token"))
 			}
 		}
 
-		emission, err := translateEvent(event, manifest.SessionMode)
+		emission, err := translateEvent(event, manifest.Common().SessionMode)
 		if err != nil {
 			return err
 		}
@@ -209,10 +209,10 @@ func Run(
 
 func resolveSession(
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	resolvedVendorToken *string,
 ) (runnerwire.Session, error) {
-	switch manifest.SessionMode {
+	switch manifest.Common().SessionMode {
 	case targetmanifest.SessionNewOnly:
 		if request.SessionRef != nil || resolvedVendorToken != nil {
 			return runnerwire.Session{}, bridgeError(ErrorPolicyDenied, errors.New("new_only target cannot resume a session"))

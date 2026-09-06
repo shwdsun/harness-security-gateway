@@ -42,9 +42,12 @@ can express:
 The contract ID `codex.chatgpt-personal-v1` names the candidate combination; it
 does not add another remotely selectable Target field. This table is not a
 successful Manifest matcher: every valid TargetManifest v1 has a nonempty
-`state_ref`, while this profile forbids persistent Runner `/state`. A future
-versioned target schema must represent that difference before a total profile
-matcher or resolver exists. The current runtime still accepts only
+`state_ref`, while this profile forbids persistent Runner `/state`.
+[TargetManifest v2](target-manifest.md) now represents that difference.
+`Contract.MatchTarget` and the [offline candidate preflight](codex-candidate-preflight.md)
+implement total matching and local binding diagnostics; they are not an
+executable resolver or a revision-security pin. The current
+runtime still accepts only
 `builtin.locked-down-v1` plus three `builtin.none` refs for the mock path and
 explicitly rejects the Codex runner identity and four profile-ref projection
 before any Docker call.
@@ -107,11 +110,11 @@ deployment validation must reject overlapping resolved workspace, state, or
 credential domains across actors unless the operator explicitly declares the
 domain shared. No such shared-domain mechanism exists in this slice.
 
-Codex Profile v1 intentionally has no persistent Runner `/state`. The current
-TargetManifest requires a state ref and the current Docker runtime always
-mounts it RW, so the profile is not yet representable. That conflict must be
-resolved explicitly in the next schema/runtime slice rather than silently
-allowing mutable state.
+Codex Profile v1 intentionally has no persistent Runner `/state`. TargetManifest
+v2 now represents `none` and the explicit v3 local mock path implements its
+configuration, durable ownership kind and conditional mount behavior. The
+Codex profile is still rejected; mock integration does not authorize credentials
+or network access.
 
 The auth slot also needs an exclusive writer lock. A failed, cancelled, or
 crashed Run may already have refreshed the file; refresh is not transactional.
@@ -144,9 +147,11 @@ digest and image digest:
 
 1. a reproducible, digest-pinned image contains the selected CLI bytes and
    fixed adapter entrypoint;
-2. a versioned target schema adds a closed `none` versus `persistent(ref)`
-   Runner-state union without changing TargetManifest v1 or its fingerprint;
-3. a new local resolver performs total target/profile matching and binds the
+2. the versioned `none` versus `persistent(ref)` Runner-state path preserves
+   TargetManifest v1 and its fingerprint (implemented and locally tested for
+   mock in config v3 / sandbox schema v9; exact Codex image still untested);
+3. a new local resolver performs total target/profile matching (implemented
+   for offline candidates) and binds the
    contract digest, resolved policy/auth/network content, any nontrivial skill
    content, and credential slot ref/generation/source identity into a new
    revision-security fingerprint while preserving the legacy
@@ -171,11 +176,18 @@ Configuration/unit tests prove only the sealed value, adapter invocation shape,
 fingerprint coverage, and fail-closed runtime rejection. They are not evidence
 for any of these live gates.
 
+The generic staging/publication portion of gate 7 is implemented in sandbox
+schema v8 and the controller, with cleanup-failure, transaction-rollback, lost
+response, and restart tests. That narrows the implementation gap; it does not
+close the gate. Those tests use fake runtimes and do not prove exact-image
+descendant containment or credential-lock release.
+
 ## Explicit non-goals for this slice
 
-- no sandboxd v3 profile registry or auth host path;
-- no image, TargetManifest, Docker network, proxy, credential, login, or model
-  request;
+- no executable Codex profile resolver or credential mount (the separate v3
+  mock config and offline candidate path fields are not provider enablement);
+- no approved image/executable TargetManifest, Docker network, proxy, credential,
+  login, or model request;
 - no generic environment, mount, network, provider-options, or credential API;
 - no resume, remote `auth.begin`, Discord Connector, dynamic skills, or new
   harness abstraction; and

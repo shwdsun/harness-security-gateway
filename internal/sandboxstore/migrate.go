@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	CurrentSchemaVersion               = 7
+	CurrentSchemaVersion               = 9
 	minimumCreateIntentEvidenceVersion = 3
 	exactSessionScopeVersion           = 5
 	runnerStateOwnershipVersion        = 6
 	sessionLifecycleVersion            = 7
+	runnerStateKindVersion             = 9
 )
 
 var migrations = []string{
@@ -550,6 +551,87 @@ WHEN NEW.event_type = 'completed'
 BEGIN
     SELECT RAISE(ABORT, 'completed event does not match session lifecycle mode');
 END;`,
+	`CREATE TABLE staged_terminals (
+    run_id TEXT PRIMARY KEY REFERENCES runs(run_id) ON DELETE RESTRICT,
+    seq INTEGER NOT NULL CHECK (seq BETWEEN 1 AND 512),
+    event_type TEXT NOT NULL CHECK (event_type IN ('completed','failed','cancelled','interrupted')),
+    message_text TEXT,
+    output_media_type TEXT,
+    result_session_ref TEXT UNIQUE,
+    vendor_token TEXT,
+    failure_code TEXT,
+    staged_at_unix_ms INTEGER NOT NULL,
+    CHECK (message_text IS NULL OR length(CAST(message_text AS BLOB)) <= 32768),
+    CHECK (result_session_ref IS NULL OR length(result_session_ref) BETWEEN 1 AND 512),
+    CHECK (vendor_token IS NULL OR length(CAST(vendor_token AS BLOB)) BETWEEN 1 AND 1024),
+    CHECK ((result_session_ref IS NULL) = (vendor_token IS NULL)),
+    CHECK (
+        (event_type = 'completed' AND message_text IS NOT NULL AND output_media_type = 'text/plain' AND failure_code IS NULL)
+        OR (event_type = 'cancelled' AND message_text IS NULL AND output_media_type IS NULL AND result_session_ref IS NULL AND failure_code IS NULL)
+        OR (event_type IN ('failed','interrupted') AND message_text IS NOT NULL AND length(CAST(message_text AS BLOB)) <= 4096 AND output_media_type IS NULL AND result_session_ref IS NULL AND failure_code IS NOT NULL)
+    )
+) STRICT;
+
+CREATE TRIGGER staged_terminal_insert_guard
+BEFORE INSERT ON staged_terminals
+WHEN NOT EXISTS (
+    SELECT 1 FROM runs r WHERE r.run_id = NEW.run_id
+      AND r.state IN ('accepted','running','cancelling')
+      AND NEW.seq = r.last_event_seq + 1
+      AND (r.runtime_intent_pending = 0 OR NEW.event_type = 'interrupted')
+)
+BEGIN
+    SELECT RAISE(ABORT, 'staged terminal lacks current Run authority');
+END;
+
+CREATE TRIGGER staged_terminal_immutable
+BEFORE UPDATE ON staged_terminals
+BEGIN
+    SELECT RAISE(ABORT, 'staged terminal is immutable');
+END;
+
+CREATE TRIGGER staged_terminal_delete_guard
+BEFORE DELETE ON staged_terminals
+WHEN NOT EXISTS (
+    SELECT 1 FROM runs r WHERE r.run_id = OLD.run_id
+      AND r.state IN ('completed','failed','cancelled','interrupted')
+      AND r.last_event_seq = OLD.seq
+      AND r.runtime_ref IS NULL AND r.runtime_intent_pending = 0
+      AND NOT EXISTS (SELECT 1 FROM workspace_locks w WHERE w.run_id = r.run_id)
+)
+BEGIN
+    SELECT RAISE(ABORT, 'staged terminal deletion requires publication and cleanup');
+END;`,
+	`ALTER TABLE target_revisions
+ADD COLUMN runner_state_kind TEXT NOT NULL DEFAULT 'persistent'
+CHECK (runner_state_kind IN ('none', 'persistent'));
+
+CREATE TRIGGER runner_state_owner_requires_persistent
+BEFORE INSERT ON runner_state_owners
+WHEN NOT EXISTS (SELECT 1 FROM target_revisions tr
+    WHERE tr.target_id = NEW.target_id AND tr.revision = NEW.target_revision
+      AND tr.runner_state_kind = 'persistent')
+BEGIN
+    SELECT RAISE(ABORT, 'runner-state owner requires persistent target');
+END;
+
+CREATE TRIGGER runs_no_state_session_guard
+BEFORE INSERT ON runs
+WHEN (NEW.session_mode IS NOT 'new_only' OR NEW.requested_session_ref IS NOT NULL) AND EXISTS (
+    SELECT 1 FROM target_revisions tr WHERE tr.target_id = NEW.target_id
+      AND tr.revision = NEW.target_revision AND tr.runner_state_kind = 'none')
+BEGIN
+    SELECT RAISE(ABORT, 'no-state target requires new-only execution');
+END;
+
+CREATE TRIGGER sessions_no_state_guard
+BEFORE INSERT ON sessions
+WHEN NOT EXISTS (SELECT 1 FROM target_revisions tr
+    WHERE tr.target_id = NEW.target_id AND tr.revision = NEW.target_revision
+      AND tr.runner_state_kind = 'persistent')
+BEGIN
+    SELECT RAISE(ABORT, 'provider session requires persistent target');
+END;`,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -699,6 +781,18 @@ func (s *Store) migrate(ctx context.Context) error {
 		}
 	}
 
+	if current >= runnerStateOwnershipVersion && current < runnerStateKindVersion {
+		var missing int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM target_revisions tr
+            WHERE NOT EXISTS (SELECT 1 FROM runner_state_owners rso
+                WHERE rso.target_id = tr.target_id AND rso.target_revision = tr.revision)`).Scan(&missing); err != nil {
+			return fmt.Errorf("inspect pre-v9 runner-state owners: %w", err)
+		}
+		if missing != 0 {
+			return ErrRunnerStateOwnershipUnknown
+		}
+	}
+
 	for version := current + 1; version <= CurrentSchemaVersion; version++ {
 		migration := migrations[version-1]
 		if _, err := tx.ExecContext(ctx, migration); err != nil {
@@ -734,6 +828,28 @@ func (s *Store) verifyIntegrity(ctx context.Context) error {
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate sandbox foreign key check: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	var inconsistent int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM target_revisions tr
+        WHERE (tr.runner_state_kind = 'persistent' AND NOT EXISTS (
+                SELECT 1 FROM runner_state_owners rso
+                WHERE rso.target_id = tr.target_id AND rso.target_revision = tr.revision))
+           OR (tr.runner_state_kind = 'none' AND (EXISTS (
+                SELECT 1 FROM runner_state_owners rso
+                WHERE rso.target_id = tr.target_id AND rso.target_revision = tr.revision)
+             OR EXISTS (SELECT 1 FROM sessions s
+                WHERE s.target_id = tr.target_id AND s.target_revision = tr.revision)
+             OR EXISTS (SELECT 1 FROM runs r
+                WHERE r.target_id = tr.target_id AND r.target_revision = tr.revision
+                  AND (r.session_mode IS NOT 'new_only' OR r.requested_session_ref IS NOT NULL))))
+           OR tr.runner_state_kind NOT IN ('none', 'persistent')`).Scan(&inconsistent); err != nil {
+		return fmt.Errorf("verify runner-state ownership: %w", err)
+	}
+	if inconsistent != 0 {
+		return ErrRunnerStateOwnershipUnknown
 	}
 	return nil
 }

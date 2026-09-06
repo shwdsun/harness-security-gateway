@@ -123,9 +123,10 @@ func openSessionIntegrationSandbox(
 	}
 	service, err := sandboxservice.New(
 		context.Background(), registry, store,
-		func(candidate targetmanifest.Manifest) (string, string, bool, error) {
+		func(candidate targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
 			fingerprint, fingerprintErr := candidate.Fingerprint()
-			return candidate.StateRef, fingerprint, true, fingerprintErr
+			ref, _ := candidate.RunnerState().PersistentRef()
+			return sandboxstore.RunnerStateOwnership{Kind: candidate.RunnerState().Kind(), Ref: ref, PathDigest: fingerprint, PathAbsent: true}, fingerprintErr
 		},
 		sandboxservice.WithClock(clock.Now),
 	)
@@ -308,8 +309,12 @@ func appendSessionIntegrationBridgeCompleted(
 		}
 	}
 	var runnerInput bytes.Buffer
+	definition, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := runnerbridge.Run(
-		context.Background(), request, manifest, resolvedVendorToken,
+		context.Background(), request, definition, resolvedVendorToken,
 		&runnerOutput, &runnerInput,
 		func(ctx context.Context, emission runnerbridge.Emission) error {
 			var mapping *sandboxstore.SessionMapping

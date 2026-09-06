@@ -219,6 +219,17 @@ The global lock file also intentionally remains after shutdown. The kernel
 lock is released when `sandboxd` exits; persistence of the file is part of the
 safe ownership check.
 
+## Offline Codex candidate check
+
+`hgwctl codex check -config FILE` validates a closed local candidate and
+reports the remaining execution blockers. It does not start Codex, load Core
+state or require a stopped daemon. Metadata inspection is opt-in with
+`-inspect`; auth-file bytes are never read. Valid configuration exits **3**,
+not 0, because there is no approved executable Codex target. See the
+[candidate preflight guide](codex-candidate-preflight.md) for the example,
+file permissions, exact schema, exit codes and evidence limits. Do not pass
+the candidate file to `sandboxd` or treat its digest as a revision pin.
+
 ## Offline session status and reset
 
 `hgwctl` is a local operator tool, not a message or sandbox control surface.
@@ -323,6 +334,63 @@ Do not delete, edit, or relabel the rejected evidence. Preserve both databases,
 prove all old runtime authority quiescent, and use a separately reviewed cold
 migration or a genuinely new disposable lineage. `hgwctl` intentionally cannot
 perform this migration; it accepts only an already-current exact ledger.
+
+## Optional v3 no-state mock
+
+The existing example and default mock image keep their resumable v1 behavior.
+For a fresh no-state mock experiment, use
+`config/sandboxd.v3-none.example.json` and build the fixed token-free artifact
+with `make mock-new-only-image`. This is an operator build action with the same
+base-image acquisition constraints as the normal mock build; no target can
+select a build argument, session policy or image from a message.
+
+Follow the earlier image publication/digest and dedicated-user setup steps.
+Replace the example's placeholder image with the new-only artifact's verified
+repository digest, choose a fresh TargetRevision, and set the exact same
+target ID/revision in the local agentd Binding. Do not reuse the old revision
+or its frozen binding authority. Do not overwrite a live local configuration
+or database to try this example.
+
+V3 requires an explicit `runner_states` array, which is empty in this example.
+`runner_state: {"kind":"none"}` means no per-target state leaf or `/state`
+mount. The private state namespace root may still be created; the persistent
+workspace and its writer lock are unchanged. Each Run is new-only, with no
+successor SessionRef. The ordinary mock image returns a token and therefore
+fails closed under this manifest; use the new-only artifact.
+
+V3 can also hold legacy v1 targets or v2 persistent mock targets. Persistent
+state still needs an approved, historically exclusive ref/directory. Changing
+the manifest schema changes its hash domain: use a new revision and unclaimed
+persistent state; never relabel old ownership.
+
+This increment has local config/store/controller, fake-CLI mount and real
+mock-process tests. It has not been deployed or observed in live Docker.
+Neither v3 nor this example enables Codex, credentials, network or Discord.
+
+## Sandbox schema-v9 state kind and v8 terminal publication
+
+Stop old sandboxd binaries before opening the sandbox database with this
+version. The current schema is v9; Core remains at v7. V9 adds explicit
+immutable Runner-state kind, preserving existing owners as persistent.
+Every historical v6–v8 revision must already have its owner before v9 DDL.
+Missing ownership returns `ErrRunnerStateOwnershipUnknown`; it never becomes
+`none`. Reopening v9 also rejects contradictory ownership/session evidence.
+Older cold-migration and session-lifecycle refusal gates still apply.
+
+V8 adds a private staging table to an eligible v7 database without
+rewriting its public Run/event history; earlier migration refusal gates still
+apply. Do not run an older sandbox binary against a v9 database or remove
+migrations, columns, ownership or staged evidence to force a downgrade.
+
+New controller outcomes remain unpublished while cleanup is unresolved. Status
+continues to show the last public nonterminal state, no terminal reply or
+successor session is available, and the execution lane stays closed. This is
+intentional, not permission to retry the task in a new Run. Retain the database
+and runtime evidence; the existing reconciliation loop retries cleanup and
+publishes the saved outcome once proof succeeds. Restart does not re-execute
+the saved task. Never manually delete a staged candidate, runtime intent, or
+writer lock to unblock execution. Historical v7 terminal results remain
+visible, including any legacy cleanup debt; migration is not cleanup proof.
 
 ## Uncertain-create recovery
 

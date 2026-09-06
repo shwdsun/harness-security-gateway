@@ -96,10 +96,11 @@ func controllerRequest(runID string, manifest targetmanifest.Manifest, text stri
 }
 
 func controllerStateOwnership(
-	manifest targetmanifest.Manifest,
-) (string, string, bool, error) {
+	manifest targetmanifest.Definition,
+) (sandboxstore.RunnerStateOwnership, error) {
 	fingerprint, err := manifest.Fingerprint()
-	return manifest.StateRef, fingerprint, true, err
+	ref, _ := manifest.RunnerState().PersistentRef()
+	return sandboxstore.RunnerStateOwnership{Kind: manifest.RunnerState().Kind(), Ref: ref, PathDigest: fingerprint, PathAbsent: true}, err
 }
 
 type testDependencies struct {
@@ -124,9 +125,9 @@ func registerTestStart(
 	return dependencies.store.RegisterStart(
 		ctx, request, resolvedRevision, workspaceID, writable,
 		sandboxstore.SessionPolicy{
-			Mode:          entry.Manifest.SessionMode,
-			MaxAgeSeconds: entry.Manifest.Limits.MaxSessionAgeSeconds,
-			MaxTurns:      int64(entry.Manifest.Limits.MaxSessionTurns),
+			Mode:          entry.Manifest.Common().SessionMode,
+			MaxAgeSeconds: entry.Manifest.Common().Limits.MaxSessionAgeSeconds,
+			MaxTurns:      int64(entry.Manifest.Common().Limits.MaxSessionTurns),
 		},
 	)
 }
@@ -203,8 +204,8 @@ type fakeRuntime struct {
 	calls   []string
 
 	managedFn func(context.Context) ([]string, error)
-	createFn  func(context.Context, string, targetmanifest.Manifest) (string, error)
-	lookupFn  func(context.Context, string, targetmanifest.Manifest) (string, bool, error)
+	createFn  func(context.Context, string, targetmanifest.Definition) (string, error)
+	lookupFn  func(context.Context, string, targetmanifest.Definition) (string, bool, error)
 	attachFn  func(context.Context, string) (Process, error)
 	inspectFn func(context.Context, string) (dockerruntime.Inspection, error)
 	removeFn  func(context.Context, string) error
@@ -240,7 +241,7 @@ func newFakeRuntime() *fakeRuntime {
 	}
 }
 
-func (r *fakeRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (string, error) {
+func (r *fakeRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error) {
 	r.record("create:" + runID)
 	if r.createFn != nil {
 		return r.createFn(ctx, runID, manifest)
@@ -259,7 +260,7 @@ func (r *fakeRuntime) Create(ctx context.Context, runID string, manifest targetm
 func (r *fakeRuntime) LookupIntent(
 	ctx context.Context,
 	runID string,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) (string, bool, error) {
 	r.record("lookup:" + runID)
 	if r.lookupFn != nil {
@@ -443,7 +444,7 @@ func (w *trackingWriteCloser) snapshot() ([]byte, bool) {
 func completeBridge(
 	ctx context.Context,
 	request executionwire.StartRunRequest,
-	_ targetmanifest.Manifest,
+	_ targetmanifest.Definition,
 	_ *string,
 	_ io.Reader,
 	_ io.Writer,

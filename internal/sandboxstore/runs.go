@@ -43,7 +43,8 @@ r.run_id,
 	r.created_at_unix_ms,
 	r.updated_at_unix_ms,
 	r.terminal_at_unix_ms,
-	EXISTS(SELECT 1 FROM workspace_locks wl WHERE wl.run_id = r.run_id)`
+	EXISTS(SELECT 1 FROM workspace_locks wl WHERE wl.run_id = r.run_id),
+	EXISTS(SELECT 1 FROM staged_terminals st WHERE st.run_id = r.run_id)`
 
 // RegisterStart durably registers a StartRun and, for writable targets,
 // acquires the workspace writer lock in the same transaction. Read-only Runs
@@ -142,8 +143,12 @@ func (s *Store) registerStartWithClock(
 	case !errors.Is(getErr, ErrNotFound):
 		return Run{}, false, getErr
 	}
-	if err := requireTargetRevision(ctx, tx, request.TargetID, resolvedRevision); err != nil {
+	stateKind, err := requireTargetRevision(ctx, tx, request.TargetID, resolvedRevision)
+	if err != nil {
 		return Run{}, false, err
+	}
+	if stateKind == targetmanifest.RunnerStateNone && sessionPolicy.Mode != targetmanifest.SessionNewOnly {
+		return Run{}, false, fmt.Errorf("%w: no-state target requires new_only", ErrInvalidArgument)
 	}
 	now := nowMillis()
 	if now <= 0 {
@@ -295,7 +300,8 @@ func (s *Store) BeginRuntimeIntent(ctx context.Context, runID, bootID string) (r
     WHERE run_id = ?
       AND runtime_intent_pending = 0
       AND runtime_ref IS NULL
-      AND state = 'accepted'`,
+      AND state = 'accepted'
+      AND NOT EXISTS (SELECT 1 FROM staged_terminals st WHERE st.run_id = runs.run_id)`,
 		bootID, time.Now().UTC().UnixMilli(), runID)
 	if err != nil {
 		return Run{}, false, fmt.Errorf("record runtime intent: %w", err)
@@ -313,7 +319,7 @@ func (s *Store) BeginRuntimeIntent(ctx context.Context, runID, bootID string) (r
 		created = true
 	case rows != 0:
 		return Run{}, false, errors.New("sandboxstore: runtime intent update affected multiple rows")
-	case isTerminal(run.State), run.RuntimeRef != nil:
+	case isTerminal(run.State), run.TerminalPending, run.RuntimeRef != nil:
 		return Run{}, false, ErrIllegalTransition
 	case run.RuntimeIntentPending && run.RuntimeIntentBootID != nil && *run.RuntimeIntentBootID == bootID:
 		// Idempotent replay of the same immutable Run intent in the same
@@ -407,6 +413,7 @@ func (s *Store) SetRuntimeRef(ctx context.Context, runID, runtimeRef string) (Ru
 		runtime_intent_boot_id = NULL, updated_at_unix_ms = ?
     WHERE run_id = ?
       AND state IN ('accepted','running','cancelling')
+      AND NOT EXISTS (SELECT 1 FROM staged_terminals st WHERE st.run_id = runs.run_id)
       AND (
           (runtime_ref IS NULL AND runtime_intent_pending = 1)
           OR (runtime_ref = ? AND runtime_intent_pending = 0)
@@ -468,6 +475,11 @@ func (s *Store) MarkCancelling(ctx context.Context, runID string) (Run, error) {
 	if err != nil {
 		return Run{}, err
 	}
+	// The first durable terminal decision wins. Cleanup may still be pending,
+	// but cancellation cannot replace that decision or mint another event.
+	if run.TerminalPending {
+		return Run{}, ErrIllegalTransition
+	}
 	switch run.State {
 	case executionwire.RunStateCancelling:
 	case executionwire.RunStateAccepted, executionwire.RunStateRunning:
@@ -489,10 +501,11 @@ func (s *Store) MarkCancelling(ctx context.Context, runID string) (Run, error) {
 	return run, nil
 }
 
-// ConfirmRuntimeStopped releases a workspace writer lock only after the Run
-// already has a terminal state and no Create intent remains pending. It is
-// idempotent. A pending intent must first cross ClearRuntimeIntent after exact
-// runtime cleanup or changed-boot absence; same-boot absence is insufficient.
+// ConfirmRuntimeStopped is a trusted cleanup-proof boundary. It publishes a
+// staged terminal and its successor session, clears runtime authority and
+// releases locks in one transaction. It also reconciles already-public legacy
+// terminals. It is idempotent after publication. A pending intent must first
+// cross ClearRuntimeIntent after exact cleanup or changed-boot absence.
 func (s *Store) ConfirmRuntimeStopped(ctx context.Context, runID string) (Run, error) {
 	if err := s.ready(ctx); err != nil {
 		return Run{}, err
@@ -509,10 +522,21 @@ func (s *Store) ConfirmRuntimeStopped(ctx context.Context, runID string) (Run, e
 	if err != nil {
 		return Run{}, err
 	}
-	if !isTerminal(run.State) {
+	if run.RuntimeIntentPending {
 		return Run{}, ErrIllegalTransition
 	}
-	if run.RuntimeIntentPending {
+	if run.TerminalPending {
+		candidate, err := stagedTerminal(ctx, tx, runID)
+		if err != nil {
+			return Run{}, err
+		}
+		if time.Now().UTC().UnixMilli() < candidate.stagedAt {
+			return Run{}, ErrIllegalTransition
+		}
+		if _, err := appendEventTx(ctx, tx, run, candidate.event, candidate.mapping); err != nil {
+			return Run{}, err
+		}
+	} else if !isTerminal(run.State) {
 		return Run{}, ErrIllegalTransition
 	}
 	if _, err := tx.ExecContext(ctx,
@@ -522,6 +546,9 @@ func (s *Store) ConfirmRuntimeStopped(ctx context.Context, runID string) (Run, e
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM workspace_locks WHERE run_id = ?`, runID); err != nil {
 		return Run{}, fmt.Errorf("release workspace lock: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM staged_terminals WHERE run_id = ?`, runID); err != nil {
+		return Run{}, fmt.Errorf("retire published terminal candidate: %w", err)
 	}
 	run, err = getRunQuerier(ctx, tx, runID)
 	if err != nil {
@@ -658,6 +685,7 @@ func scanRun(scanner rowScanner) (Run, error) {
 		&updatedMS,
 		&terminalMS,
 		&workspaceLockHeld,
+		&run.TerminalPending,
 	); err != nil {
 		return Run{}, err
 	}

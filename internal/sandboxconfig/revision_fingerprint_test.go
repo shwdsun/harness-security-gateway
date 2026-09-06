@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shwdsun/harness-security-gateway/internal/runnerwire"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
@@ -27,20 +26,14 @@ func cloneConfig(config Config) Config {
 	cloned := config
 	cloned.Workspaces = append([]StorageEntry(nil), config.Workspaces...)
 	cloned.RunnerStates = append([]StorageEntry(nil), config.RunnerStates...)
-	cloned.Targets = append([]targetmanifest.Manifest(nil), config.Targets...)
+	cloned.Targets = make([]targetmanifest.Definition, len(config.Targets))
 	for index := range cloned.Targets {
-		if config.Targets[index].Runner.RequiredFeatures != nil {
-			cloned.Targets[index].Runner.RequiredFeatures = make(
-				[]runnerwire.Feature,
-				len(config.Targets[index].Runner.RequiredFeatures),
-			)
-			copy(cloned.Targets[index].Runner.RequiredFeatures, config.Targets[index].Runner.RequiredFeatures)
-		}
+		cloned.Targets[index] = config.Targets[index].Clone()
 	}
 	return cloned
 }
 
-func manifestFingerprint(t *testing.T, manifest targetmanifest.Manifest) string {
+func manifestFingerprint(t *testing.T, manifest targetmanifest.Definition) string {
 	t.Helper()
 	fingerprint, err := manifest.Fingerprint()
 	if err != nil {
@@ -105,8 +98,7 @@ func TestRevisionSecurityFingerprintIsStableAndPinsResolvedMappings(t *testing.T
 		})
 	}
 
-	changedManifest := manifest
-	changedManifest.PolicyRef = "builtin.locked-down-v2"
+	changedManifest := editV1(t, manifest, func(m *targetmanifest.Manifest) { m.PolicyRef = "builtin.locked-down-v2" })
 	changedManifestFingerprint := manifestFingerprint(t, changedManifest)
 	got, err := config.RevisionSecurityFingerprint(changedManifest, changedManifestFingerprint)
 	if err != nil {
@@ -121,47 +113,50 @@ func TestRunnerStateOwnershipPinsResolvedPathWithoutAdoptingIt(t *testing.T) {
 	config := loadedFingerprintConfig(t)
 	manifest := config.Targets[0]
 
-	stateRef, first, absent, err := config.RunnerStateOwnership(manifest)
+	initial, err := config.RunnerStateOwnership(manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stateRef != manifest.StateRef || len(first) != 64 || !absent {
+	stateRef, first, absent := initial.Ref, initial.PathDigest, initial.PathAbsent
+	if stateRef != persistentRef(t, manifest) || len(first) != 64 || !absent {
 		t.Fatalf("initial ownership = %q, %q, absent=%v", stateRef, first, absent)
 	}
-	statePath, ok := config.RunnerStatePath(manifest.StateRef)
+	statePath, ok := config.RunnerStatePath(persistentRef(t, manifest))
 	if !ok {
 		t.Fatal("configured runner state did not resolve")
 	}
 	if err := os.MkdirAll(statePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	_, second, absent, err := config.RunnerStateOwnership(manifest)
+	existing, err := config.RunnerStateOwnership(manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
+	second, absent := existing.PathDigest, existing.PathAbsent
 	if first != second || absent {
 		t.Fatalf("existing path ownership = %q, absent=%v; want %q, false", second, absent, first)
 	}
 
 	renamed := cloneConfig(config)
 	renamed.RunnerStates[0].Ref = "renamed-state-ref"
-	renamedManifest := manifest
-	renamedManifest.StateRef = renamed.RunnerStates[0].Ref
+	renamedManifest := editV1(t, manifest, func(m *targetmanifest.Manifest) { m.StateRef = renamed.RunnerStates[0].Ref })
 	renamed.Targets[0] = renamedManifest
-	renamedRef, renamedDigest, renamedAbsent, err := renamed.RunnerStateOwnership(renamedManifest)
+	renamedOwner, err := renamed.RunnerStateOwnership(renamedManifest)
 	if err != nil {
 		t.Fatal(err)
 	}
+	renamedRef, renamedDigest, renamedAbsent := renamedOwner.Ref, renamedOwner.PathDigest, renamedOwner.PathAbsent
 	if renamedRef == stateRef || renamedDigest != first || renamedAbsent {
 		t.Fatalf("renamed ownership = %q, %q, absent=%v", renamedRef, renamedDigest, renamedAbsent)
 	}
 
 	moved := cloneConfig(config)
 	moved.RunnerStates[0].Directory = "moved-state"
-	_, movedDigest, movedAbsent, err := moved.RunnerStateOwnership(manifest)
+	movedOwner, err := moved.RunnerStateOwnership(manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
+	movedDigest, movedAbsent := movedOwner.PathDigest, movedOwner.PathAbsent
 	if movedDigest == first || !movedAbsent {
 		t.Fatalf("moved ownership = %q, absent=%v", movedDigest, movedAbsent)
 	}
@@ -189,7 +184,7 @@ func TestRunnerStateOwnershipTreatsEveryExistingLeafShapeAsOwned(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := loadedFingerprintConfig(t)
 			manifest := config.Targets[0]
-			statePath, ok := config.RunnerStatePath(manifest.StateRef)
+			statePath, ok := config.RunnerStatePath(persistentRef(t, manifest))
 			if !ok {
 				t.Fatal("configured runner state did not resolve")
 			}
@@ -200,10 +195,11 @@ func TestRunnerStateOwnershipTreatsEveryExistingLeafShapeAsOwned(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, digest, absent, err := config.RunnerStateOwnership(manifest)
+			owner, err := config.RunnerStateOwnership(manifest)
 			if err != nil {
 				t.Fatal(err)
 			}
+			digest, absent := owner.PathDigest, owner.PathAbsent
 			if len(digest) != 64 || absent {
 				t.Fatalf("ownership digest = %q, absent=%v; want existing", digest, absent)
 			}
@@ -222,8 +218,8 @@ func TestRunnerStatePathFingerprintIsLengthFramed(t *testing.T) {
 func TestRunnerStateOwnershipRejectsUnknownStateRef(t *testing.T) {
 	config := loadedFingerprintConfig(t)
 	manifest := config.Targets[0]
-	manifest.StateRef = "missing-state"
-	if _, _, _, err := config.RunnerStateOwnership(manifest); !errors.Is(err, ErrInvalid) {
+	manifest = editV1(t, manifest, func(m *targetmanifest.Manifest) { m.StateRef = "missing-state" })
+	if _, err := config.RunnerStateOwnership(manifest); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("unknown state ref error = %v, want ErrInvalid", err)
 	}
 }
@@ -279,11 +275,12 @@ func TestRevisionSecurityFingerprintIgnoresUnreferencedConfigOrdering(t *testing
 
 	config.Workspaces = append(config.Workspaces, StorageEntry{Ref: "project-other", Directory: "project-other"})
 	config.RunnerStates = append(config.RunnerStates, StorageEntry{Ref: "other-state", Directory: "other-state"})
-	other := manifest
-	other.ID = "project-other"
-	other.Revision = "project-other-r1"
-	other.WorkspaceRef = "project-other"
-	other.StateRef = "other-state"
+	other := editV1(t, manifest, func(m *targetmanifest.Manifest) {
+		m.ID = "project-other"
+		m.Revision = "project-other-r1"
+		m.WorkspaceRef = "project-other"
+		m.StateRef = "other-state"
+	})
 	config.Targets = append(config.Targets, other)
 
 	first, err := config.RevisionSecurityFingerprint(manifest, fingerprint)
@@ -318,8 +315,7 @@ func TestRevisionSecurityFingerprintRejectsUnknownRefsAndBadManifestFingerprint(
 		{"runner state", func(value *targetmanifest.Manifest) { value.StateRef = "missing-state" }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			changed := manifest
-			test.change(&changed)
+			changed := editV1(t, manifest, test.change)
 			_, err := config.RevisionSecurityFingerprint(changed, manifestFingerprint(t, changed))
 			if !errors.Is(err, ErrInvalid) {
 				t.Fatalf("error = %v, want ErrInvalid", err)
@@ -332,4 +328,26 @@ func TestRevisionSecurityFingerprintRejectsUnknownRefsAndBadManifestFingerprint(
 			t.Fatalf("fingerprint %q error = %v, want ErrInvalid", fingerprint, err)
 		}
 	}
+}
+
+func editV1(t *testing.T, definition targetmanifest.Definition, edit func(*targetmanifest.Manifest)) targetmanifest.Definition {
+	t.Helper()
+	manifest, ok := definition.Manifest()
+	if !ok {
+		t.Fatal("expected v1 fixture")
+	}
+	edit(&manifest)
+	changed, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return changed
+}
+func persistentRef(t *testing.T, definition targetmanifest.Definition) string {
+	t.Helper()
+	ref, ok := definition.RunnerState().PersistentRef()
+	if !ok {
+		t.Fatal("expected persistent fixture")
+	}
+	return ref
 }

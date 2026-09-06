@@ -43,7 +43,7 @@ type resetOutput struct {
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "hgwctl: %v\n", err)
-		os.Exit(1)
+		os.Exit(commandExitCode(err))
 	}
 }
 
@@ -53,6 +53,9 @@ func run(ctx context.Context, arguments []string, output io.Writer) error {
 	}
 	if output == nil {
 		return errors.New("nil output")
+	}
+	if len(arguments) != 0 && arguments[0] == "codex" {
+		return runCodex(arguments, output)
 	}
 	command, err := parseCommand(arguments)
 	if err != nil {

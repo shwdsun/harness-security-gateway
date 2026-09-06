@@ -36,6 +36,7 @@ func (s *Store) ResolveSessionForRun(
         JOIN runs AS r ON r.run_id = u.run_id
         WHERE s.session_ref = ? AND u.run_id = ?
           AND r.state = 'accepted'
+          AND NOT EXISTS (SELECT 1 FROM staged_terminals st WHERE st.run_id = r.run_id)
           AND r.session_mode = 'opaque_resume'
           AND r.requested_session_ref = s.session_ref
           AND s.target_id = ? AND s.target_revision = ?

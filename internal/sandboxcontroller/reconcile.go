@@ -75,12 +75,12 @@ func (c *Controller) reconcileDesired(
 		run = latest
 		if run.RuntimeRef != nil || run.RuntimeIntentPending ||
 			(run.State != executionwire.RunStateAccepted && run.State != executionwire.RunStateCancelling &&
-				!terminalState(run.State)) {
+				!terminalDecided(run)) {
 			certainNoRuntime = false
 		}
 	}
 	if run.RuntimeRef != nil || run.RuntimeIntentPending {
-		if !terminalState(run.State) {
+		if !terminalDecided(run) {
 			terminalRun, err := c.commitReconciledTerminal(ctx, run.RunID, spec)
 			if err != nil {
 				return err
@@ -126,12 +126,12 @@ func (c *Controller) reconcileDesired(
 }
 
 func (c *Controller) reconcileRun(ctx context.Context, run sandboxstore.Run) error {
-	if terminalState(run.State) {
+	if terminalDecided(run) {
 		if run.RuntimeRef != nil {
 			if err := c.cleanupRuntimeContext(ctx, *run.RuntimeRef); err != nil {
 				return err
 			}
-		} else if run.WorkspaceLockHeld || run.RuntimeIntentPending {
+		} else if run.WorkspaceLockHeld || run.RuntimeIntentPending || run.TerminalPending {
 			// A crash can occur after Docker accepted Create but before
 			// SetRuntimeRef committed. Only identity-verified LookupIntent plus the
 			// boot epoch may prove it gone; reconciliation never issues Create.
@@ -235,7 +235,7 @@ func (c *Controller) recoverThenTerminal(ctx context.Context, run sandboxstore.R
 func (c *Controller) cleanupNoRefIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	if run.RuntimeIntentPending {
 		return c.reconcilePendingIntent(ctx, run, manifest)
@@ -251,7 +251,7 @@ func (c *Controller) cleanupNoRefIntent(
 func (c *Controller) reconcilePendingIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	if err := hostepoch.Validate(c.bootID); err != nil {
 		return errors.New("sandboxcontroller: current host boot identifier is invalid")
@@ -322,7 +322,7 @@ func (c *Controller) clearIntentAfterKnownCleanup(ctx context.Context, runID, re
 func (c *Controller) lookupAndCleanupIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	ref, found, lookupErr := c.runtime.LookupIntent(ctx, run.RunID, manifest)
 	if lookupErr != nil {
@@ -347,16 +347,16 @@ func (c *Controller) finalizeReconciled(ctx context.Context, runID string, propo
 	return c.confirmStoppedContext(ctx, runID)
 }
 
-func (c *Controller) manifestForRun(run sandboxstore.Run) (targetmanifest.Manifest, error) {
+func (c *Controller) manifestForRun(run sandboxstore.Run) (targetmanifest.Definition, error) {
 	entry, err := c.registry.Resolve(run.TargetID, run.TargetRevision)
 	if err != nil {
-		return targetmanifest.Manifest{}, fmt.Errorf("sandboxcontroller: resolve runtime intent: %w", err)
+		return targetmanifest.Definition{}, fmt.Errorf("sandboxcontroller: resolve runtime intent: %w", err)
 	}
-	if entry.Manifest.ID != run.TargetID || entry.Manifest.Revision != run.TargetRevision {
-		return targetmanifest.Manifest{}, errors.New("sandboxcontroller: registry returned mismatched runtime intent")
+	if entry.Manifest.ID() != run.TargetID || entry.Manifest.Revision() != run.TargetRevision {
+		return targetmanifest.Definition{}, errors.New("sandboxcontroller: registry returned mismatched runtime intent")
 	}
 	if err := entry.Manifest.Validate(); err != nil {
-		return targetmanifest.Manifest{}, errors.New("sandboxcontroller: registry returned invalid runtime intent")
+		return targetmanifest.Definition{}, errors.New("sandboxcontroller: registry returned invalid runtime intent")
 	}
 	return entry.Manifest, nil
 }

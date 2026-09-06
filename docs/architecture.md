@@ -190,6 +190,14 @@ idempotent; changing or reassigning either namespace fails closed, and removing
 a Target does not release its historical owner. An existing path without that
 exact durable owner is never adopted from current configuration.
 
+Explicit `sandboxd/v3` additionally admits versioned no-state mock targets.
+The immutable `Definition` carries the original v1 or v2 manifest through the
+same registry/service/controller/runtime, never through a v2-to-v1 projection.
+Sandbox schema v9 records a durable state kind: `none` has no ownership row,
+per-target state directory or mount; `persistent` keeps the v6 ownership rule.
+Workspace and Run lifetimes are unchanged. The shared private namespace root
+may exist even when no target owns persistent Runner state.
+
 A target-bearing schema-v1–v5 sandbox database cannot reconstruct this history
 and refuses migration before v6 DDL; it requires a reviewed cold/offline
 procedure. The ownership claim is one canonical lexical namespace within a
@@ -283,7 +291,7 @@ recreated by a host reboot.
   session deletion or replacement. It refuses legacy live/session-bearing
   state before DDL and retains only terminal no-session history for audit;
 - sandbox schema v6 makes TargetRevision and runner-state ownership append-only,
-  requires an exact owner join before `StartRun`, and grants a first owner only
+  requires an exact owner join for persistent `StartRun`, and grants a first owner only
   after the trusted local startup layer observed the exact path absent. The
   owner commits before the new private state directory is created;
 - sandbox schema v7 freezes target-authored session age/turn policy on each new
@@ -291,20 +299,35 @@ recreated by a host reboot.
   parent ref once, requires a successor on opaque-resume completion, and adds a
   second one-live-Run fence. Existing sessions or nonterminal pre-v7 Runs block
   migration before DDL because their lifecycle authority cannot be inferred;
+- sandbox schema v8 adds one immutable, bounded, private terminal candidate
+  per Run. It does not rewrite v7 public history or migration checksums. The
+  controller stages every new outcome without advancing public state/sequence,
+  disclosing output, or binding a successor session. After trusted cleanup,
+  `ConfirmRuntimeStopped` publishes the exact candidate and session mapping,
+  clears runtime authority, releases the writer lock, and retires the candidate
+  in one sandbox transaction. Core's terminal/outbox transaction follows on
+  observation; there is no cross-database transaction. A failed publication
+  rolls back all those sandbox changes. Restart preserves a saved candidate
+  rather than inferring a new interrupted result or executing the harness again;
+- sandbox schema v9 preserves all earlier migration strings and adds immutable
+  Runner-state kind. The pre-DDL gate refuses missing historical owners;
+  reopen refuses contradictory ownership/session evidence. SQL guards prevent
+  none targets from acquiring owners or resumable sessions, and none does not
+  bypass the workspace lock or post-cleanup publication;
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;
 - `agentd` reconciles durable running Runs before claiming newer queued work;
-- `sandboxd` has one global execution lane. In the implemented mock path, a
-  terminal result may become visible before container cleanup finishes, but any
-  durable runtime reference, pending intent, running/cancelling row, or
-  reconciliation-store read failure closes that lane before the next
-  Create/Attach. It reopens only after cleanup crosses the durable proof
-  boundary. Codex Profile v1 is stricter: its terminal output remains
-  provisional until outer-container quiescence and removal are proved. That
-  release gate is not implemented, so the profile cannot be enabled. It needs
-  a generic durable staged-terminal mechanism that withholds output until
-  cleanup proof, then atomically publishes the terminal state and releases
-  locks; a Codex-specific controller branch or canary alone is insufficient;
+- `sandboxd` has one global execution lane. A staged candidate, durable runtime
+  reference, pending intent, running/cancelling row, or reconciliation-store
+  read failure closes it before the next Create/Attach. It reopens only after
+  cleanup crosses the durable proof boundary. Candidates also prevent a new
+  Create intent, progress append, cancellation replacement, or session-token
+  resolution for that Run. No Codex-specific publication branch exists.
+  Controller/store fault tests prove this ordering with fake runtimes, not
+  actual container quiescence. Exact-image detached-descendant canaries remain
+  required before enabling Codex. Already-public legacy terminal history is
+  not retroactively withheld; the internal direct-terminal store API is
+  retained for legacy/offline callers but cannot bypass an existing candidate;
 - before its one allowed container-create call, `sandboxd` durably records a
   pending runtime intent together with the current host boot ID;
 - a successful create stores the exact runtime reference. A definitely
@@ -448,13 +471,22 @@ mechanism whose concrete local slot remains unresolved, mediated provider
 control traffic, no persistent Runner `/state`, an empty customization
 allow-set, and output release only after outer quiescence. The contract digest
 excludes the local slot ref, slot generation, resolved source identity, and
-token bytes. It is not yet the complete revision authority: a versioned target
-schema must first represent the closed `none` versus `persistent(ref)`
-Runner-state choice. A future sandboxd v3 resolver must then combine the
+token bytes. It is not yet the complete revision authority: the separate
+[TargetManifest v2](target-manifest.md) now represents the closed `none` versus
+`persistent(ref)` Runner-state choice and the explicit v3 local mock path
+integrates it under a new resolved fingerprint domain. Real provider profiles
+remain rejected. A future provider-specific resolver must combine the
 contract with resolved policy/auth/network content, any nontrivial skill
 content, and the complete local credential binding under a new fingerprint
-domain while preserving the legacy locked-down/three-none fingerprint. The
+domain while preserving the legacy and v2 mock fingerprints. The
 current runtime continues to reject the expressible Codex projection.
+
+The [offline candidate preflight](codex-candidate-preflight.md) implements only
+total matching and local configuration/metadata diagnostics. Its distinct
+candidate digest is deliberately not a revision-security pin; its local
+`hgwctl` report is always execution-blocked and is consumed by no daemon. It
+neither supplies missing executable mediation content nor grants a credential
+lease. This keeps diagnostic configuration separate from runtime admission.
 
 `codex-profile-v2.md` preserves that blocked authority envelope but composes
 one exact private-messaging instruction profile at Codex's documented

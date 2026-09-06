@@ -39,15 +39,14 @@ type Clock func() time.Time
 // RevisionPinFunc returns the durable security fingerprint for one already
 // validated manifest fingerprint. Consumers can bind local runtime and storage
 // authorities without making sandboxservice depend on their configuration.
-type RevisionPinFunc func(manifest targetmanifest.Manifest, manifestFingerprint string) (string, error)
+type RevisionPinFunc func(manifest targetmanifest.Definition, manifestFingerprint string) (string, error)
 
-// RunnerStateOwnershipFunc resolves one manifest's logical state ref to a
-// durable path fingerprint and reports whether the path was absent before
-// registration. It is required because a logical ref alone cannot prove the
-// identity of concrete runner-state storage.
+// RunnerStateOwnershipFunc reports explicit none, or resolves persistent state
+// to a durable path fingerprint and a pre-registration absence observation.
+// It is required because a logical ref alone cannot prove storage identity.
 type RunnerStateOwnershipFunc func(
-	manifest targetmanifest.Manifest,
-) (stateRef string, pathFingerprint string, pathAbsent bool, err error)
+	manifest targetmanifest.Definition,
+) (sandboxstore.RunnerStateOwnership, error)
 
 type Option func(*options) error
 
@@ -123,7 +122,7 @@ func New(
 	}
 	config := options{
 		clock: func() time.Time { return time.Now().UTC() },
-		revisionPin: func(_ targetmanifest.Manifest, manifestFingerprint string) (string, error) {
+		revisionPin: func(_ targetmanifest.Definition, manifestFingerprint string) (string, error) {
 			return manifestFingerprint, nil
 		},
 	}
@@ -153,15 +152,11 @@ func New(
 		if fingerprint != entry.Fingerprint {
 			return nil, fmt.Errorf("sandboxservice: target entry %d fingerprint is inconsistent", index)
 		}
-		key := targetKey{id: entry.Manifest.ID, revision: entry.Manifest.Revision}
+		key := targetKey{id: entry.Manifest.ID(), revision: entry.Manifest.Revision()}
 		if _, exists := registered[key]; exists {
 			return nil, fmt.Errorf("sandboxservice: duplicate target revision in entry %d", index)
 		}
-		manifestForPin := entry.Manifest
-		manifestForPin.Runner.RequiredFeatures = append(
-			manifestForPin.Runner.RequiredFeatures[:0:0],
-			entry.Manifest.Runner.RequiredFeatures...,
-		)
+		manifestForPin := entry.Manifest.Clone()
 		revisionPin, err := config.revisionPin(manifestForPin, fingerprint)
 		if err != nil {
 			return nil, fmt.Errorf("sandboxservice: compute revision pin for target entry %d: %w", index, err)
@@ -169,15 +164,22 @@ func New(
 		if err := validateRevisionPin(revisionPin); err != nil {
 			return nil, fmt.Errorf("sandboxservice: target entry %d revision pin: %w", index, err)
 		}
-		stateRef, statePathDigest, statePathAbsent, err := runnerStateOwnership(manifestForPin)
+		ownership, err := runnerStateOwnership(manifestForPin)
 		if err != nil {
 			return nil, fmt.Errorf("sandboxservice: resolve runner-state ownership for target entry %d: %w", index, err)
 		}
-		if stateRef != entry.Manifest.StateRef {
-			return nil, fmt.Errorf("sandboxservice: target entry %d runner-state ref is inconsistent", index)
+		if ownership.Kind != entry.Manifest.RunnerState().Kind() {
+			return nil, fmt.Errorf("sandboxservice: target entry %d runner-state kind is inconsistent", index)
 		}
-		if err := validateRevisionPin(statePathDigest); err != nil {
-			return nil, fmt.Errorf("sandboxservice: target entry %d runner-state path digest: %w", index, err)
+		if ref, persistent := entry.Manifest.RunnerState().PersistentRef(); persistent {
+			if ref != ownership.Ref {
+				return nil, fmt.Errorf("sandboxservice: target entry %d runner-state ref is inconsistent", index)
+			}
+			if err := validateRevisionPin(ownership.PathDigest); err != nil {
+				return nil, fmt.Errorf("sandboxservice: target entry %d runner-state path digest: %w", index, err)
+			}
+		} else if ownership.Ref != "" || ownership.PathDigest != "" || ownership.PathAbsent {
+			return nil, fmt.Errorf("sandboxservice: target entry %d none carries ownership evidence", index)
 		}
 		frozen := registeredTarget{
 			manifestFingerprint: fingerprint,
@@ -188,9 +190,10 @@ func New(
 			TargetID:              key.id,
 			TargetRevision:        key.revision,
 			RevisionPin:           frozen.revisionPin,
-			RunnerStateRef:        stateRef,
-			RunnerStatePathDigest: statePathDigest,
-			StatePathAbsent:       statePathAbsent,
+			RunnerStateKind:       ownership.Kind,
+			RunnerStateRef:        ownership.Ref,
+			RunnerStatePathDigest: ownership.PathDigest,
+			StatePathAbsent:       ownership.PathAbsent,
 		})
 	}
 	if err := store.RegisterTargetAuthorities(ctx, registrations); err != nil {
@@ -225,24 +228,24 @@ func (s *Service) StartRun(ctx context.Context, request executionwire.StartRunRe
 			errors.New("StartRun deadline has expired"),
 		)
 	}
-	if request.SessionRef != nil && entry.Manifest.SessionMode != targetmanifest.SessionOpaqueResume {
+	if request.SessionRef != nil && entry.Manifest.Common().SessionMode != targetmanifest.SessionOpaqueResume {
 		return executionwire.RunStatus{}, serviceError(
 			executionhttp.ErrorInvalidSession,
 			errors.New("target does not permit session resume"),
 		)
 	}
 
-	writable := entry.Manifest.WorkspaceMode == targetmanifest.WorkspaceReadWrite
+	writable := entry.Manifest.Common().WorkspaceMode == targetmanifest.WorkspaceReadWrite
 	run, _, err := s.store.RegisterStart(
 		ctx,
 		request,
-		entry.Manifest.Revision,
-		entry.Manifest.WorkspaceRef,
+		entry.Manifest.Revision(),
+		entry.Manifest.Common().WorkspaceRef,
 		writable,
 		sandboxstore.SessionPolicy{
-			Mode:          entry.Manifest.SessionMode,
-			MaxAgeSeconds: entry.Manifest.Limits.MaxSessionAgeSeconds,
-			MaxTurns:      int64(entry.Manifest.Limits.MaxSessionTurns),
+			Mode:          entry.Manifest.Common().SessionMode,
+			MaxAgeSeconds: entry.Manifest.Common().Limits.MaxSessionAgeSeconds,
+			MaxTurns:      int64(entry.Manifest.Common().Limits.MaxSessionTurns),
 		},
 	)
 	if err != nil {
@@ -302,10 +305,10 @@ func (s *Service) verifyResolved(request executionwire.StartRunRequest, entry ta
 	if computedFingerprint != entry.Fingerprint {
 		return errors.New("registry returned an inconsistent target fingerprint")
 	}
-	if entry.Manifest.ID != request.TargetID || entry.Manifest.Revision != request.ExpectedRevision {
+	if entry.Manifest.ID() != request.TargetID || entry.Manifest.Revision() != request.ExpectedRevision {
 		return errors.New("registry returned a mismatched target")
 	}
-	key := targetKey{id: entry.Manifest.ID, revision: entry.Manifest.Revision}
+	key := targetKey{id: entry.Manifest.ID(), revision: entry.Manifest.Revision()}
 	registered, exists := s.registered[key]
 	if !exists || registered.manifestFingerprint != entry.Fingerprint {
 		return errors.New("resolved target revision was not initialized")

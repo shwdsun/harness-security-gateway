@@ -3,9 +3,11 @@ package dockerruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/shwdsun/harness-security-gateway/internal/strictjson"
+	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
 const inspectFormat = `{"id":{{json .Id}},"name":{{json .Name}},"image":{{json .Config.Image}},"state":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},"labels":{{json .Config.Labels}}}`
@@ -235,6 +237,16 @@ func validateSpecStorage(spec targetSpec) error {
 	}
 	if err := validateDirectory(spec.workspacePath, spec.workspaceRoot); err != nil {
 		return err
+	}
+	switch spec.stateKind {
+	case targetmanifest.RunnerStateNone:
+		if spec.statePath != "" || spec.stateRoot != "" {
+			return fmt.Errorf("%w: none carries runner-state storage", ErrInvalidStorage)
+		}
+		return nil
+	case targetmanifest.RunnerStatePersistent:
+	default:
+		return fmt.Errorf("%w: unknown runner-state kind", ErrInvalidStorage)
 	}
 	if err := validateDirectory(spec.stateRoot, spec.stateRoot); err != nil {
 		return err

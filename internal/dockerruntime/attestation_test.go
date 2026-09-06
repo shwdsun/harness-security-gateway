@@ -49,7 +49,7 @@ func TestCreateRefusesDaemonWithoutRootlessAttestation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+	_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if !errors.Is(err, ErrRootlessRequired) {
 		t.Fatalf("Create() error = %v, want ErrRootlessRequired", err)
 	}
@@ -78,10 +78,10 @@ func TestCreateReattestsRootlessDaemonEveryTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.Create(context.Background(), "run-1", fixture.manifest); err != nil {
+	if _, err := runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.Create(context.Background(), "run-2", fixture.manifest); !errors.Is(err, ErrRootlessRequired) {
+	if _, err := runtime.Create(context.Background(), "run-2", runtimeDefinition(t, fixture.manifest)); !errors.Is(err, ErrRootlessRequired) {
 		t.Fatalf("second Create() error = %v, want ErrRootlessRequired", err)
 	}
 	calls := fixture.calls(t)
@@ -103,7 +103,7 @@ func TestRootlessAttestationCommandFailureIsSanitized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+	_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if !errors.Is(err, ErrCommandFailed) {
 		t.Fatalf("Create() error = %v, want ErrCommandFailed", err)
 	}

@@ -180,7 +180,7 @@ func (c *Controller) Offer(ctx context.Context, request executionwire.StartRunRe
 	if run.Fingerprint != fingerprint {
 		return ErrOfferConflict
 	}
-	if run.State != executionwire.RunStateAccepted {
+	if run.State != executionwire.RunStateAccepted || run.TerminalPending {
 		return ErrNotAccepted
 	}
 
@@ -389,7 +389,7 @@ func (c *Controller) waitForRuntimeQuiescence(ctx context.Context) bool {
 		blocked := err != nil
 		if err == nil {
 			for _, run := range runs {
-				if run.RuntimeRef != nil || run.RuntimeIntentPending ||
+				if run.RuntimeRef != nil || run.RuntimeIntentPending || run.TerminalPending ||
 					run.State == executionwire.RunStateRunning ||
 					run.State == executionwire.RunStateCancelling {
 					blocked = true

@@ -20,6 +20,10 @@ const (
 	progressText   = "Mock runner processing input"
 )
 
+// Fixed at artifact build time (-X), never read from argv, env or Run input.
+// The default artifact retains its original opaque-resume behavior.
+var fixedSessionPolicy = "opaque_resume"
+
 func main() {
 	if err := run(os.Stdin, os.Stdout); err != nil {
 		// Never copy untrusted protocol content or raw input to diagnostics.
@@ -30,6 +34,13 @@ func main() {
 }
 
 func run(input io.Reader, output io.Writer) error {
+	return runProfile(input, output, fixedSessionPolicy)
+}
+
+func runProfile(input io.Reader, output io.Writer, policy string) error {
+	if policy != "opaque_resume" && policy != "new_only" {
+		return errors.New("mock-runner: unsupported fixed session policy")
+	}
 	if input == nil {
 		return errors.New("mock-runner: nil input")
 	}
@@ -50,6 +61,9 @@ func run(input io.Reader, output io.Writer) error {
 			runnerwire.FeatureProgressText,
 		},
 	}
+	if policy == "new_only" {
+		ready.Features = []runnerwire.Feature{runnerwire.FeatureProgressText}
+	}
 	if err := encoder.Encode(ready); err != nil {
 		return fmt.Errorf("emit runner.ready: %w", err)
 	}
@@ -61,6 +75,21 @@ func run(input io.Reader, output io.Writer) error {
 	start, ok := controllerFrame.(*runnerwire.RunStart)
 	if !ok {
 		return errors.New("receive run.start: unexpected controller frame")
+	}
+	if policy == "new_only" && start.Session.Mode != runnerwire.SessionModeNew {
+		if err := encoder.Encode(&runnerwire.RunStarted{
+			Protocol: runnerwire.ProtocolV1, Type: runnerwire.TypeRunStarted, RunID: start.RunID, Seq: 1,
+		}); err != nil {
+			return err
+		}
+		return encoder.Encode(&runnerwire.RunFailed{
+			Protocol: runnerwire.ProtocolV1, Type: runnerwire.TypeRunFailed, RunID: start.RunID, Seq: 2,
+			Error: runnerwire.Failure{Code: runnerwire.ErrorCodePolicyDenied, Message: "fixed new-only profile cannot resume"},
+		})
+	}
+	token := ""
+	if policy == "opaque_resume" {
+		token = sessionToken(start)
 	}
 
 	events := []runnerwire.RunEvent{
@@ -87,7 +116,7 @@ func run(input io.Reader, output io.Writer) error {
 				MediaType: runnerwire.MediaTypeTextPlain,
 				Text:      deterministicOutput(start.Input.Text),
 			},
-			SessionToken: sessionToken(start),
+			SessionToken: token,
 		},
 	}
 

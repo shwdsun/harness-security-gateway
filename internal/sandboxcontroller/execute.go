@@ -29,7 +29,7 @@ func (c *Controller) execute(
 		// durable request. Leave it accepted so the exact request can be re-offered.
 		return
 	}
-	if terminalState(run.State) {
+	if terminalDecided(run) {
 		return
 	}
 	if run.State == executionwire.RunStateCancelling {
@@ -42,13 +42,13 @@ func (c *Controller) execute(
 	}
 
 	entry, err := c.registry.Resolve(request.TargetID, request.ExpectedRevision)
-	if err != nil || entry.Manifest.ID != request.TargetID || entry.Manifest.Revision != request.ExpectedRevision {
+	if err != nil || entry.Manifest.ID() != request.TargetID || entry.Manifest.Revision() != request.ExpectedRevision {
 		c.finishWithoutRuntime(request, c.classifyFailure(request, err))
 		return
 	}
 	executionCtx, executionCancel := context.WithTimeout(
 		runCtx,
-		time.Duration(entry.Manifest.Limits.TimeoutSeconds)*time.Second,
+		time.Duration(entry.Manifest.Common().Limits.TimeoutSeconds)*time.Second,
 	)
 	defer executionCancel()
 
@@ -219,7 +219,7 @@ func (c *Controller) execute(
 	}
 
 	current, getErr := c.getRunControl(request.RunID)
-	if getErr == nil && !terminalState(current.State) {
+	if getErr == nil && !terminalDecided(current) {
 		cause := bridgeErr
 		if diagnosticErr != nil {
 			cause = diagnosticErr
@@ -246,7 +246,7 @@ func (c *Controller) execute(
 		return
 	}
 	current, err = c.getRunControl(request.RunID)
-	if err == nil && terminalState(current.State) {
+	if err == nil && terminalDecided(current) {
 		_ = c.confirmStopped(request.RunID)
 	}
 }
@@ -269,7 +269,13 @@ func (c *Controller) eventSink() runnerbridge.Sink {
 				VendorToken: *emission.VendorSessionToken,
 			}
 		}
-		_, err := c.store.AppendEvent(ctx, emission.Event, mapping)
+		var err error
+		switch emission.Event.Type {
+		case executionwire.RunEventStarted, executionwire.RunEventProgress:
+			_, err = c.store.AppendEvent(ctx, emission.Event, mapping)
+		default:
+			_, err = c.store.StageTerminal(ctx, emission.Event, mapping)
+		}
 		return err
 	}
 }
@@ -283,10 +289,9 @@ func (c *Controller) finishWithoutRuntime(request executionwire.StartRunRequest,
 		return
 	}
 	if run.RuntimeRef != nil || run.RuntimeIntentPending {
-		// Durable runtime authority keeps a terminal row discoverable. Commit
-		// the caller-visible outcome first, then attempt cleanup; any lookup or
-		// runtime failure retains the ref/intent and workspace lock for retry.
-		if !terminalState(run.State) {
+		// Freeze the outcome privately before cleanup. A lookup/runtime failure
+		// retains the candidate, ref/intent and workspace lock for retry.
+		if !terminalDecided(run) {
 			run, err = c.commitTerminal(ctx, request.RunID, spec)
 			if err != nil {
 				return
@@ -309,15 +314,14 @@ func (c *Controller) finishWithoutRuntime(request executionwire.StartRunRequest,
 		_ = c.confirmStoppedContext(ctx, request.RunID)
 		return
 	}
-	if terminalState(run.State) {
+	if terminalDecided(run) {
 		c.clearDesiredTerminal(request.RunID)
 		return
 	}
 
-	// A legacy row with neither a durable ref nor an intent marker is not
-	// guaranteed to remain discoverable after terminalization (especially for
-	// a read-only workspace), so close its identity-verified lookup window
-	// before committing the terminal event.
+	// Without a ref or intent, absence still needs an identity-verified lookup
+	// unless this worker retained the stronger never-dispatched proof. Preserve
+	// that conservative order even though staging now keeps the row discoverable.
 	manifest, err := c.manifestForRun(run)
 	if err != nil {
 		return
@@ -357,7 +361,7 @@ func (c *Controller) finishCertainNoRuntime(
 	if err != nil || run.RuntimeRef != nil || run.RuntimeIntentPending {
 		return
 	}
-	if !terminalState(run.State) {
+	if !terminalDecided(run) {
 		if _, err := c.commitTerminal(ctx, request.RunID, spec); err != nil {
 			return
 		}
@@ -372,7 +376,7 @@ func (c *Controller) finishCertainNoRuntime(
 // LookupIntent boundary; it never dispatches Create again.
 func (c *Controller) finishCreateFailure(
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	intentCreated bool,
 	spec terminalSpec,
 	cause error,
@@ -386,7 +390,7 @@ func (c *Controller) finishCreateFailure(
 	}
 	if intentCreated && !errors.Is(cause, dockerruntime.ErrCreateUncertain) {
 		clearErr := c.clearCertainRuntimeIntent(ctx, request.RunID)
-		if !terminalState(run.State) {
+		if !terminalDecided(run) {
 			run, err = c.commitTerminal(ctx, request.RunID, spec)
 			if err != nil {
 				return
@@ -401,11 +405,10 @@ func (c *Controller) finishCreateFailure(
 		return
 	}
 
-	// Uncertain Create (including replay of an existing intent) becomes a
-	// closed terminal outcome immediately. RuntimeIntentPending is retained
-	// until boot-aware lookup proves cleanup, so both RW and RO rows stay in
-	// ListUnreconciled without blocking agentd on an Accepted run.
-	if !terminalState(run.State) {
+	// Uncertain Create freezes an interrupted candidate, not a public terminal.
+	// Both RW and RO rows retain authority and remain discoverable until the
+	// boot-aware lookup proves cleanup. Agentd must wait for that proof.
+	if !terminalDecided(run) {
 		run, err = c.commitTerminal(ctx, request.RunID, spec)
 		if err != nil {
 			return

@@ -29,7 +29,7 @@ func TestCreateUsesExactLockedDockerArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, err := runtime.Create(context.Background(), "run-1", fixture.manifest)
+	ref, err := runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestCreateUsesExactLockedDockerArguments(t *testing.T) {
 func TestCreateReadOnlyWorkspaceMount(t *testing.T) {
 	fixture := newFixture(t)
 	fixture.manifest.WorkspaceMode = targetmanifest.WorkspaceReadOnly
-	fixture.config.Targets[0] = fixture.manifest
+	fixture.config.Targets[0] = runtimeDefinition(t, fixture.manifest)
 	runtime, err := New(fixture.config)
 	if err != nil {
 		t.Fatal(err)
@@ -105,7 +105,7 @@ func TestCreateReadOnlyWorkspaceMount(t *testing.T) {
 	arguments := createArguments("safe-name", map[string]string{
 		labelManaged: "v1", labelRunID: "run", labelTargetID: fixture.manifest.ID,
 		labelTargetRevision: fixture.manifest.Revision, labelTargetFingerprint: spec.fingerprint,
-	}, spec, fixture.manifest)
+	}, spec, runtimeDefinition(t, fixture.manifest))
 	workspaceMount := "type=bind,src=" + fixture.workspaceDir + ",dst=/workspace,bind-propagation=rprivate,readonly"
 	if !containsAdjacent(arguments, "--mount", workspaceMount) {
 		t.Fatalf("missing read-only workspace mount in %q", arguments)
@@ -119,7 +119,7 @@ func TestCreateReadOnlyWorkspaceMount(t *testing.T) {
 func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 	t.Run("Codex V1 manifest projection remains disabled", func(t *testing.T) {
 		fixture := newFixture(t)
-		manifest := fixture.config.Targets[0]
+		manifest, _ := fixture.config.Targets[0].Manifest()
 		manifest.Runner.Family = codexprofile.RunnerFamilyV1
 		manifest.Runner.AdapterVersion = codexprofile.AdapterVersionV1
 		manifest.Runner.Protocol = codexprofile.RunnerProtocolV1
@@ -131,7 +131,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		manifest.SessionMode = targetmanifest.SessionMode(codexprofile.SessionModeV1)
 		manifest.Limits.MaxSessionAgeSeconds = 0
 		manifest.Limits.MaxSessionTurns = 0
-		fixture.config.Targets[0] = manifest
+		fixture.config.Targets[0] = runtimeDefinition(t, manifest)
 
 		_, err := New(fixture.config)
 		if !errors.Is(err, ErrUnsupportedProfile) {
@@ -144,7 +144,9 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 
 	t.Run("unsupported configured profile", func(t *testing.T) {
 		fixture := newFixture(t)
-		fixture.config.Targets[0].NetworkProfileRef = "network.internet"
+		manifest := fixture.manifest
+		manifest.NetworkProfileRef = "network.internet"
+		fixture.config.Targets[0] = runtimeDefinition(t, manifest)
 		_, err := New(fixture.config)
 		if !errors.Is(err, ErrUnsupportedProfile) {
 			t.Fatalf("got %v", err)
@@ -159,7 +161,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		}
 		manifest := fixture.manifest
 		manifest.AuthProfileRef = "auth.personal"
-		_, err = runtime.Create(context.Background(), "run-1", manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, manifest))
 		if !errors.Is(err, ErrUnsupportedProfile) {
 			t.Fatalf("got %v", err)
 		}
@@ -176,7 +178,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		}
 		manifest := fixture.manifest
 		manifest.Runner.Image = "registry.example/other@sha256:" + strings.Repeat("b", 64)
-		_, err = runtime.Create(context.Background(), "run-1", manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, manifest))
 		if !errors.Is(err, ErrTargetNotConfigured) {
 			t.Fatalf("got %v", err)
 		}
@@ -189,7 +191,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, runID := range []string{"bad/id", "bad\n--help", strings.Repeat("a", 65)} {
-			_, err := runtime.Create(context.Background(), runID, fixture.manifest)
+			_, err := runtime.Create(context.Background(), runID, runtimeDefinition(t, fixture.manifest))
 			if !errors.Is(err, ErrInvalidArgument) {
 				t.Fatalf("run ID %q: got %v", runID, err)
 			}
@@ -264,7 +266,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		if err := os.Symlink(realDirectory, fixture.workspaceDir); err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrInvalidStorage) {
 			t.Fatalf("got %v", err)
 		}
@@ -279,7 +281,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		if err := os.Chmod(fixture.stateDir, 0o777); err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrInvalidStorage) {
 			t.Fatalf("got %v", err)
 		}
@@ -294,7 +296,7 @@ func TestNewAndCreateRejectUnapprovedAuthority(t *testing.T) {
 		if err := os.Chmod(fixture.config.WorkspaceRoot, 0o777); err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrInvalidStorage) {
 			t.Fatalf("got %v", err)
 		}
@@ -313,7 +315,7 @@ func TestCreateIsIdempotentOnlyForExactManagedContainer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ref, err := runtime.Create(context.Background(), "run-1", fixture.manifest)
+		ref, err := runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -349,7 +351,7 @@ func TestCreateIsIdempotentOnlyForExactManagedContainer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrForeignContainer) {
 			t.Fatalf("got %v", err)
 		}
@@ -366,7 +368,7 @@ func TestCreateUncertainClassification(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "bad/name", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "bad/name", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrInvalidArgument) || errors.Is(err, ErrCreateUncertain) {
 			t.Fatalf("preflight error = %v", err)
 		}
@@ -382,7 +384,7 @@ func TestCreateUncertainClassification(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrRootlessRequired) || errors.Is(err, ErrCreateUncertain) {
 			t.Fatalf("attestation error = %v", err)
 		}
@@ -397,7 +399,7 @@ func TestCreateUncertainClassification(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrCommandFailed) || errors.Is(err, ErrCreateUncertain) {
 			t.Fatalf("start failure = %v", err)
 		}
@@ -418,7 +420,7 @@ func TestCreateUncertainClassification(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrCommandFailed) || !errors.Is(err, ErrCreateUncertain) {
 			t.Fatalf("completed failure classification = %v", err)
 		}
@@ -458,7 +460,7 @@ func TestCreateUncertainClassification(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrCreateUncertain) || !errors.Is(err, ErrInvalidResponse) {
 			t.Fatalf("malformed successful create = %v", err)
 		}
@@ -487,7 +489,7 @@ func cancelCreateAfterHelperStep(t *testing.T, runtime *Runtime, fixture testFix
 	ctx, cancel := context.WithCancel(context.Background())
 	result := make(chan error, 1)
 	go func() {
-		_, err := runtime.Create(ctx, "run-1", fixture.manifest)
+		_, err := runtime.Create(ctx, "run-1", runtimeDefinition(t, fixture.manifest))
 		result <- err
 	}()
 
@@ -542,7 +544,7 @@ func TestCommandOutputIsBoundedAndErrorsAreSanitized(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrOutputLimit) {
 			t.Fatalf("got %v", err)
 		}
@@ -564,7 +566,7 @@ func TestCommandOutputIsBoundedAndErrorsAreSanitized(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrOutputLimit) {
 			t.Fatalf("got %v", err)
 		}
@@ -584,7 +586,7 @@ func TestCommandOutputIsBoundedAndErrorsAreSanitized(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = runtime.Create(context.Background(), "run-1", fixture.manifest)
+		_, err = runtime.Create(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 		if !errors.Is(err, ErrCommandFailed) {
 			t.Fatalf("got %v", err)
 		}
@@ -746,7 +748,7 @@ func TestErrorsNeverEchoCallerValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	secret := "secret/host/path"
-	_, err = runtime.Create(context.Background(), secret, fixture.manifest)
+	_, err = runtime.Create(context.Background(), secret, runtimeDefinition(t, fixture.manifest))
 	if err == nil || strings.Contains(err.Error(), secret) {
 		t.Fatalf("unsafe error: %v", err)
 	}

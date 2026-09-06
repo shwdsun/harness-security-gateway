@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
 // RegisterTargetAuthorities atomically pins the complete configured target
@@ -55,6 +57,21 @@ func validateTargetAuthorityBatch(authorities []TargetAuthority) error {
 		if err := validateSHA256("revision pin", authority.RevisionPin); err != nil {
 			return fmt.Errorf("target authority %d: %w", index, err)
 		}
+		targetKey := authority.TargetID + "\x00" + authority.TargetRevision
+		if _, exists := targets[targetKey]; exists {
+			return ErrConflict
+		}
+		targets[targetKey] = struct{}{}
+		switch authority.RunnerStateKind {
+		case targetmanifest.RunnerStateNone:
+			if authority.RunnerStateRef != "" || authority.RunnerStatePathDigest != "" || authority.StatePathAbsent {
+				return fmt.Errorf("%w: none cannot carry runner-state ownership evidence", ErrInvalidArgument)
+			}
+			continue
+		case targetmanifest.RunnerStatePersistent:
+		default:
+			return fmt.Errorf("%w: runner-state kind must be explicit", ErrInvalidArgument)
+		}
 		if err := validateLogicalID("runner_state_ref", authority.RunnerStateRef, MaxWorkspaceIDBytes); err != nil {
 			return fmt.Errorf("target authority %d: %w", index, err)
 		}
@@ -65,17 +82,12 @@ func validateTargetAuthorityBatch(authorities []TargetAuthority) error {
 			return fmt.Errorf("target authority %d: %w", index, err)
 		}
 
-		targetKey := authority.TargetID + "\x00" + authority.TargetRevision
-		if _, exists := targets[targetKey]; exists {
-			return ErrConflict
-		}
 		if _, exists := stateRefs[authority.RunnerStateRef]; exists {
 			return ErrConflict
 		}
 		if _, exists := pathDigests[authority.RunnerStatePathDigest]; exists {
 			return ErrConflict
 		}
-		targets[targetKey] = struct{}{}
 		stateRefs[authority.RunnerStateRef] = struct{}{}
 		pathDigests[authority.RunnerStatePathDigest] = struct{}{}
 	}
@@ -98,20 +110,22 @@ func validateRunnerStateRef(value string) error {
 }
 
 func registerTargetAuthority(ctx context.Context, tx *sql.Tx, authority TargetAuthority) error {
-	var storedPin string
-	err := tx.QueryRowContext(ctx, `SELECT semantic_fingerprint
+	var storedPin, storedKind string
+	existingRevision := false
+	err := tx.QueryRowContext(ctx, `SELECT semantic_fingerprint, runner_state_kind
         FROM target_revisions WHERE target_id = ? AND revision = ?`,
-		authority.TargetID, authority.TargetRevision).Scan(&storedPin)
+		authority.TargetID, authority.TargetRevision).Scan(&storedPin, &storedKind)
 	switch {
 	case err == nil:
-		if storedPin != authority.RevisionPin {
+		existingRevision = true
+		if storedPin != authority.RevisionPin || storedKind != string(authority.RunnerStateKind) {
 			return ErrConflict
 		}
 	case errors.Is(err, sql.ErrNoRows):
 		if _, err := tx.ExecContext(ctx, `INSERT INTO target_revisions(
-            target_id, revision, semantic_fingerprint, registered_at_unix_ms
-        ) VALUES (?, ?, ?, ?)`, authority.TargetID, authority.TargetRevision,
-			authority.RevisionPin, time.Now().UTC().UnixMilli()); err != nil {
+            target_id, revision, semantic_fingerprint, registered_at_unix_ms, runner_state_kind
+        ) VALUES (?, ?, ?, ?, ?)`, authority.TargetID, authority.TargetRevision,
+			authority.RevisionPin, time.Now().UTC().UnixMilli(), authority.RunnerStateKind); err != nil {
 			return fmt.Errorf("register target revision: %w", err)
 		}
 	default:
@@ -124,12 +138,21 @@ func registerTargetAuthority(ctx context.Context, tx *sql.Tx, authority TargetAu
 		authority.TargetID, authority.TargetRevision).Scan(&storedRef, &storedDigest)
 	switch {
 	case err == nil:
+		if authority.RunnerStateKind != targetmanifest.RunnerStatePersistent {
+			return ErrConflict
+		}
 		if storedRef != authority.RunnerStateRef || storedDigest != authority.RunnerStatePathDigest {
 			return ErrConflict
 		}
 		return nil
 	case !errors.Is(err, sql.ErrNoRows):
 		return fmt.Errorf("query runner-state owner: %w", err)
+	}
+	if authority.RunnerStateKind == targetmanifest.RunnerStateNone {
+		return nil
+	}
+	if existingRevision {
+		return ErrRunnerStateOwnershipUnknown
 	}
 
 	var conflictingTargetID string
@@ -157,20 +180,27 @@ func registerTargetAuthority(ctx context.Context, tx *sql.Tx, authority TargetAu
 	return nil
 }
 
-func requireTargetRevision(ctx context.Context, querier queryRower, targetID, revision string) error {
-	var exists int
-	err := querier.QueryRowContext(ctx, `SELECT 1
-        FROM target_revisions tr
-        JOIN runner_state_owners rso
-          ON rso.target_id = tr.target_id AND rso.target_revision = tr.revision
-        WHERE tr.target_id = ? AND tr.revision = ?`, targetID, revision).Scan(&exists)
+// requireTargetRevision reads and verifies the explicit durable state kind in
+// the same admission transaction. Missing ownership is never interpreted as none.
+func requireTargetRevision(ctx context.Context, querier queryRower, targetID, revision string) (targetmanifest.RunnerStateKind, error) {
+	var kind targetmanifest.RunnerStateKind
+	var owner bool
+	err := querier.QueryRowContext(ctx, `SELECT tr.runner_state_kind,
+   EXISTS (SELECT 1 FROM runner_state_owners rso
+     WHERE rso.target_id = tr.target_id AND rso.target_revision = tr.revision)
+   FROM target_revisions tr WHERE tr.target_id = ? AND tr.revision = ?`,
+		targetID, revision).Scan(&kind, &owner)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrTargetRevisionNotFound
+		return "", ErrTargetRevisionNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("verify target revision registration: %w", err)
+		return "", fmt.Errorf("verify target revision registration: %w", err)
 	}
-	return nil
+	if (kind == targetmanifest.RunnerStateNone && !owner) ||
+		(kind == targetmanifest.RunnerStatePersistent && owner) {
+		return kind, nil
+	}
+	return "", ErrRunnerStateOwnershipUnknown
 }
 
 func validateSHA256(field, value string) error {

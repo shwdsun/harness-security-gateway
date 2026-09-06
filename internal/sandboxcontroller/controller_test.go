@@ -181,7 +181,7 @@ func TestOfferQueueDedupeFullAndDurableReoffer(t *testing.T) {
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		manifest targetmanifest.Manifest,
+		manifest targetmanifest.Definition,
 		token *string,
 		output io.Reader,
 		input io.Writer,
@@ -253,7 +253,7 @@ func TestCancelQueuedAndQueueFullRunsDoesNotWaitForActiveExecution(t *testing.T)
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		_ targetmanifest.Manifest,
+		_ targetmanifest.Definition,
 		_ *string,
 		_ io.Reader,
 		_ io.Writer,
@@ -325,7 +325,7 @@ func TestActiveCancelBecomesCancelledAndCleansRuntime(t *testing.T) {
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		_ targetmanifest.Manifest,
+		_ targetmanifest.Definition,
 		_ *string,
 		_ io.Reader,
 		_ io.Writer,
@@ -374,7 +374,7 @@ func TestSessionMappingIsScopedAndVendorTokenNeverCrossesExecutionWire(t *testin
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		_ targetmanifest.Manifest,
+		_ targetmanifest.Definition,
 		token *string,
 		_ io.Reader,
 		_ io.Writer,
@@ -487,7 +487,7 @@ func TestControllerQueueHorizonKeepsDurableAdmissionAuthoritative(t *testing.T) 
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		manifest targetmanifest.Manifest,
+		manifest targetmanifest.Definition,
 		token *string,
 		_ io.Reader,
 		_ io.Writer,
@@ -604,7 +604,7 @@ func TestValidRunnerTerminalWinsCancellationRace(t *testing.T) {
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		_ targetmanifest.Manifest,
+		_ targetmanifest.Definition,
 		_ *string,
 		_ io.Reader,
 		_ io.Writer,
@@ -664,7 +664,7 @@ func TestEveryBridgeFailureClassMapsToFixedRedactedTerminal(t *testing.T) {
 			bridge := func(
 				context.Context,
 				executionwire.StartRunRequest,
-				targetmanifest.Manifest,
+				targetmanifest.Definition,
 				*string,
 				io.Reader,
 				io.Writer,
@@ -882,7 +882,7 @@ func TestTargetTimeoutCoversCreateBeforeBridge(t *testing.T) {
 	dependencies := newTestDependencies(t, manifest)
 	runtime := newFakeRuntime()
 	var creates atomic.Int32
-	runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Manifest) (string, error) {
+	runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Definition) (string, error) {
 		creates.Add(1)
 		<-ctx.Done()
 		return "", ctx.Err()

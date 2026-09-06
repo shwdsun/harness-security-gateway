@@ -110,10 +110,11 @@ func newService(t *testing.T, registry Registry, store Store) *Service {
 }
 
 func testRunnerStateOwnership(
-	manifest targetmanifest.Manifest,
-) (string, string, bool, error) {
+	manifest targetmanifest.Definition,
+) (sandboxstore.RunnerStateOwnership, error) {
 	fingerprint, err := manifest.Fingerprint()
-	return manifest.StateRef, fingerprint, true, err
+	ref, _ := manifest.RunnerState().PersistentRef()
+	return sandboxstore.RunnerStateOwnership{Kind: manifest.RunnerState().Kind(), Ref: ref, PathDigest: fingerprint, PathAbsent: true}, err
 }
 
 func requireServiceCode(t *testing.T, err error, want executionhttp.ErrorCode) {
@@ -146,14 +147,14 @@ func TestStartRunMapsTargetResolutionErrors(t *testing.T) {
 func TestNewFailsClosedOnTargetFingerprintConflict(t *testing.T) {
 	store := openStore(t)
 	target := manifest("target-a", "target-a-r1", "workspace-a", targetmanifest.WorkspaceReadWrite)
-	_, stateDigest, _, err := testRunnerStateOwnership(target)
+	owner, err := testRunnerStateOwnership(serviceDefinition(t, target))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := store.RegisterTargetAuthorities(context.Background(), []sandboxstore.TargetAuthority{{
 		TargetID: target.ID, TargetRevision: target.Revision,
-		RevisionPin: strings.Repeat("f", 64), RunnerStateRef: target.StateRef,
-		RunnerStatePathDigest: stateDigest, StatePathAbsent: true,
+		RevisionPin: strings.Repeat("f", 64), RunnerStateKind: targetmanifest.RunnerStatePersistent, RunnerStateRef: target.StateRef,
+		RunnerStatePathDigest: owner.PathDigest, StatePathAbsent: true,
 	}}); err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +386,7 @@ func TestInternalFailuresAreClosedAndSanitized(t *testing.T) {
 		t.Fatal(err)
 	}
 	secretError := errors.New("database /host/private.sqlite contains SECRET_TOKEN")
-	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: target, Fingerprint: fingerprint}}}
+	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: serviceDefinition(t, target), Fingerprint: fingerprint}}}
 	initializationStore := &fakeStore{registerErr: secretError}
 	if initialized, err := New(
 		context.Background(), registry, initializationStore, testRunnerStateOwnership,
@@ -438,7 +439,7 @@ func TestSessionAdmissionFailuresShareOneNonEnumeratingPublicError(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: target, Fingerprint: fingerprint}}}
+	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: serviceDefinition(t, target), Fingerprint: fingerprint}}}
 
 	for index, test := range []struct {
 		name  string
@@ -498,7 +499,7 @@ func TestRevisionPinDefaultsToManifestFingerprint(t *testing.T) {
 	}
 	if len(store.registered) != 1 || store.registered[0] != (sandboxstore.TargetAuthority{
 		TargetID: target.ID, TargetRevision: target.Revision, RevisionPin: fingerprint,
-		RunnerStateRef: target.StateRef, RunnerStatePathDigest: fingerprint, StatePathAbsent: true,
+		RunnerStateKind: targetmanifest.RunnerStatePersistent, RunnerStateRef: target.StateRef, RunnerStatePathDigest: fingerprint, StatePathAbsent: true,
 	}) {
 		t.Fatalf("target registrations = %#v", store.registered)
 	}
@@ -523,20 +524,21 @@ func TestRunnerStateOwnershipIsValidatedAndRegisteredAsOneBatch(t *testing.T) {
 	}{
 		{
 			name: "mismatched ref",
-			provider: func(targetmanifest.Manifest) (string, string, bool, error) {
-				return "different-state", strings.Repeat("a", 64), true, nil
+			provider: func(targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+				return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent, Ref: "different-state", PathDigest: strings.Repeat("a", 64), PathAbsent: true}, nil
 			},
 		},
 		{
 			name: "invalid path digest",
-			provider: func(input targetmanifest.Manifest) (string, string, bool, error) {
-				return input.StateRef, strings.Repeat("a", 63), true, nil
+			provider: func(input targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+				ref, _ := input.RunnerState().PersistentRef()
+				return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent, Ref: ref, PathDigest: strings.Repeat("a", 63), PathAbsent: true}, nil
 			},
 		},
 		{
 			name: "provider error",
-			provider: func(targetmanifest.Manifest) (string, string, bool, error) {
-				return "", "", false, errors.New("ownership unavailable")
+			provider: func(targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+				return sandboxstore.RunnerStateOwnership{}, errors.New("ownership unavailable")
 			},
 		},
 	}
@@ -558,16 +560,18 @@ func TestHistoricalRunnerStateOwnerSurvivesRegistryRemoval(t *testing.T) {
 	store := openStore(t)
 	pathDigest := strings.Repeat("d", 64)
 	first := manifest("target-a", "target-a-r1", "workspace-a", targetmanifest.WorkspaceReadWrite)
-	firstOwner := func(input targetmanifest.Manifest) (string, string, bool, error) {
-		return input.StateRef, pathDigest, true, nil
+	firstOwner := func(input targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+		ref, _ := input.RunnerState().PersistentRef()
+		return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent, Ref: ref, PathDigest: pathDigest, PathAbsent: true}, nil
 	}
 	if _, err := New(context.Background(), newRegistry(t, first), store, firstOwner); err != nil {
 		t.Fatal(err)
 	}
 
 	second := manifest("target-b", "target-b-r1", "workspace-b", targetmanifest.WorkspaceReadWrite)
-	secondOwner := func(input targetmanifest.Manifest) (string, string, bool, error) {
-		return input.StateRef, pathDigest, false, nil
+	secondOwner := func(input targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+		ref, _ := input.RunnerState().PersistentRef()
+		return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent, Ref: ref, PathDigest: pathDigest, PathAbsent: false}, nil
 	}
 	service, err := New(context.Background(), newRegistry(t, second), store, secondOwner)
 	if service != nil || !errors.Is(err, sandboxstore.ErrConflict) {
@@ -579,8 +583,9 @@ func TestHistoricalRunnerStateOwnerSurvivesRegistryRemoval(t *testing.T) {
 func TestExistingUnownedRunnerStateIsNotAdopted(t *testing.T) {
 	store := openStore(t)
 	target := manifest("target-a", "target-a-r1", "workspace-a", targetmanifest.WorkspaceReadWrite)
-	existing := func(input targetmanifest.Manifest) (string, string, bool, error) {
-		return input.StateRef, strings.Repeat("e", 64), false, nil
+	existing := func(input targetmanifest.Definition) (sandboxstore.RunnerStateOwnership, error) {
+		ref, _ := input.RunnerState().PersistentRef()
+		return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent, Ref: ref, PathDigest: strings.Repeat("e", 64), PathAbsent: false}, nil
 	}
 	service, err := New(context.Background(), newRegistry(t, target), store, existing)
 	if service != nil || !errors.Is(err, sandboxstore.ErrRunnerStateOwnershipUnknown) {
@@ -603,9 +608,9 @@ func TestConsumerRevisionPinIsValidatedAndFrozenAtNew(t *testing.T) {
 		newRegistry(t, target),
 		store,
 		testRunnerStateOwnership,
-		WithRevisionPin(func(got targetmanifest.Manifest, gotFingerprint string) (string, error) {
+		WithRevisionPin(func(got targetmanifest.Definition, gotFingerprint string) (string, error) {
 			calls++
-			if got.ID != target.ID || gotFingerprint != manifestFingerprint {
+			if got.ID() != target.ID || gotFingerprint != manifestFingerprint {
 				t.Fatalf("revision pin input = %#v, %q", got, gotFingerprint)
 			}
 			return pin, nil
@@ -635,10 +640,10 @@ func TestRevisionPinRejectsInvalidProviderOutput(t *testing.T) {
 		name     string
 		provider RevisionPinFunc
 	}{
-		{"empty", func(targetmanifest.Manifest, string) (string, error) { return "", nil }},
-		{"short", func(targetmanifest.Manifest, string) (string, error) { return strings.Repeat("a", 63), nil }},
-		{"uppercase", func(targetmanifest.Manifest, string) (string, error) { return strings.Repeat("A", 64), nil }},
-		{"provider error", func(targetmanifest.Manifest, string) (string, error) { return "", errors.New("pin unavailable") }},
+		{"empty", func(targetmanifest.Definition, string) (string, error) { return "", nil }},
+		{"short", func(targetmanifest.Definition, string) (string, error) { return strings.Repeat("a", 63), nil }},
+		{"uppercase", func(targetmanifest.Definition, string) (string, error) { return strings.Repeat("A", 64), nil }},
+		{"provider error", func(targetmanifest.Definition, string) (string, error) { return "", errors.New("pin unavailable") }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -659,7 +664,7 @@ func TestChangedLocalRevisionPinConflictsWithDurableRevision(t *testing.T) {
 	registry := newRegistry(t, target)
 	store := openStore(t)
 	provider := func(pin string) RevisionPinFunc {
-		return func(targetmanifest.Manifest, string) (string, error) { return pin, nil }
+		return func(targetmanifest.Definition, string) (string, error) { return pin, nil }
 	}
 	if _, err := New(context.Background(), registry, store, testRunnerStateOwnership, WithRevisionPin(provider(strings.Repeat("a", 64)))); err != nil {
 		t.Fatal(err)
@@ -677,7 +682,7 @@ func TestRevisionPinDoesNotReplaceRegistrySemanticChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: target, Fingerprint: fingerprint}}}
+	registry := &fakeRegistry{entries: []targetregistry.Entry{{Manifest: serviceDefinition(t, target), Fingerprint: fingerprint}}}
 	providerCalls := 0
 	service, err := New(
 		context.Background(),
@@ -685,7 +690,7 @@ func TestRevisionPinDoesNotReplaceRegistrySemanticChecks(t *testing.T) {
 		&fakeStore{},
 		testRunnerStateOwnership,
 		WithClock(func() time.Time { return testNow }),
-		WithRevisionPin(func(targetmanifest.Manifest, string) (string, error) {
+		WithRevisionPin(func(targetmanifest.Definition, string) (string, error) {
 			providerCalls++
 			return strings.Repeat("a", 64), nil
 		}),
@@ -700,10 +705,19 @@ func TestRevisionPinDoesNotReplaceRegistrySemanticChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry.entries[0] = targetregistry.Entry{Manifest: changed, Fingerprint: changedFingerprint}
+	registry.entries[0] = targetregistry.Entry{Manifest: serviceDefinition(t, changed), Fingerprint: changedFingerprint}
 	_, err = service.StartRun(context.Background(), request("run-a", target.ID, target.Revision))
 	requireServiceCode(t, err, executionhttp.ErrorInternal)
 	if providerCalls != 1 {
 		t.Fatalf("revision pin function was re-evaluated: %d calls", providerCalls)
 	}
+}
+
+func serviceDefinition(t *testing.T, manifest targetmanifest.Manifest) targetmanifest.Definition {
+	t.Helper()
+	definition, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return definition
 }

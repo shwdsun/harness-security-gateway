@@ -24,6 +24,12 @@ Use `make demo-security` for the first path. Use the
 manual: its checks are part of the experiment and must not be hidden by an
 installer.
 
+The default local mock path retains v1 resumable Runner state. An explicit
+`sandboxd/v3` no-state example and a build-time fixed `new-only` mock artifact
+are also available; see the [optional runbook path](runbook.md#optional-v3-no-state-mock).
+Both use the same control plane and runtime adapter. The new path has local
+fake-runtime and real child-process tests, not a new live-container attestation.
+
 A private experimental vertical slice may prove that a Discord message can
 reach an installed Codex CLI. Such connectivity evidence does not turn the
 public mock implementation into a deployable target and does not establish the

@@ -12,8 +12,9 @@ orchestrator.
 
 > **Status: research prototype / pre-alpha.** The control-plane walking
 > skeleton and offline security witness are implemented. Two sealed `new_only`
-> Codex adapter behavior profiles exist in code, but no Codex Runner image or
-> TargetManifest is shipped and the default build omits its entrypoint. No
+> Codex adapter behavior profiles and a local-only candidate preflight exist,
+> but no Codex Runner image or executable target is shipped and the default
+> build omits its entrypoint. No
 > provider-authenticated Codex target or Discord Connector exists yet. Do not
 > deploy this repository as a production gateway or treat it as evidence of a
 > secure Discord-to-Codex path.

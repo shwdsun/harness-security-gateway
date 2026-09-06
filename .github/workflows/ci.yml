@@ -70,6 +70,9 @@ jobs:
       - name: Build mock Runner image
         run: docker build --network=none --provenance=false --tag hsg/mock-runner:ci --file runners/mock/Dockerfile .
 
+      - name: Build fixed new-only mock Runner image
+        run: docker build --network=none --provenance=false --target new-only --tag hsg/mock-runner-new-only:ci --file runners/mock/Dockerfile .
+
   vulnerabilities:
     name: Reachable Go vulnerabilities
     runs-on: ubuntu-latest

@@ -58,6 +58,7 @@ type Store interface {
 	ClearRuntimeIntent(ctx context.Context, runID string) (sandboxstore.Run, error)
 	SetRuntimeRef(ctx context.Context, runID, runtimeRef string) (sandboxstore.Run, error)
 	AppendEvent(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error)
+	StageTerminal(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error)
 	ResolveSessionForRun(ctx context.Context, runID, sessionRef, targetID, targetRevision, sessionScopeDigest string) (string, error)
 	ConfirmRuntimeStopped(ctx context.Context, runID string) (sandboxstore.Run, error)
 	ListUnreconciled(ctx context.Context) ([]sandboxstore.Run, error)
@@ -74,8 +75,8 @@ type Process interface {
 // Runtime contains no caller-selected Docker flags, paths, or options.
 type Runtime interface {
 	ListManaged(ctx context.Context) ([]string, error)
-	Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (string, error)
-	LookupIntent(ctx context.Context, runID string, manifest targetmanifest.Manifest) (ref string, found bool, err error)
+	Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error)
+	LookupIntent(ctx context.Context, runID string, manifest targetmanifest.Definition) (ref string, found bool, err error)
 	AttachStart(ctx context.Context, ref string) (Process, error)
 	Inspect(ctx context.Context, ref string) (dockerruntime.Inspection, error)
 	Stop(ctx context.Context, ref string) error
@@ -86,7 +87,7 @@ type Runtime interface {
 type BridgeFunc func(
 	ctx context.Context,
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	resolvedVendorToken *string,
 	runnerOutput io.Reader,
 	runnerInput io.Writer,

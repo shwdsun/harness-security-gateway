@@ -27,7 +27,7 @@ implemented mock runtime mount contract is:
 
 ```text
 /workspace          the one target workspace, ro or rw by approved policy
-/state              harness state for this target revision, rw
+/state              only for persistent Runner state, rw
 /tmp                bounded tmpfs
 ```
 
@@ -35,8 +35,14 @@ Those are the only currently implemented filesystem surfaces. Static
 harness-adapter configuration is baked into the reviewed, digest-pinned image;
 V1 does not mount `/config/config.json` or accept a dynamic config path. The
 sealed `new_only` Codex Profile v1 instead requires no persistent `/state` at
-all. The current TargetManifest/runtime cannot express that narrower contract,
-which is one reason the profile remains disabled.
+all. [TargetManifest v2](target-manifest.md) now expresses that narrower state
+choice and is integrated through the explicit `sandboxd/v3` local mock path.
+`none` receives no state mount; workspace persistence is independent.
+The real Codex profile remains disabled by its separate image/auth/network gates.
+
+The default mock image always returns a synthetic session token. Use its
+separate `new-only` Dockerfile target for `new_only` manifests; that executable
+has a build-time fixed policy and no remote/runtime selection mechanism.
 
 There is deliberately no generic auth mount. Credential delivery is part of a
 harness-specific reviewed policy and must pass a tool-read canary.
@@ -81,14 +87,17 @@ The current fixed process contract includes:
   names that same regular single-link inode, exact mode, bounded nonblank UTF-8
   without NUL, zero child error, and no pinned Codex final-write failure marker.
 
-No Codex target is shipped or selectable from the example configuration. The
+No executable Codex target is shipped or selectable from sandboxd examples. The
 current Docker runtime accepts only `builtin.none` auth/network profiles and
-`--network none`; there is no image, TargetManifest, auth-file bind, or provider
+`--network none`; there is no approved image/manifest, auth-file bind, or provider
 egress profile for this adapter. `codex-profile-v1.md` now seals the candidate
 contract and its fingerprint, but the runtime explicitly rejects its expressible
 runner/profile-ref projection. TargetManifest v1 cannot represent the complete
-contract because it requires a persistent state ref. Before enablement, a new
-target schema must express state `none`; the runtime profile must keep the whole
+contract because it requires a persistent state ref. The separate v2 target
+schema's `none` path is integrated for mock only. The separate offline
+[candidate checker](codex-candidate-preflight.md) does not change this runtime
+gate or produce a revision-security pin. Before enablement, a new local
+resolver and runtime profile must keep the whole
 `CODEX_HOME` disposable and bind only the locally resolved dedicated
 refreshable `auth.json` file.
 The image must also prove, rather than infer, that repository config, managed or
@@ -98,10 +107,13 @@ exact 0.151 image canary proves closure, so the gate remains failed closed.
 
 The launcher signals the original process group with TERM then KILL. A detached
 descendant can leave that group; therefore the adapter result is not sufficient
-quiescence evidence. A generic durable controller mechanism must keep terminal
-output provisional, prove teardown, then atomically publish it and release locks.
-Container-level tests must also cover leader-exits-first and `setsid`
-descendants; a Codex-specific release branch is not acceptable.
+quiescence evidence. The generic controller now stages each terminal privately
+in sandbox schema v8 and publishes it, its successor session, and lock release
+in one transaction only after the runtime cleanup boundary succeeds. Cleanup
+failure and restart tests verify that no terminal enters the execution-wire
+snapshot early and the original candidate survives. They use fake runtimes;
+container-level tests must still cover leader-exits-first and `setsid`
+descendants. There is no Codex-specific release branch.
 The digest-pinned image must also canary the CLI's retained-inode write behavior,
 credential refresh/lifetime, exact residual writes, and model-control versus
 tool-egress separation.

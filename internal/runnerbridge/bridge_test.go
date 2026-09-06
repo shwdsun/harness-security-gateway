@@ -32,12 +32,12 @@ func TestRunHandshakeOrderingNewSessionAndTranslation(t *testing.T) {
 	var runnerInput bytes.Buffer
 	observed := &orderingReader{reader: bytes.NewReader(output), runnerInput: &runnerInput}
 	emissions := make([]Emission, 0, 3)
-	err := Run(context.Background(), request, manifest, nil, observed, &runnerInput, func(_ context.Context, emission Emission) error {
+	err := runLegacyTest(context.Background(), request, manifest, nil, observed, &runnerInput, func(_ context.Context, emission Emission) error {
 		emissions = append(emissions, emission)
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("Run() error = %v", err)
+		t.Fatalf("runLegacyTest() error = %v", err)
 	}
 	if observed.writtenBeforeFirstRead() {
 		t.Fatal("run.start was written before runner.ready was read")
@@ -86,7 +86,7 @@ func TestRunOpaqueSessionNewAndResumeKeepVendorTokenOutOfExecutionWire(t *testin
 		output := successfulOutput(t, manifest, request.RunID, "vendor-new-token")
 		emissions, runnerInput, err := runBuffered(request, manifest, nil, output)
 		if err != nil {
-			t.Fatalf("Run() error = %v", err)
+			t.Fatalf("runLegacyTest() error = %v", err)
 		}
 		if start := decodeStart(t, runnerInput); start.Session.Mode != runnerwire.SessionModeNew || start.Session.Token != "" {
 			t.Fatalf("start session = %#v", start.Session)
@@ -115,7 +115,7 @@ func TestRunOpaqueSessionNewAndResumeKeepVendorTokenOutOfExecutionWire(t *testin
 		output := successfulOutput(t, manifest, request.RunID, "vendor-next-token")
 		emissions, runnerInput, err := runBuffered(request, manifest, &resolved, output)
 		if err != nil {
-			t.Fatalf("Run() error = %v", err)
+			t.Fatalf("runLegacyTest() error = %v", err)
 		}
 		start := decodeStart(t, runnerInput)
 		if start.Session.Mode != runnerwire.SessionModeResume || start.Session.Token != resolved {
@@ -135,7 +135,7 @@ func TestRunEnforcesSessionPolicyFailClosed(t *testing.T) {
 		ref := "session_ref_1"
 		request.SessionRef = &ref
 		var runnerInput bytes.Buffer
-		err := Run(context.Background(), request, manifest, nil, bytes.NewReader(nil), &runnerInput, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, nil, bytes.NewReader(nil), &runnerInput, discardSink)
 		assertBridgeClass(t, err, ErrorInvalidSession)
 		if runnerInput.Len() != 0 {
 			t.Fatalf("runner input = %q", runnerInput.Bytes())
@@ -146,7 +146,7 @@ func TestRunEnforcesSessionPolicyFailClosed(t *testing.T) {
 		manifest := validManifest(targetmanifest.SessionOpaqueResume)
 		request := validRequest(manifest)
 		token := "vendor-token"
-		err := Run(context.Background(), request, manifest, &token, bytes.NewReader(nil), io.Discard, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, &token, bytes.NewReader(nil), io.Discard, discardSink)
 		assertBridgeClass(t, err, ErrorInvalidSession)
 	})
 
@@ -156,7 +156,7 @@ func TestRunEnforcesSessionPolicyFailClosed(t *testing.T) {
 		ref := "session_ref_1"
 		request.SessionRef = &ref
 		token := "vendor-token"
-		err := Run(context.Background(), request, manifest, &token, bytes.NewReader(nil), io.Discard, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, &token, bytes.NewReader(nil), io.Discard, discardSink)
 		assertBridgeClass(t, err, ErrorPolicyDenied)
 	})
 
@@ -222,7 +222,7 @@ func TestRunMapsEveryClosedRunnerFailureAndAcceptsCancelled(t *testing.T) {
 			)
 			emissions, _, err := runBuffered(request, manifest, nil, output)
 			if err != nil {
-				t.Fatalf("Run() after valid run.failed error = %v", err)
+				t.Fatalf("runLegacyTest() after valid run.failed error = %v", err)
 			}
 			failure := emissions[len(emissions)-1].Event
 			if failure.Type != executionwire.RunEventFailed || failure.Failure == nil ||
@@ -242,7 +242,7 @@ func TestRunMapsEveryClosedRunnerFailureAndAcceptsCancelled(t *testing.T) {
 		)
 		emissions, _, err := runBuffered(request, manifest, nil, output)
 		if err != nil {
-			t.Fatalf("Run() after valid cancelled error = %v", err)
+			t.Fatalf("runLegacyTest() after valid cancelled error = %v", err)
 		}
 		if emissions[len(emissions)-1].Event.Type != executionwire.RunEventCancelled {
 			t.Fatalf("terminal = %#v", emissions[len(emissions)-1])
@@ -364,7 +364,7 @@ func TestRunEnforcesTargetSpecificBounds(t *testing.T) {
 		manifest.Limits.MaxInputBytes = 4
 		request := validRequest(manifest)
 		request.Input.Text = "12345"
-		err := Run(context.Background(), request, manifest, nil, bytes.NewReader(nil), io.Discard, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, nil, bytes.NewReader(nil), io.Discard, discardSink)
 		assertBridgeClass(t, err, ErrorPolicyDenied)
 	})
 
@@ -438,7 +438,7 @@ func TestRunStopsAtFirstTerminal(t *testing.T) {
 	)
 	emissions, _, err := runBuffered(request, manifest, nil, output)
 	if err != nil {
-		t.Fatalf("Run() error = %v", err)
+		t.Fatalf("runLegacyTest() error = %v", err)
 	}
 	if len(emissions) != 2 || emissions[1].Event.Type != executionwire.RunEventCompleted {
 		t.Fatalf("emissions = %#v", emissions)
@@ -451,7 +451,7 @@ func TestRunContextCancellationAndDeadline(t *testing.T) {
 		request := validRequest(manifest)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := Run(ctx, request, manifest, nil, bytes.NewReader(nil), io.Discard, discardSink)
+		err := runLegacyTest(ctx, request, manifest, nil, bytes.NewReader(nil), io.Discard, discardSink)
 		assertBridgeClass(t, err, ErrorCancelled)
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("error = %v, want context.Canceled", err)
@@ -465,14 +465,14 @@ func TestRunContextCancellationAndDeadline(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		result := make(chan error, 1)
 		go func() {
-			result <- Run(ctx, request, manifest, nil, outputReader, io.Discard, discardSink)
+			result <- runLegacyTest(ctx, request, manifest, nil, outputReader, io.Discard, discardSink)
 		}()
 		cancel()
 		select {
 		case err := <-result:
 			assertBridgeClass(t, err, ErrorCancelled)
 		case <-time.After(time.Second):
-			t.Fatal("Run() did not return after cancellation")
+			t.Fatal("runLegacyTest() did not return after cancellation")
 		}
 		_ = outputWriter.Close()
 		_ = outputReader.Close()
@@ -483,7 +483,7 @@ func TestRunContextCancellationAndDeadline(t *testing.T) {
 		request := validRequest(manifest)
 		request.Deadline = time.Now().Add(30 * time.Millisecond)
 		outputReader, outputWriter := io.Pipe()
-		err := Run(context.Background(), request, manifest, nil, outputReader, io.Discard, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, nil, outputReader, io.Discard, discardSink)
 		assertBridgeClass(t, err, ErrorDeadline)
 		if !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("error = %v, want DeadlineExceeded", err)
@@ -506,7 +506,7 @@ func TestRunTerminalCommitWinsCancellationRace(t *testing.T) {
 	)
 	ctx, cancel := context.WithCancel(context.Background())
 	emitted := 0
-	err := Run(ctx, request, manifest, nil, bytes.NewReader(output), io.Discard, func(_ context.Context, emission Emission) error {
+	err := runLegacyTest(ctx, request, manifest, nil, bytes.NewReader(output), io.Discard, func(_ context.Context, emission Emission) error {
 		emitted++
 		if emission.Event.Type == executionwire.RunEventCompleted {
 			cancel()
@@ -514,7 +514,7 @@ func TestRunTerminalCommitWinsCancellationRace(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("Run() after committed terminal error = %v", err)
+		t.Fatalf("runLegacyTest() after committed terminal error = %v", err)
 	}
 	if emitted != 2 {
 		t.Fatalf("emitted = %d, want 2", emitted)
@@ -530,7 +530,7 @@ func TestRunSinkAndWriterFailuresAreTyped(t *testing.T) {
 			validReady(manifest),
 			&runnerwire.RunStarted{Protocol: runnerwire.ProtocolV1, Type: runnerwire.TypeRunStarted, RunID: request.RunID, Seq: 1},
 		)
-		err := Run(context.Background(), request, manifest, nil, bytes.NewReader(output), io.Discard, func(context.Context, Emission) error {
+		err := runLegacyTest(context.Background(), request, manifest, nil, bytes.NewReader(output), io.Discard, func(context.Context, Emission) error {
 			return errors.New("database secret")
 		})
 		assertBridgeClass(t, err, ErrorInternal)
@@ -541,7 +541,7 @@ func TestRunSinkAndWriterFailuresAreTyped(t *testing.T) {
 
 	t.Run("writer", func(t *testing.T) {
 		output := encodeRunnerFrames(t, validReady(manifest))
-		err := Run(context.Background(), request, manifest, nil, bytes.NewReader(output), failingWriter{}, discardSink)
+		err := runLegacyTest(context.Background(), request, manifest, nil, bytes.NewReader(output), failingWriter{}, discardSink)
 		assertBridgeClass(t, err, ErrorRunnerFailed)
 	})
 }
@@ -676,7 +676,7 @@ func runBuffered(
 ) ([]Emission, []byte, error) {
 	var runnerInput bytes.Buffer
 	emissions := make([]Emission, 0, 4)
-	err := Run(
+	err := runLegacyTest(
 		context.Background(), request, manifest, resolvedToken,
 		bytes.NewReader(runnerOutput), &runnerInput,
 		func(_ context.Context, emission Emission) error {
@@ -699,4 +699,13 @@ func assertBridgeClass(t *testing.T, err error, class ErrorClass) {
 	if err.Error() != "runner bridge: "+string(class) {
 		t.Fatalf("Error() = %q, want closed classification", err.Error())
 	}
+}
+
+func runLegacyTest(ctx context.Context, request executionwire.StartRunRequest, manifest targetmanifest.Manifest,
+	token *string, output io.Reader, input io.Writer, sink Sink) error {
+	definition, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		return bridgeError(ErrorInternal, err)
+	}
+	return Run(ctx, request, definition, token, output, input, sink)
 }

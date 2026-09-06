@@ -64,7 +64,7 @@ func (c *Controller) claimReconciliation(run sandboxstore.Run) bool {
 	defer c.mu.Unlock()
 	_, desired := c.desired[run.RunID]
 	if run.State == executionwire.RunStateAccepted && run.RuntimeRef == nil &&
-		!run.RuntimeIntentPending && !desired && run.Deadline.After(c.clock().UTC()) {
+		!run.RuntimeIntentPending && !run.TerminalPending && !desired && run.Deadline.After(c.clock().UTC()) {
 		return false
 	}
 	offered := c.offered[run.RunID]

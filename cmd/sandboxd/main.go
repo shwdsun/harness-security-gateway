@@ -268,7 +268,11 @@ func prepareFilesystem(config sandboxconfig.Config) error {
 
 func prepareRunnerStateFilesystem(config sandboxconfig.Config) error {
 	for _, target := range config.Targets {
-		path, ok := config.RunnerStatePath(target.StateRef)
+		ref, persistent := target.RunnerState().PersistentRef()
+		if !persistent {
+			continue
+		}
+		path, ok := config.RunnerStatePath(ref)
 		if !ok {
 			return errors.New("configured runner state did not resolve")
 		}

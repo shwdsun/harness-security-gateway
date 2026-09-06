@@ -21,7 +21,7 @@ type intentListRecord struct {
 func (r *Runtime) LookupIntent(
 	ctx context.Context,
 	runID string,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) (ContainerRef, bool, error) {
 	if err := r.ready(ctx); err != nil {
 		return "", false, err
@@ -39,8 +39,8 @@ func (r *Runtime) LookupIntent(
 	if err != nil {
 		return "", false, ErrInvalidArgument
 	}
-	spec, exists := r.targets[targetKey{id: manifest.ID, revision: manifest.Revision}]
-	if !exists || spec.fingerprint != fingerprint || spec.image != manifest.Runner.Image {
+	spec, exists := r.targets[targetKey{id: manifest.ID(), revision: manifest.Revision()}]
+	if !exists || spec.fingerprint != fingerprint || spec.image != manifest.Common().Runner.Image {
 		return "", false, ErrTargetNotConfigured
 	}
 	if err := r.attestRootless(ctx); err != nil {
@@ -56,14 +56,14 @@ func (r *Runtime) LookupIntent(
 func (r *Runtime) lookupIntentAttested(
 	ctx context.Context,
 	runID string,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	fingerprint string,
 ) (ContainerRef, bool, error) {
 	name := deterministicName(runID)
 	labels := expectedLabels(runID, manifest, fingerprint)
 	record, err := r.inspectIdentifier(ctx, name)
 	if err == nil {
-		if verifyErr := verifyIntentRecord(record, name, manifest.Runner.Image, labels); verifyErr != nil {
+		if verifyErr := verifyIntentRecord(record, name, manifest.Common().Runner.Image, labels); verifyErr != nil {
 			return "", false, verifyErr
 		}
 		return ContainerRef(record.ID), true, nil
@@ -92,7 +92,7 @@ func (r *Runtime) lookupIntentAttested(
 	if record.ID != string(ref) {
 		return "", false, ErrForeignContainer
 	}
-	if verifyErr := verifyIntentRecord(record, name, manifest.Runner.Image, labels); verifyErr != nil {
+	if verifyErr := verifyIntentRecord(record, name, manifest.Common().Runner.Image, labels); verifyErr != nil {
 		return "", false, verifyErr
 	}
 	return ref, true, nil
