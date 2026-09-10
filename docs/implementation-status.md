@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-10 (three admitted real-canary Runs failed; authenticated-provider acceptance and deployment gates remain open)
+Last verified: 2026-09-10 (four admitted real-canary Runs failed; authenticated-provider acceptance and deployment gates remain open)
 
 The [2026-09-10 checkpoint assessment](checkpoint-2026-09-10.md) summarizes the
 completed local work, verification limits, design/practice review and next work
@@ -77,8 +77,22 @@ from the Lite name. The endpoint now distinguishes closed response-field and
 framing metadata and samples a rejected HTTP-200 MIME response only after
 blocking further operation dispatch, within 512 bytes and one second. No raw
 body is retained and no response policy is relaxed. The third Run lacks these
-observations, so the upstream cause remains unknown; collecting the missing
-evidence requires a separately authorized, newly pinned real Run.
+observations; its upstream cause remains unknown.
+
+The [fourth separately authorized Run](codex-provider-canary.md#fourth-real-run--2026-09-10)
+at **08:37–08:38 UTC** used the same dedicated device-code-login source and
+failed without its marker. One inference returned HTTP/1.1 200 with an absent
+Content-Type field and chunked framing. Its bounded probe read 512 decoded
+bytes with an `event_stream_like` prefix, then ended at the byte limit. This
+establishes a nonempty response with an SSE-like prefix, not a valid complete
+event stream or model success. Twelve later inference requests were denied
+locally without new dispatch grants. At **08:39–08:40 UTC**, independent checks
+confirmed exact cleanup, unchanged credential metadata and equal source/proof
+across generations 1–4. All four failed Runs and pending deliveries remain
+retained; the consumed plan rejects reuse. Next, review whether a genuinely
+absent Content-Type should require rejection on the fixed inference route,
+while preserving other response, authority and cleanup checks. No compatibility
+relaxation or further real Run was performed.
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are
@@ -153,7 +167,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Versioned template and startup guard implemented; normal daemon execution blocked | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No production target implemented | No approved production image/auth/network/context profile; three opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
+| Real Codex target | No production target implemented | No approved production image/auth/network/context profile; four opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
@@ -499,7 +513,7 @@ domain. The dated standalone native witness and subsequent
 cleanup/publication integration within their experimental scope, with a distinct
 opt-in pin. Normal executable configuration, production enrollment/rotation,
 complete production authority and deployment isolation remain unresolved.
-Real-provider acceptance failed in the three Runs recorded above; Discord
+Real-provider acceptance failed in the four Runs recorded above; Discord
 acceptance remains later work. The production target remains blocked.
 
 ### Deployment identities and local IPC

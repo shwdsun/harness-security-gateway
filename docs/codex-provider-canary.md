@@ -490,3 +490,52 @@ All three previous configurations, both databases and credential lstat metadata
 were unchanged before/after preparation; credential bytes were not read/hashed.
 No fourth Run, generation transition, Docker/provider operation or recovery was
 executed. This preparation does not establish current provider acceptance.
+
+### Fourth real Run — 2026-09-10
+
+The operator explicitly approved the provider destinations and required use of
+the previously approved dedicated device-code-login credentials. Read-only
+handoff/object and enrollment checks confirmed that source before execution.
+The new plan ran at **08:37:39–08:38:26 UTC**, failed without its marker, and
+exited 1 after 47.026 seconds. There was no supervisor timeout or forced kill.
+Generation 3 was retired and generation 4 enrolled with the same source/proof;
+all earlier Runs, configurations and pending deliveries were preserved.
+
+The joined snapshot again contains sixteen exchanges: two completed catalog
+operations with HTTP 200/JSON; one local settings response; one authorized
+inference rejected at `content_type_missing`; and twelve later inference
+requests denied locally without new upstream grants. No refresh was observed.
+The new metadata makes the inference observation more precise:
+
+| Observation | Value |
+| --- | --- |
+| HTTP response | HTTP/1.1 200 |
+| Content-Type field | `absent`, distinct from an empty or multiple field |
+| HTTP framing | `chunked`; declared body length unknown |
+| Rejected body probe | `event_stream_like`, ending at `limit`: 512 decoded bytes read |
+| Cancellation / cleanup | Exchange not cancelled; endpoint stopped and joined with no cleanup error |
+
+This establishes that the rejected response was nonempty and its prefix had
+an SSE field/comment signature. It does not establish valid event contents,
+stream completion, successful authentication/inference, provider billing or
+why the server omitted the header. An error stream can also have an SSE-like
+prefix. The 512 bytes and raw headers were discarded; no model/native output
+was archived as diagnostic evidence. Earlier Runs retain their narrower claims.
+
+At **08:39–08:40 UTC**, independent checks confirmed the exact container's
+create/start/exit/removal and subsequent absence, no owner process-group members,
+zero occupancy/workspace locks/staged terminals and no runtime reference or
+pending intent. Four failed Runs each have one dispatch and a pending local
+delivery with zero attempts. Generations 1–3 are retired; source and complete
+proof match across all four generations. Credential object/size/mtime metadata
+were unchanged without reading or hashing its bytes. The workspace was empty,
+and provider leaves retained only public CA files. Recovery was unnecessary;
+the consumed plan reports `blocked_run_exists` in default read-only mode.
+
+The next bounded decision is whether mandatory Content-Type on this exact
+inference route is a necessary gateway check or a compatibility assumption.
+Evaluate genuinely absent fields separately from invalid/present conflicting
+values, preserve the other response and dispatch limits, and retain the native
+client's responsibility for stream interpretation/completion. Prefix hints
+must remain diagnostic, not authorize forwarding. No compatibility change,
+new SSE parser, fifth Run, public Discord or deployment was made by this test.

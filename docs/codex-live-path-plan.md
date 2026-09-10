@@ -8,7 +8,7 @@ credential, runtime configuration or deployment is authorized by this document.
 The runtime-owned synthetic delivery unit is now implemented and fault-tested.
 The [controlled real-provider canary](codex-provider-canary.md) has a fixed
 experimental consumer, local enrollment/dispatch entrypoint and read-only
-preparation report. Three separately approved real Runs on **2026-09-10** failed
+preparation report. Four separately approved real Runs on **2026-09-10** failed
 without the completion marker; the second recorded grouped response-policy
 rejections whose exact predicate is still unknown. Exact cleanup was separately
 observed. The subsequent local
@@ -19,9 +19,13 @@ twelve subsequent inference requests locally. Cleanup was independently
 verified; real-provider acceptance remains open. The subsequent
 [response-contract investigation](codex-provider-canary.md#response-contract-investigation--2026-09-10)
 checks synthetic Lite request preservation and adds bounded evidence collection
-after rejection. Existing observations cannot establish the upstream cause.
-Next, collect the missing response metadata under a new, explicitly approved
-plan before deciding whether a compatibility change is justified.
+after rejection. The [fourth Run](codex-provider-canary.md#fourth-real-run--2026-09-10)
+then observed absent Content-Type, chunked framing and 512 decoded bytes with
+an SSE-like prefix. This is a response-contract mismatch, not proof of a valid
+complete stream or model success. Next, assess a narrowly scoped inference
+compatibility rule for a genuinely absent field against the existing native
+parser and authority/cleanup boundaries. A diagnostic prefix must not become
+an acceptance rule, and no additional real Run is automatically authorized.
 Discord and deployment composition follow provider acceptance.
 
 Apply the [content evolution and verification contract](content-evolution-and-verification.md)
@@ -35,7 +39,7 @@ does not add media implementation or a new research stage to the current deliver
 | --- | --- | --- |
 | Exact admission, durable replay and disclosure destination | Existing `agentpolicy`, `agentservice`, Core store and protocol tests | Deployment identities and a Discord transport are separate |
 | Immutable enrollment/proof and target composition | [Strict service registration](../internal/sandboxservice/authority.go), [enrolled target storage](../internal/sandboxstore/credential_target.go) and their tests | The opt-in canary exercised one real-source enrollment and a same-source generation transition on 2026-09-10; production enrollment/configuration remains absent |
-| Run credential reopen, revocation, release and startup retirement | [Credential consumer](../internal/sandboxcontroller/credential.go), [execution tests](../internal/sandboxcontroller/credential_execution_test.go), [native handoff case](../internal/sandboxcontroller/credential_integration_linux_test.go) | Native synthetic enrollment/service/controller/Docker/HRP composition passed at 2026-09-09 10:24 UTC; subsequent real-source handoffs occurred only in the three failed opt-in Runs, with normal configuration still blocked |
+| Run credential reopen, revocation, release and startup retirement | [Credential consumer](../internal/sandboxcontroller/credential.go), [execution tests](../internal/sandboxcontroller/credential_execution_test.go), [native handoff case](../internal/sandboxcontroller/credential_integration_linux_test.go) | Native synthetic enrollment/service/controller/Docker/HRP composition passed at 2026-09-09 10:24 UTC; subsequent real-source handoffs occurred only in the four failed opt-in Runs, with normal configuration still blocked |
 | Bounded synthetic provider requests | [Responses consumer](codex-control-boundary.md#completed-synthetic-consumer-witness), [Core/native composition](codex-control-boundary.md#core-ingress-and-focused-native-fault-witnesses) | Native command/readback and scoped Core delivery passed under the tagged synthetic V3 template; separate real canaries remain unsuccessful, and production transport separation is unestablished |
 | Cleanup before public terminal and durable occupancy release | [Cleanup](../internal/sandboxcontroller/cleanup.go), [publication tests](../internal/sandboxcontroller/publication_test.go), [formal recovery pilot](../formal/recovery/README.md), [native owner recovery](codex-control-boundary.md#native-owner-crash-and-recovery-witnesses) | A live owner holds the physical source lock through cleanup; SIGKILL loses that lock, so retirement and durable occupancy fence recovery until exact removal and publication |
 | V3 package, native host and one-agent capacity | [V3 configuration and canary](codex-profile-v3.md) | Measured cached package, not authenticated image provenance |
