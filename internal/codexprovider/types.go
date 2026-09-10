@@ -17,6 +17,8 @@ var (
 
 // Response is internal transport data, never a log or public diagnostic.
 // Close must interrupt Read and release all resources belonging to the body.
+// MediaType is the effective fixed-route transport type, not proof of valid
+// event contents or an assertion that the upstream supplied a MIME field.
 type Response struct {
 	Status    int
 	MediaType string

@@ -53,7 +53,7 @@ deployment remain disabled.
 
 The subsequent [response-rejection work package](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
 now implements closed predicate/media diagnostics and operation-scoped blocking
-at upstream dispatch authorization. It preserves the response acceptance rules,
+at upstream dispatch authorization. That work package preserved response acceptance,
 other operations, transient/status behavior and joined cleanup. Its implementation
 and read-only preparation did not explain the earlier response predicate or
 execute another Run.
@@ -76,8 +76,8 @@ Existing fixed-native SSE evidence does not support inferring incompatibility
 from the Lite name. The endpoint now distinguishes closed response-field and
 framing metadata and samples a rejected HTTP-200 MIME response only after
 blocking further operation dispatch, within 512 bytes and one second. No raw
-body is retained and no response policy is relaxed. The third Run lacks these
-observations; its upstream cause remains unknown.
+body is retained and that investigation did not relax response policy. The
+third Run lacks these observations; its upstream cause remains unknown.
 
 The [fourth separately authorized Run](codex-provider-canary.md#fourth-real-run--2026-09-10)
 at **08:37–08:38 UTC** used the same dedicated device-code-login source and
@@ -89,10 +89,21 @@ event stream or model success. Twelve later inference requests were denied
 locally without new dispatch grants. At **08:39–08:40 UTC**, independent checks
 confirmed exact cleanup, unchanged credential metadata and equal source/proof
 across generations 1–4. All four failed Runs and pending deliveries remain
-retained; the consumed plan rejects reuse. Next, review whether a genuinely
-absent Content-Type should require rejection on the fixed inference route,
-while preserving other response, authority and cleanup checks. No compatibility
-relaxation or further real Run was performed.
+retained; the consumed plan rejects reuse. That Run made no compatibility
+change and did not explain the earlier Runs' narrower observations.
+
+The subsequent [local compatibility decision](codex-provider-canary.md#absent-inference-media-compatibility--2026-09-10)
+now supplies SSE media only for HTTP 200 on the fixed inference route when the
+Content-Type field is genuinely absent. Explicit empty/invalid/wrong types,
+catalog/refresh JSON requirements and other transport/authority limits retain
+their behavior. Observed field-presence metadata remains separate from the
+effective media class; no body-prefix hint grants acceptance. Raw TLS tests
+cover byte preservation, framing, budgets and cancellation. At **09:10 UTC**, a
+single offline native container completed valid SSE and rejected plain JSON
+and incomplete SSE before its deadlines, with one inference per case and joined
+cleanup. A new continuation passed default read-only preflight at **09:14 UTC**
+with unchanged retained state and original device-login credential metadata.
+Real inference acceptance remains open; no fifth real Run was executed.
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are

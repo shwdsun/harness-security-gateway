@@ -111,6 +111,14 @@ func upstreamResponse(ctx context.Context, request Request, dial func(context.Co
 	if failure.rejection != rejectionNone {
 		return result, failure
 	}
+	// The fixed streaming inference route supplies the transport type only
+	// when the HTTP parser observed no Content-Type field. A present empty or
+	// invalid field still fails below. Do not sniff the body: native Codex owns
+	// event interpretation/completion, as it does for explicitly labelled SSE.
+	if _, present := response.Header["Content-Type"]; !present && response.StatusCode == 200 && request.Operation == Inference {
+		result.MediaType = "text/event-stream"
+		return result, nil
+	}
 	contentType := response.Header.Get("Content-Type")
 	media, _, err := mime.ParseMediaType(contentType)
 	if err != nil && response.StatusCode == 200 {

@@ -43,8 +43,13 @@ streaming and `store:false`. Duplicate/aliased authority fields, upgrades,
 compression, non-default tier, background jobs and provider-side built-in tools
 are rejected. Local custom/function tools and native input remain untrusted
 provider-visible data. Headers use a closed name list; upstream response headers
-and error bodies are not relayed. Success bodies are JSON or SSE with an explicit
-HTTP chunk end only after clean EOF. Interrupted producers remain truncated.
+and non-200 bodies are not relayed. HTTP-200 bodies use the operation's JSON or
+SSE transport type, with an explicit HTTP chunk end only after clean EOF.
+Interrupted producers remain truncated. On the fixed inference route alone,
+an absent Content-Type is supplied as SSE; present empty/invalid/wrong types
+still fail. This does not parse or certify body contents: native Codex owns
+provider event interpretation and completion. See the
+[compatibility decision](#absent-inference-media-compatibility--2026-09-10).
 
 There are at most 16 accepted connections, four active exchanges, one refresh
 and two catalog dispatches per Run; request and response bodies are each bounded
@@ -306,8 +311,10 @@ production operation/context closure.
 
 ### Actionable rejection and bounded failure handling — 2026-09-10
 
-The endpoint now records the first matching response-policy predicate as a
-closed `reason`. Its response acceptance rules are unchanged:
+This work package added the first matching response-policy predicate as a
+closed `reason`. At that stage, response acceptance rules were unchanged;
+the later [absent-inference exception](#absent-inference-media-compatibility--2026-09-10)
+now qualifies `content_type_missing` below.
 
 | Reason | Rejected observation |
 | --- | --- |
@@ -319,9 +326,11 @@ closed `reason`. Its response acceptance rules are unchanged:
 | `content_type_invalid` | HTTP 200 with a nonempty Content-Type that fails MIME parsing |
 | `media_type_mismatch` | Parsed HTTP 200 media differs from the operation's required JSON or SSE type |
 
-For a parsed HTTP 200 response, `media_class` is one of `json`, `event_stream`,
-`html` or `other`; raw MIME values and parameters are never retained. A completed
-observation's `upstream_authorized` flag means local dispatch permission was
+For an HTTP 200 response reaching the media check, `media_class` is one of
+`json`, `event_stream`, `html` or `other`; it describes the effective transport
+type, including the later absent-inference adaptation. Raw MIME values and
+parameters are never retained. A completed observation's `upstream_authorized`
+flag means local dispatch permission was
 granted, not that network I/O, authentication or model completion succeeded.
 Unfinished observations still record admission only.
 
@@ -434,7 +443,8 @@ reconstruct the third Run's unrecorded request or response.
 Earlier fixed-native offline tests accept synthetic SSE. Responses Lite's name
 alone does not establish another transport or explain the observed rejection.
 The third Run retained neither field-presence/framing metadata nor body evidence;
-its upstream cause is still unknown. No MIME acceptance rule has changed.
+its upstream cause is still unknown. No MIME acceptance rule changed during
+this investigation.
 
 The existing private result now adds only these closed observations for a
 parsed upstream response:
@@ -448,7 +458,7 @@ parsed upstream response:
 | `body_prefix` | `empty`, `whitespace`, `json_like`, `event_stream_like`, `html_like`, `other`; omitted when no prefix/clean empty EOF was observed |
 | `body_probe_end` | `eof`, `limit`, `timeout`, `read_error`, `cancelled`; absent when no probe was attempted |
 
-Only an HTTP-200 missing/invalid Content-Type or media mismatch permits the
+Only a rejected HTTP-200 missing/invalid Content-Type or media mismatch permits the
 diagnostic probe. The endpoint first latches the typed operation rejection,
 then reads at most **512 decoded body bytes** under a **one-second absolute
 socket deadline**, bounded further by cancellation. It uses the existing owned
@@ -539,3 +549,58 @@ values, preserve the other response and dispatch limits, and retain the native
 client's responsibility for stream interpretation/completion. Prefix hints
 must remain diagnostic, not authorize forwarding. No compatibility change,
 new SSE parser, fifth Run, public Discord or deployment was made by this test.
+
+### Absent inference media compatibility — 2026-09-10
+
+The fixed inference route now supplies effective `text/event-stream` for an
+HTTP 200 response only when the HTTP parser observed **no Content-Type field**.
+Encoding, upgrade, location and trailer checks precede this adjustment. Catalog
+and refresh still require JSON. A present empty/invalid field or a parsed wrong
+type retains its existing rejection and operation latch. Existing multiple-field
+parsing is unchanged; this work does not claim to reject every conflicting
+duplicate. Non-200 status handling is unchanged.
+
+The route's fixed streaming contract selects this adaptation; body-prefix
+diagnostics do not participate. There is no new parser, sniffing rule, route,
+retry, runtime option or control-plane field. `content_type_state` remains the
+observed `absent`, while `media_class=event_stream` describes the effective
+transport type. An adapted response is not sampled as a rejection. Its bytes
+remain untrusted and subject to the same 2 MiB cap, framing, deadlines,
+cancellation and joined cleanup. `stage=complete` still means a clean HTTP body
+transfer, not successful provider events or native Run completion.
+
+This boundary matches the existing explicit-SSE path, which also does not
+validate event contents. The gateway owns request authority and bounded
+transport; native Codex owns provider stream interpretation/completion. Plain
+JSON, HTML or an empty body without the field can therefore reach that native
+parser. The adapter still requires native completion, and the real canary
+independently requires its marker. No safety claim is inferred from an SSE label.
+
+Local raw TLS/HTTP tests exercise the adaptation through both actual parser
+hops, canonical downstream MIME, byte preservation, absent catalog/refresh
+rejection, explicit empty/invalid/wrong types, chunked and close-delimited
+bodies, the body cap, truncation and cancellation. Rejected-response probes
+retain coverage with present empty fields; their bounds and admission latch
+are unchanged.
+
+At **09:10 UTC**, one offline native container using the fixed CLI 0.151.0
+completed the valid SSE positive control. Plain JSON under an SSE label and
+an incomplete SSE stream each produced a native harness failure before the
+fixture deadline. All three cases used one inference, synthetic authentication,
+the fixed HTTPS overlay and a fixture-only zero stream-retry bound. Namespace
+quiescence, stopped full-ID removal, subsequent absence and frozen input hashes
+passed. No real credential or upstream was used. This verifies the downstream
+client contract for these cases, not the fourth Run's unretained event contents
+or real Responses Lite acceptance.
+
+At **09:14 UTC**, a new continuation using the updated owner/Runner content
+hashes passed default read-only preflight with `awaiting_operator`, matching
+credential metadata and no findings. All four earlier configurations, both
+databases and the original device-login credential object's lstat metadata
+were unchanged before/after preparation; auth bytes were not read or hashed.
+The plan remains unarmed: no fifth real Run or generation transition occurred.
+
+The final Go sources passed ordinary full-repository tests/race/vet and affected
+offline tagged race/vet on **09:07–09:17 UTC**, with matching owner/Runner builds.
+The native witness above is separately scoped; existing lifecycle/formal stages
+were not reopened. Public Discord and production deployment remain blocked.

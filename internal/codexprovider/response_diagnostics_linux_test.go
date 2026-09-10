@@ -82,16 +82,16 @@ func TestRejectedResponseMetadataAndPrefix(t *testing.T) {
 	for _, row := range []struct {
 		name, wire, contentType, framing, length, prefix, end string
 	}{
-		{"absent-sse", wire("", "data: "+diagnosticSecret+"\n\n"), "absent", "fixed", "positive", "event_stream_like", "eof"},
+		{"empty-sse", wire("Content-Type:\r\n", "data: "+diagnosticSecret+"\n\n"), "empty", "fixed", "positive", "event_stream_like", "eof"},
 		{"empty-json", wire("Content-Type: \t\r\n", `{"secret":"`+diagnosticSecret+`"}`), "empty", "fixed", "positive", "json_like", "eof"},
 		{"multiple-first-empty", wire("Content-Type:\r\nContent-Type: text/event-stream\r\n", "data: x\n\n"), "multiple_first_empty", "fixed", "positive", "event_stream_like", "eof"},
-		{"empty-body", wire("", ""), "absent", "fixed", "zero", "empty", "eof"},
-		{"chunked", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n8\r\ndata: x\n\r\n1\r\n\n\r\n0\r\n\r\n", "absent", "chunked", "unknown", "event_stream_like", "eof"},
-		{"close-delimited", "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n<!DOCTYPE HTML>" + diagnosticSecret, "absent", "close_delimited", "unknown", "html_like", "eof"},
+		{"empty-body", wire("Content-Type:\r\n", ""), "empty", "fixed", "zero", "empty", "eof"},
+		{"chunked", "HTTP/1.1 200 OK\r\nContent-Type:\r\nTransfer-Encoding: chunked\r\n\r\n8\r\ndata: x\n\r\n1\r\n\n\r\n0\r\n\r\n", "empty", "chunked", "unknown", "event_stream_like", "eof"},
+		{"close-delimited", "HTTP/1.1 200 OK\r\nContent-Type:\r\nConnection: close\r\n\r\n<!DOCTYPE HTML>" + diagnosticSecret, "empty", "close_delimited", "unknown", "html_like", "eof"},
 		{"bounded", wire("Content-Type: invalid; secret="+diagnosticSecret+"; broken\r\n", strings.Repeat("x", 1024)), "single", "fixed", "positive", "other", "limit"},
 		{"wrong-media", wire("Content-Type: application/json\r\n", "\xef\xbb\xbf \n{}"), "single", "fixed", "positive", "json_like", "eof"},
-		{"whitespace", wire("", " \t\n"), "absent", "fixed", "positive", "whitespace", "eof"},
-		{"truncated", "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\ndata: short", "absent", "fixed", "positive", "event_stream_like", "read_error"},
+		{"whitespace", wire("Content-Type:\r\n", " \t\n"), "empty", "fixed", "positive", "whitespace", "eof"},
+		{"truncated", "HTTP/1.1 200 OK\r\nContent-Type:\r\nContent-Length: 100\r\n\r\ndata: short", "empty", "fixed", "positive", "event_stream_like", "read_error"},
 		{"encoding-no-sample", wire("Content-Encoding: gzip\r\n", diagnosticSecret), "absent", "fixed", "positive", "", ""},
 	} {
 		t.Run(row.name, func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestRejectedBodyProbeIsBoundedAndJoined(t *testing.T) {
 			defer cancel()
 			peerClosed := make(chan struct{})
 			e, client, calls, probeStarted := rawResponseEndpoint(t, ctx, func(conn net.Conn) {
-				_, _ = io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 1024\r\n\r\ndata: "+diagnosticSecret)
+				_, _ = io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Type:\r\nContent-Length: 1024\r\n\r\ndata: "+diagnosticSecret)
 				var buffer [1]byte
 				_, _ = conn.Read(buffer[:])
 				close(peerClosed)

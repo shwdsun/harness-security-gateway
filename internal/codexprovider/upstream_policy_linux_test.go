@@ -35,7 +35,10 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 		{"location-on-200", wire(200, "Location: https://"+diagnosticSecret+".invalid/\r\n"), "upstream_policy", "location", "", Inference, 200, 502},
 		{"redirect", wire(302, "Location: https://"+diagnosticSecret+".invalid/\r\n"), "upstream_policy", "location", "", Inference, 302, 502},
 		{"trailer", "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\nTrailer: X-Result\r\n\r\n1\r\nx\r\n0\r\nX-Result: " + diagnosticSecret + "\r\n\r\n", "upstream_policy", "trailer", "", Inference, 200, 502},
-		{"missing-type", wire(200, ""), "upstream_policy", "content_type_missing", "", Inference, 200, 502},
+		{"missing-inference-type", wire(200, ""), "complete", "", "event_stream", Inference, 200, 200},
+		{"empty-inference-type", wire(200, "Content-Type:\r\n"), "upstream_policy", "content_type_missing", "", Inference, 200, 502},
+		{"missing-catalog-type", wire(200, ""), "upstream_policy", "content_type_missing", "", Catalog, 200, 502},
+		{"missing-refresh-type", wire(200, ""), "upstream_policy", "content_type_missing", "", Refresh, 200, 502},
 		{"invalid-type", wire(200, "Content-Type: text/plain; "+diagnosticSecret+"\r\n"), "upstream_policy", "content_type_invalid", "", Inference, 200, 502},
 		{"inference-json", wire(200, "Content-Type: application/json\r\n"), "upstream_policy", "media_type_mismatch", "json", Inference, 200, 502},
 		{"inference-html", wire(200, "Content-Type: text/html\r\n"), "upstream_policy", "media_type_mismatch", "html", Inference, 200, 502},
@@ -43,6 +46,7 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 		{"catalog-sse", wire(200, "Content-Type: text/event-stream\r\n"), "upstream_policy", "media_type_mismatch", "event_stream", Catalog, 200, 502},
 		{"sse-parameters", wire(200, "Content-Type: Text/Event-Stream; note=\""+diagnosticSecret+"\"\r\n"), "complete", "", "event_stream", Inference, 200, 200},
 		{"catalog-json", wire(200, "Content-Type: application/json\r\n"), "complete", "", "json", Catalog, 200, 200},
+		{"refresh-json", wire(200, "Content-Type: application/json\r\n"), "complete", "", "json", Refresh, 200, 200},
 		{"unauthorized-missing-type", wire(401, ""), "upstream_status", "", "", Inference, 401, 401},
 		{"limited-invalid-type", wire(429, "Content-Type: text/plain; "+diagnosticSecret+"\r\n"), "upstream_status", "", "", Inference, 429, 429},
 		{"server-failure", wire(500, ""), "upstream_status", "", "", Inference, 500, 502},
@@ -78,6 +82,11 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 				} {
 					headers.Set(name, value)
 				}
+			} else if row.operation == Refresh {
+				inputBody = `{"grant_type":"refresh_token","client_id":"app_EMoamEEZ73f0CkXaXp7hrann","refresh_token":"synthetic-only"}`
+				headers.Del("Authorization")
+				headers.Del("Chatgpt-Account-Id")
+				headers.Set("Content-Type", "application/json")
 			}
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
@@ -114,7 +123,8 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 			e, client := testEndpoint(t, ctx, func(ctx context.Context, request Request) (Response, error) {
 				return upstreamResponse(ctx, request, func(ctx context.Context, network, address string) (net.Conn, error) {
 					dials.Add(1)
-					if network != "tcp" || address != "chatgpt.com:443" {
+					_, host, _ := route(row.operation)
+					if network != "tcp" || address != net.JoinHostPort(host, "443") {
 						t.Error("unexpected destination")
 					}
 					return (&net.Dialer{}).DialContext(ctx, "tcp", server.Listener.Addr().String())
@@ -125,7 +135,7 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 			}
 			method, host, path := route(row.operation)
 			var input io.Reader
-			if row.operation == Inference {
+			if inputBody != "" {
 				input = strings.NewReader(inputBody)
 			}
 			r, err := http.NewRequestWithContext(ctx, method, "https://"+host+path, input)
@@ -145,6 +155,13 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 			wantBody := "request denied\n"
 			if row.clientStatus == 200 {
 				wantBody = body
+				wantMedia := "application/json"
+				if row.operation == Inference {
+					wantMedia = "text/event-stream"
+				}
+				if response.Header.Get("Content-Type") != wantMedia {
+					t.Fatal("effective downstream type changed")
+				}
 			}
 			if string(data) != wantBody {
 				t.Fatal("response content or fixed error changed")

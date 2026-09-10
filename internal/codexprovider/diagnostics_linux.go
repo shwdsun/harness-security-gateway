@@ -15,6 +15,8 @@ type Diagnostics struct {
 // exchange has only an admission observation. HTTP status is upstream metadata,
 // not proof of authentication, response completion or model success.
 // UpstreamAuthorized records local dispatch permission, not successful I/O.
+// MediaClass describes the effective transport type; ContentTypeState always
+// describes the observed upstream field, including absent inference metadata.
 // For operation_rejected, Reason identifies the earlier latched rejection;
 // upstream status/media are absent because no new upstream response was observed.
 type ExchangeDiagnostic struct {

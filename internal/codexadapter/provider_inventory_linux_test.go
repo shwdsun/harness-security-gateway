@@ -63,6 +63,8 @@ type providerObserver struct {
 	nonce     string
 	refreshes int
 	responses int
+	// Optional synthetic inference body, read and installed under mu.
+	inferenceReply func(http.ResponseWriter)
 }
 
 func newProviderObserver(t *testing.T, nonce string) *providerObserver {
@@ -290,8 +292,12 @@ func (o *providerObserver) respond(w http.ResponseWriter, r *http.Request, body 
 		}
 		o.responses++
 		observation.Status = http.StatusOK
-		writeIntegrationResponse(w, o.nonce, map[string]any{"type": "message", "id": "msg_" + o.nonce, "role": "assistant", "status": "completed",
-			"content": []any{map[string]any{"type": "output_text", "text": "HSG_PROVIDER_OBSERVED", "annotations": []any{}}}})
+		if o.inferenceReply != nil {
+			o.inferenceReply(w)
+		} else {
+			writeIntegrationResponse(w, o.nonce, map[string]any{"type": "message", "id": "msg_" + o.nonce, "role": "assistant", "status": "completed",
+				"content": []any{map[string]any{"type": "output_text", "text": "HSG_PROVIDER_OBSERVED", "annotations": []any{}}}})
+		}
 	default:
 		http.Error(w, "synthetic observer has no such operation", observation.Status)
 	}
@@ -328,6 +334,21 @@ func TestCodexProviderHTTPCandidate(t *testing.T) {
 	}
 }
 
+// The gateway supplies an SSE transport type on the fixed inference route;
+// native Codex must still require provider stream completion. This fixture
+// uses the same downstream type/bytes, not the live upstream parser or account.
+func TestCodexProviderStreamCompletion(t *testing.T) {
+	if os.Getenv("HSG_CODEX_PROVIDER_STREAM_COMPLETION") != "1" {
+		t.Skip("opt-in offline native stream completion witness")
+	}
+	requireProviderInventoryNamespace(t)
+	for _, mode := range []string{"stream-complete", "stream-json", "stream-incomplete"} {
+		if !t.Run(mode, func(t *testing.T) { providerInventoryCase(t, mode, true) }) {
+			t.FailNow()
+		}
+	}
+}
+
 func requireProviderInventoryNamespace(t *testing.T) {
 	t.Helper()
 	interfaces, err := net.Interfaces()
@@ -350,12 +371,26 @@ func providerInventoryCase(t *testing.T, mode string, httpCandidate bool) {
 	}
 	nonce := "hsg-synthetic-" + mode
 	observer := newProviderObserver(t, nonce)
+	invalidStream := mode == "stream-json" || mode == "stream-incomplete"
+	if invalidStream {
+		observer.mu.Lock()
+		observer.inferenceReply = func(w http.ResponseWriter) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			if mode == "stream-json" {
+				_, _ = io.WriteString(w, `{"type":"response.completed","output_text":"HSG_PROVIDER_OBSERVED"}`)
+			} else {
+				_, _ = io.WriteString(w, "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"HSG_PROVIDER_OBSERVED\"}\n\n")
+			}
+		}
+		observer.mu.Unlock()
+	}
+	terminal := ""
 	defer func() {
 		observer.close()
 		observer.mu.Lock()
 		defer observer.mu.Unlock()
 		record, _ := json.Marshal(map[string]any{"mode": mode, "http_candidate": httpCandidate, "utc": time.Now().UTC().Format(time.RFC3339Nano), "uid": os.Geteuid(),
-			"connects": observer.connects, "stages": observer.stages, "requests": observer.requests, "refreshes": observer.refreshes, "responses": observer.responses, "passed": !t.Failed()})
+			"connects": observer.connects, "stages": observer.stages, "requests": observer.requests, "refreshes": observer.refreshes, "responses": observer.responses, "terminal": terminal, "passed": !t.Failed()})
 		t.Logf("HSG_PROVIDER_OBSERVATION %s", record)
 	}()
 	caPath := filepath.Join(root, "observer-ca.pem")
@@ -382,6 +417,11 @@ func providerInventoryCase(t *testing.T, mode string, httpCandidate bool) {
 				"--config", `model_provider="hsg-subscription-https"`,
 				"--config", `model_providers.hsg-subscription-https={name="HSG subscription HTTPS",base_url="https://chatgpt.com/backend-api/codex",wire_api="responses",requires_openai_auth=true,supports_websockets=false}`,
 				"--config", `features.enable_request_compression=false`, "-")
+			if strings.HasPrefix(mode, "stream-") {
+				// Fixture-only bound, shared by positive and negative controls.
+				// Production/native retry defaults remain unchanged.
+				inv.Args = append(inv.Args[:len(inv.Args)-1], "--config", `model_providers.hsg-subscription-https.stream_max_retries=0`, "-")
+			}
 		}
 		inv.Env = append(inv.Env, "HTTPS_PROXY="+observer.server.URL, "HTTP_PROXY="+observer.server.URL,
 			"CODEX_CA_CERTIFICATE="+caPath, "TMPDIR="+filepath.Join(root, "tmp"))
@@ -390,15 +430,24 @@ func providerInventoryCase(t *testing.T, mode string, httpCandidate bool) {
 	start := testStart()
 	start.Input.Text = "Return only the fixed synthetic observation marker."
 	frames, _, err := execute(t, ctx, start, config, launcher)
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || ctx.Err() != nil {
+		t.Fatal("native HRP did not terminate successfully before its deadline")
 	}
 	if len(frames) != 3 {
 		t.Fatalf("expected readiness/start/terminal, got %d frames", len(frames))
 	}
-	completed, ok := frames[2].(*runnerwire.RunCompleted)
-	if !ok || completed.Output.Text != "HSG_PROVIDER_OBSERVED" {
-		t.Fatalf("native completion missing; terminal type %T", frames[2])
+	if invalidStream {
+		failed, ok := frames[2].(*runnerwire.RunFailed)
+		if !ok || failed.Error.Code != runnerwire.ErrorCodeHarnessError {
+			t.Fatalf("invalid stream did not fail before deadline; terminal type %T", frames[2])
+		}
+		terminal = "harness_error"
+	} else {
+		completed, ok := frames[2].(*runnerwire.RunCompleted)
+		if !ok || completed.Output.Text != "HSG_PROVIDER_OBSERVED" {
+			t.Fatalf("native completion missing; terminal type %T", frames[2])
+		}
+		terminal = "complete"
 	}
 	observer.close()
 	observer.mu.Lock()
@@ -406,7 +455,7 @@ func providerInventoryCase(t *testing.T, mode string, httpCandidate bool) {
 	observations := append([]providerObservation(nil), observer.requests...)
 	connects := append([]string(nil), observer.connects...)
 	observer.mu.Unlock()
-	if responses != 1 || (mode == "fresh" && refreshes != 0) || (mode == "refresh" && refreshes != 1) {
+	if responses != 1 || (mode != "refresh" && refreshes != 0) || (mode == "refresh" && refreshes != 1) {
 		t.Fatalf("operation counts responses=%d refreshes=%d", responses, refreshes)
 	}
 	if mode == "refresh" {
