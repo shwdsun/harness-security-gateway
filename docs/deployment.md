@@ -24,6 +24,13 @@ Use `make demo-security` for the first path. Use the
 manual: its checks are part of the experiment and must not be hidden by an
 installer.
 
+The [controlled provider canary](codex-provider-canary.md) is a separate opt-in
+experiment, omitted from the default build. It requires pinned local artifacts,
+explicit prerequisites and authorization for real credential/provider effects.
+Two real Runs failed on **2026-09-10** with independently observed cleanup; this
+adds experimental evidence, not a third supported deployment path. Its dated
+results and limitations are recorded in the [checkpoint](checkpoint-2026-09-10.md).
+
 The default local mock path retains v1 resumable Runner state. An explicit
 `sandboxd/v3` no-state example and a build-time fixed `new-only` mock artifact
 are also available; see the [optional runbook path](runbook.md#optional-v3-no-state-mock).
@@ -58,8 +65,8 @@ ephemeral Runner container   one Run + one workspace + bounded harness authority
        |
        +-- thin HRP adapter -> pinned Codex/Claude/other harness
        |
-       +-- future reviewed provider path
-             -> narrow auth/egress proxy -> model provider
+       +-- reviewed provider transport
+             -> runtime-owned operation endpoint -> model provider
 ```
 
 Containerization is a packaging choice around a trust boundary, not the trust
@@ -82,9 +89,13 @@ boundary itself. The following placement rules are normative:
   capabilities, and bounded mounts/resources. A future networked target
   requires new runtime support plus a different reviewed profile and
   TargetRevision; configuration alone cannot enable it.
-- A future auth/egress proxy, if used, owns the provider credential and permits
-  only the target's reviewed model operation. Merely allowing a hostname is not
-  credential mediation.
+- Provider access requires enforcement of the target's reviewed operations and
+  lifetime. The opt-in canary implements a runtime-owned Unix/TLS endpoint and
+  a relay inside a network-none container. Its V3 `credential-exposed-personal`
+  contract still binds the dedicated credential file into that container;
+  native tools can read it. Operation mediation does not establish credential
+  hiding. A stronger credential-hiding design would require a separately
+  versioned contract. Merely allowing a hostname is not operation mediation.
 
 Production placement requires distinct service identities and private path and
 socket permissions. Running every process under one UID, using a broad shared
@@ -106,8 +117,8 @@ vendor branch in `agentd` and not a message-selectable plugin.
 
 The [Codex v3 candidate](codex-profile-v3.md) fixes the native companion host,
 package manifest and bundled helpers with the CLI. Its reusable configuration
-and pre-readiness package checks are implemented; it has no approved image or
-executable target. Package composition and native settings belong to this
+and pre-readiness package checks are implemented; it has no approved production
+image or target. Package composition and native settings belong to this
 versioned artifact, while local credential/workspace mappings remain separate
 operator inputs. System sandbox prerequisites require environment evidence;
 the package recipe never changes host security settings.

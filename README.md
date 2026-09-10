@@ -3,6 +3,9 @@
 [![CI](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
+**An independently developed, AI-assisted experiment and reference project for
+messaging-to-harness security boundaries.**
+
 Harness Security Gateway (HSG) is a small, single-user gateway between a
 messaging platform and an agent *harness*: a coding-agent environment that can
 read files, run tools, use credentials, and reach networks. It turns
@@ -10,23 +13,28 @@ authenticated messaging events into durable Runs against operator-approved,
 immutable harness targets without implementing another agent loop or
 orchestrator.
 
-> **Status: research prototype / pre-alpha.** The control-plane walking
-> skeleton and offline security witness are implemented. Two sealed `new_only`
-> Codex adapter behavior profiles and a local-only candidate preflight exist,
-> but no Codex Runner image or executable target is shipped and the default
-> build omits its entrypoint. No
-> provider-authenticated Codex target or Discord Connector exists yet. Do not
-> deploy this repository as a production gateway or treat it as evidence of a
-> secure Discord-to-Codex path.
+> **Status as of 2026-09-10: research prototype / pre-alpha.** The control plane,
+> mock path, credential lifecycle and opt-in V3/native provider canary are
+> implemented within their documented scopes. Two real-provider Runs failed;
+> authenticated completion remains unverified. Normal daemon configuration is
+> mock-only. No public Discord Connector, approved production Codex target or
+> production deployment is available.
 
-What runs today: the Go control plane passes its ordinary and race tests, and
-`make demo-security` checks five offline properties. The end-to-end platform
-path uses a deterministic mock Runner, not Discord or a model provider.
+Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
+The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race/vet
+results, scoped native experiments, failed real Runs and the next work package.
+Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
 > never select or widen that envelope.
 
 ## Why this exists
+
+This project uses AI assistance for design, implementation and review. Its
+purpose is to test the gateway's boundaries and provide a concrete reference
+for studying the design, verification process and failure records. The human
+maintainer owns scope and release decisions; generated code and model reviews
+must be checked against explicit invariants, tests and observed behavior.
 
 Messaging-to-agent connectivity is easy to demonstrate; authority is the
 harder problem. A message is untrusted intent entering a powerful execution
@@ -71,8 +79,11 @@ Runner; it is not yet a real platform-to-provider integration.
 | Sandbox lifecycle and uncertain-create reconciliation | Implemented and deterministically tested with a fake runtime; the digest-pinned mock Runner was exercised locally on rootless Docker, outside public CI |
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
-| Codex adapter | Context-free v1 and fixed private-messaging v2 `new_only` cuts implemented and unit-tested; neither is wired into a shipped target |
-| Real Codex target | Not implemented; blocked on image, context, auth, egress, cancellation, and teardown gates |
+| Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; normal daemon enrollment remains unavailable |
+| Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
+| Controlled provider canary | Separate opt-in local owner, operation endpoint/relay, bounded diagnostics and retained-history continuation; two real Runs failed on 2026-09-10, with independent cleanup observations |
+| Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
+| Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |
 | Production deployment | Not ready |
 
@@ -108,6 +119,11 @@ above, and the advanced mock flow in the local runbook. The latter runs the
 control services on the host and creates one digest-pinned mock Runner
 container per Run; it is not a Discord or Codex deployment.
 
+The [provider canary](docs/codex-provider-canary.md) is a separate, opt-in
+experiment requiring explicit artifacts, local prerequisites and authorization
+for its external effects. Its entrypoint is omitted from the default build;
+it is not an installer or a supported production target.
+
 The intended real topology keeps long-lived control services separate from
 ephemeral harness execution. A Connector may be packaged as one long-running
 service or container per platform credential. `agentd` owns durable admission,
@@ -142,10 +158,15 @@ block a turnkey real-platform deployment.
   cannot redirect a reply.
 - An ambiguous container create is reconciled by immutable identity and is
   never retried as a second create.
-- The sandbox session design keeps provider tokens private. Current evidence
-  uses synthetic mock tokens only; a real provider credential boundary remains
-  an open gate. Public session references are exact-scope, one-use capabilities
-  and never authorize a new Run.
+- The mock session path keeps synthetic provider-session tokens in sandbox
+  state. Core sees exact-scope, one-use opaque references, which never authorize
+  a new Run. This does not establish secrecy of a real provider credential.
+
+The V3/provider-canary contract is explicitly `credential-exposed-personal`:
+native tools can read its dedicated credential file, and allowed provider
+requests can disclose data they can read. The runtime-owned operation endpoint
+constrains requests; it does not hide the credential from those tools. See the
+[canary's credential boundary](docs/codex-provider-canary.md).
 
 Code, deterministic tests, runtime evidence, and explicitly scoped experiments
 outrank prose or model review. See [architecture.md](docs/architecture.md) and
@@ -180,12 +201,13 @@ guarantee.
 
 | Path | Responsibility |
 | --- | --- |
-| `cmd/` | `agentd`, `sandboxd`, `hgwctl`, fake Connector, mock Runner, and disabled Codex adapter entry points |
+| `cmd/` | Control services, local utilities, mock Runner and experimental Codex/bootstrap/canary entry points |
 | `internal/` | Closed protocols, policy, durable stores, dispatch, runtime, and adapter packages |
 | `demo/security/` | Credential-free deterministic security witness |
 | `runners/mock/` | Digest-pinnable mock Runner image |
 | `config/` | Example daemon configuration; never message-selectable |
 | `bakeoff/` | Candidate-neutral adversarial cases and result schema |
+| `formal/recovery/` | Opt-in recovery model, checked-in trace corpus and explicit proof assumptions |
 | `docs/` | Architecture, protocols, evidence limits, status, and runbook |
 
 ## Non-goals
@@ -198,13 +220,16 @@ matrix are deliberately deferred.
 
 ## Documentation
 
+- [Current implementation status](docs/implementation-status.md)
+- [2026-09-10 checkpoint and reflection](docs/checkpoint-2026-09-10.md)
+- [Content evolution and verification scope](docs/content-evolution-and-verification.md)
+- [Controlled provider canary and evidence limits](docs/codex-provider-canary.md)
 - [Design principles](docs/design-principles.md)
 - [Architecture](docs/architecture.md)
 - [Access-control model](docs/access-control.md)
 - [Connector protocol](docs/connector-protocol.md)
 - [Harness Runner Protocol](docs/runner-protocol.md)
 - [Deployment and artifact lifecycle](docs/deployment.md)
-- [Implementation status](docs/implementation-status.md)
 - [Product scope](docs/positioning.md)
 - [Competitive security bake-off](docs/competitive-bakeoff.md)
 - [Local mock runbook](docs/runbook.md)

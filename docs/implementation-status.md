@@ -48,7 +48,8 @@ At **04:53–04:54 UTC**, exact container absence, process exit and zero durable
 cleanup fences were independently verified. Both failed Runs and pending results
 remain retained. The consumed plan now rejects another execution. See the
 [second Run's scope](codex-provider-canary.md#second-real-run--2026-09-10).
-Default daemon configuration, public Discord and deployment remain disabled.
+Normal daemon configuration remains mock-only; public Discord and production
+deployment remain disabled.
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are
@@ -121,7 +122,7 @@ only represented in code, and what remains work in progress.
 | Codex synthetic exec integration | All five native cases passed in an offline guest on 2026-09-08; separate wrapper error retained | Exact adapter/launcher/CLI completion, network denial and positive control, provider-wait and held-tool cancellation; temporary guest compatibility profile, no-catalog tool gap and production gates remain; see [integration scope](codex-exec-integration.md) |
 | Codex Profile v1 contract | Sealed but blocked; not accepted by the runtime | Exact CLI/model/auth/state/network/context/teardown semantics and stable contract fingerprint; live gates remain failed closed |
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
-| Codex Profile v3 tool package | Versioned template and startup guard implemented; execution blocked | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
+| Codex Profile v3 tool package | Versioned template and startup guard implemented; normal daemon execution blocked | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
 | Real Codex target | No production target implemented | No approved production image/auth/network/context profile; two opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
