@@ -17,6 +17,32 @@ import (
 	"time"
 )
 
+// Response policy is a closed internal result. Diagnostic strings and upstream
+// header/body values never select subsequent dispatch authority.
+type responseRejection uint8
+
+const (
+	rejectionNone responseRejection = iota
+	rejectionUpgrade
+	rejectionContentEncoding
+	rejectionLocation
+	rejectionTrailer
+	rejectionContentTypeMissing
+	rejectionContentTypeInvalid
+	rejectionMediaType
+)
+
+// Preserve errors.Is(ErrUpstream) without retaining an underlying error or
+// rejected response values. Only a typed rejection latches operation admission.
+type upstreamFailure struct {
+	stage     string
+	status    int
+	rejection responseRejection
+}
+
+func (upstreamFailure) Error() string { return ErrUpstream.Error() }
+func (upstreamFailure) Unwrap() error { return ErrUpstream }
+
 // One exact HTTPS exchange. No ambient proxy, redirect, retry, WebSocket,
 // cookie jar or generic RoundTripper. Cancellation closes the owned socket.
 func liveResponse(ctx context.Context, request Request) (Response, error) {
@@ -65,12 +91,29 @@ func upstreamResponse(ctx context.Context, request Request, dial func(context.Co
 	// The application body is independently bounded after decomposing HTTP
 	// framing. No decompression is enabled or accepted here.
 	limited.N = MaxBodyBytes + MaxHeaderBytes
-	if response.StatusCode == 101 || response.Header.Get("Content-Encoding") != "" || response.Header.Get("Location") != "" || len(response.Trailer) != 0 {
-		return Response{}, upstreamFailure{stage: "upstream_policy", status: diagnosticStatus(response.StatusCode)}
+	// Keep the existing rejection policy and report its first matching predicate.
+	failure := upstreamFailure{stage: "upstream_policy", status: diagnosticStatus(response.StatusCode)}
+	switch {
+	case response.StatusCode == 101:
+		failure.rejection = rejectionUpgrade
+	case response.Header.Get("Content-Encoding") != "":
+		failure.rejection = rejectionContentEncoding
+	case response.Header.Get("Location") != "":
+		failure.rejection = rejectionLocation
+	case len(response.Trailer) != 0:
+		failure.rejection = rejectionTrailer
 	}
-	media, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if failure.rejection != rejectionNone {
+		return Response{}, failure
+	}
+	contentType := response.Header.Get("Content-Type")
+	media, _, err := mime.ParseMediaType(contentType)
 	if err != nil && response.StatusCode == 200 {
-		return Response{}, upstreamFailure{stage: "upstream_policy", status: diagnosticStatus(response.StatusCode)}
+		failure.rejection = rejectionContentTypeInvalid
+		if contentType == "" {
+			failure.rejection = rejectionContentTypeMissing
+		}
+		return Response{}, failure
 	}
 	success = true
 	return Response{Status: response.StatusCode, MediaType: media, Body: owned}, nil

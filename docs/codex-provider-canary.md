@@ -156,7 +156,9 @@ normal daemon option. The endpoint retains at most 16 connection observations
 in acceptance order, matching its existing total admission budget.
 
 Each observation contains a closed operation name, last attempted stage, numeric
-upstream HTTP status when available, and finished/cancelled flags. Stages separate
+upstream HTTP status when available, and finished/cancelled flags. The subsequent
+rejection-handling increment below adds closed reason/media fields and a local
+dispatch-authorization flag. Stages separate
 local CONNECT/TLS/parsing/policy/budget rejection, upstream dial/TLS/write/headers/
 response policy, and response read/write/budget/completion. Settings remain a local
 404 and have no upstream status. Rejected requests may have operation `unknown`.
@@ -257,11 +259,13 @@ credential byte equality is not established. Provider leaves retain only public
 CA files. Cleanup-only recovery was unnecessary. A subsequent read-only preview
 returned `blocked_run_exists` for the same consumed plan.
 
-The next bounded work is actionable closed failure reasons and suppression of
-new upstream dispatch after a deterministic policy rejection, with representative
-offline response/concurrency/cleanup checks. That behavior is not implemented by
-this record. A specific compatibility change requires evidence of the rejected
-response; authenticated completion and the public messaging path remain open.
+The next bounded work identified by this failed Run was actionable closed
+failure reasons and suppression of new upstream dispatch after a deterministic
+policy rejection, with representative offline response/concurrency/cleanup
+checks. The separate implementation below addresses that work; it does not
+identify the predicate rejected in this earlier Run. A specific compatibility
+change requires evidence of the rejected response; authenticated completion
+and the public messaging path remain open.
 
 On **2026-09-10 00:37–00:39 UTC**, runtime-owned fake refresh/catalog/inference,
 native command output, lost Start reply, removal failure and one scoped Core
@@ -299,3 +303,76 @@ V3's `credential-exposed-personal` classification still applies: native tools
 can read the dedicated credential, and an allowed provider request can disclose
 data. Preparing this canary does not establish credential secrecy or complete
 production operation/context closure.
+
+### Actionable rejection and bounded failure handling — 2026-09-10
+
+The endpoint now records the first matching response-policy predicate as a
+closed `reason`. Its response acceptance rules are unchanged:
+
+| Reason | Rejected observation |
+| --- | --- |
+| `protocol_upgrade` | HTTP 101 |
+| `content_encoding` | Nonempty Content-Encoding, including `identity` |
+| `location` | Nonempty Location, including on HTTP 200 |
+| `trailer` | Declared response trailers |
+| `content_type_missing` | HTTP 200 with an empty/missing Content-Type |
+| `content_type_invalid` | HTTP 200 with a nonempty Content-Type that fails MIME parsing |
+| `media_type_mismatch` | Parsed HTTP 200 media differs from the operation's required JSON or SSE type |
+
+For a parsed HTTP 200 response, `media_class` is one of `json`, `event_stream`,
+`html` or `other`; raw MIME values and parameters are never retained. A completed
+observation's `upstream_authorized` flag means local dispatch permission was
+granted, not that network I/O, authentication or model completion succeeded.
+Unfinished observations still record admission only.
+
+The first typed response rejection blocks further upstream authorization for
+that operation within the same endpoint. This transition and the last dispatch
+check share the endpoint mutex; no mutex is held across upstream I/O. Rejection
+is published before client error writes or closing a returned response body.
+An otherwise admissible later request receives a fixed local 503, stage
+`operation_rejected`, and the earlier rejection's reason. It has no new upstream
+status or media classification. Request/connection/operation budgets retain
+their existing precedence and limits; malformed requests do not gain authority.
+
+The guarantee is **zero new upstream dispatch authorizations after the rejection
+transition**, not a one- or four-request total for the Run. Calls authorized
+earlier may finish later. Other operations, local settings, transport failures,
+status-only failures and response truncation/body-limit failures keep their
+existing behavior. Diagnostic stage strings do not control the block.
+
+Local tests exercise actual TLS/HTTP response parsing, accepted MIME parameters,
+non-200 controls and closed diagnostic output. Endpoint cases cover operation
+isolation, status/transient progress, five successful calls followed by four
+concurrently authorized failures, and later local rejections with nine total
+callbacks. Separate held-callback and slow-body-close cases verify cancellation,
+unfinished joins and rejection before cleanup completes. These tests add no
+provider-compatibility or whole-runtime acceptance claim.
+
+This changes ordinary Linux provider code, so ordinary repository and affected
+tagged checks apply. Existing store/recovery, formal-model and native-runtime
+observations retain their dates and assumptions. New owner/Runner artifact pins
+and an explicit continuation preview are required before a further real Run.
+
+Verification also corrected two fixture assumptions: completed endpoint batches
+are observed under the endpoint mutex, without waiting on its worker WaitGroup
+while admission remains open; the owner-loss test closes pooled idle TLS
+connections before asserting failure of a new connection. Its request failure
+and bounded relay join are checked separately. Production relay behavior and
+response acceptance were unchanged by these fixture corrections.
+
+On **2026-09-10 06:44–06:52 UTC**, final-source ordinary tests, full-repository
+race and vet, and affected `codexintegration` race/vet selections passed.
+The offline tagged test selection explicitly excluded the native
+`TestCodexExecIntegration`; it does not claim a fresh native or real-provider
+test. The provider package also passed 20 race iterations after its test
+synchronization correction, and the revised owner-loss fixture passed 10.
+The security demo passed with unchanged production sources. Initial failed
+checks remain recorded separately from these results.
+
+At **2026-09-10 06:49 UTC**, newly pinned owner/Runner artifacts and one retained-
+history continuation passed default read-only preflight with `awaiting_operator`
+and no findings. Both retained databases and both prior configurations were
+unchanged; credential metadata matched before and after, without reading or
+hashing its bytes. The third Run remains unexecuted. This is preparation
+evidence, not a current authentication, Docker-service or real-provider
+acceptance result.

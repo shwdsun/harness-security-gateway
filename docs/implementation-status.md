@@ -51,6 +51,14 @@ remain retained. The consumed plan now rejects another execution. See the
 Normal daemon configuration remains mock-only; public Discord and production
 deployment remain disabled.
 
+The subsequent [response-rejection work package](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
+now implements closed predicate/media diagnostics and operation-scoped blocking
+at upstream dispatch authorization. It preserves the response acceptance rules,
+other operations, transient/status behavior and joined cleanup. The next real
+experiment must use newly pinned artifacts and an explicitly authorized
+continuation; these local changes do not explain the earlier response predicate
+or count as a third real Run.
+
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are
 implemented with synthetic tests. A tagged offline V3 fixture now connects
@@ -416,8 +424,10 @@ The [live-path delivery plan](codex-live-path-plan.md), first reviewed on
 2026-09-09 and updated on 2026-09-10, maps the eight candidate blockers to code
 and evidence. Its synthetic delivery unit now connects provider control,
 enrolled credential handoff and the fixed V3 runtime under fake ingress, with
-the scoped evidence below. The current next work package is
-[actionable response rejection and bounded failure handling](checkpoint-2026-09-10.md#next-work-package).
+the scoped evidence below. The subsequent
+[response rejection and bounded failure handling](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
+package adds actionable diagnostics before preparing another controlled real
+attempt; provider compatibility remains an open gate.
 The [provider-control/credential-delivery decision](codex-control-boundary.md)
 defines a bounded synthetic Responses consumer and a pre-execution mounted-object
 gate. The verifier/bootstrap component has six passing local rootless cases

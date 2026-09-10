@@ -46,6 +46,7 @@ type Endpoint struct {
 	opened, closed, cleanupFailed bool
 	active                        map[net.Conn]struct{}
 	counts                        map[Operation]int
+	rejected                      map[Operation]responseRejection
 	diagnostics                   []ExchangeDiagnostic
 	workers                       sync.WaitGroup
 	done                          chan struct{}
@@ -100,7 +101,7 @@ func newEndpoint(ctx context.Context, directory string, peer localidentity.UID, 
 	digest := sha256.Sum256(ca)
 	e := &Endpoint{ctx: run, cancel: cancel, listener: listener, certificate: certificate, respond: respond, socket: socket, ca: caPath,
 		socketDev: uint64(ss.Dev), socketIno: ss.Ino, caDev: uint64(cs.Dev), caIno: cs.Ino, caHash: hex.EncodeToString(digest[:]), uid: peer.Uint32(),
-		active: make(map[net.Conn]struct{}), counts: make(map[Operation]int), done: make(chan struct{})}
+		active: make(map[net.Conn]struct{}), counts: make(map[Operation]int), rejected: make(map[Operation]responseRejection), done: make(chan struct{})}
 	go e.serve()
 	return e, nil
 }
@@ -232,6 +233,31 @@ func readRequest(conn net.Conn) (*http.Request, *bufio.Reader, *io.LimitedReader
 	r, err := http.ReadRequest(reader)
 	return r, reader, limit, err
 }
+
+// This lock is the upstream dispatch authorization boundary. Previously
+// authorized calls can finish after a rejection; no later call may acquire
+// authority for that operation. The lock is never held across upstream I/O.
+func (e *Endpoint) authorizeUpstream(ctx context.Context, operation Operation) (bool, responseRejection) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !e.opened || e.closed || ctx.Err() != nil {
+		return false, rejectionNone
+	}
+	reason := e.rejected[operation]
+	return reason == rejectionNone, reason
+}
+
+func (e *Endpoint) rejectOperation(operation Operation, reason responseRejection) {
+	if reason == rejectionNone {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.rejected[operation] == rejectionNone {
+		e.rejected[operation] = reason
+	}
+}
+
 func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	diagnostic.Operation, diagnostic.Stage = "unknown", "connect"
 	defer func() {
@@ -324,6 +350,17 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	}()
 	idle := time.AfterFunc(IdleTimeout, cancel)
 	defer idle.Stop()
+	diagnostic.Stage = "upstream_admission"
+	var rejection responseRejection
+	diagnostic.UpstreamAuthorized, rejection = e.authorizeUpstream(callCtx, request.Operation)
+	if !diagnostic.UpstreamAuthorized {
+		if rejection != rejectionNone {
+			diagnostic.Stage = "operation_rejected"
+			diagnostic.Reason = diagnosticRejection(rejection)
+		}
+		writeDenied(secure, 503)
+		return
+	}
 	diagnostic.Stage = "upstream"
 	response, err := e.respond(callCtx, request)
 	diagnostic.UpstreamStatus = diagnosticStatus(response.Status)
@@ -331,6 +368,10 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	if errors.As(err, &failure) {
 		diagnostic.Stage = failure.stage
 		diagnostic.UpstreamStatus = diagnosticStatus(failure.status)
+		diagnostic.Reason = diagnosticRejection(failure.rejection)
+		// Publish rejection before client writes or response-body cleanup can
+		// block. Neither diagnostics nor cleanup completion grants new calls.
+		e.rejectOperation(request.Operation, failure.rejection)
 	}
 	if response.Body == nil {
 		writeDenied(secure, 502)
@@ -362,8 +403,11 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	if request.Operation == Inference {
 		media = "text/event-stream"
 	}
+	diagnostic.MediaClass = diagnosticMedia(response.MediaType)
 	if response.MediaType != media {
 		diagnostic.Stage = "upstream_policy"
+		diagnostic.Reason = diagnosticRejection(rejectionMediaType)
+		e.rejectOperation(request.Operation, rejectionMediaType)
 		writeDenied(secure, 502)
 		return
 	}

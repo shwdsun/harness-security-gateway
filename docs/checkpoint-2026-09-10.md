@@ -73,6 +73,10 @@ preceding archived source hashes. This consolidation changes documentation only.
 
 ## Next work package
 
+This was the next package proposed at the source checkpoint. Its subsequent
+[implementation and evidence](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
+are tracked separately; the checkpoint's original verification results retain their scope.
+
 Prepare **actionable response rejection and bounded failure handling**: closed
 typed failure reasons, a closed media classification and operation-scoped state
 checked at upstream dispatch authorization. The general guarantee is zero new

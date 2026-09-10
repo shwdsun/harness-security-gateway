@@ -11,8 +11,10 @@ experimental consumer, local enrollment/dispatch entrypoint and read-only
 preparation report. Two separately approved real Runs on **2026-09-10** failed
 without the completion marker; the second recorded grouped response-policy
 rejections whose exact predicate is still unknown. Exact cleanup was separately
-observed. Real-provider acceptance remains open. The next local package is
-[actionable rejection diagnosis and bounded failure handling](checkpoint-2026-09-10.md#next-work-package);
+observed. Real-provider acceptance remains open. The subsequent local
+[rejection diagnosis and bounded failure handling](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
+implementation prepares a more informative controlled attempt. Its new artifacts
+and continuation preview precede any separately authorized real execution;
 Discord and deployment composition follow provider acceptance.
 
 Apply the [content evolution and verification contract](content-evolution-and-verification.md)

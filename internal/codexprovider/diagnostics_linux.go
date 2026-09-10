@@ -14,12 +14,18 @@ type Diagnostics struct {
 // Stage is the last attempted stage when Finished is true. An unfinished
 // exchange has only an admission observation. HTTP status is upstream metadata,
 // not proof of authentication, response completion or model success.
+// UpstreamAuthorized records local dispatch permission, not successful I/O.
+// For operation_rejected, Reason identifies the earlier latched rejection;
+// upstream status/media are absent because no new upstream response was observed.
 type ExchangeDiagnostic struct {
-	Operation      string `json:"operation"`
-	Stage          string `json:"stage"`
-	UpstreamStatus int    `json:"upstream_status,omitempty"`
-	Finished       bool   `json:"finished"`
-	Cancelled      bool   `json:"cancelled"`
+	Operation          string `json:"operation"`
+	Stage              string `json:"stage"`
+	Reason             string `json:"reason,omitempty"`
+	MediaClass         string `json:"media_class,omitempty"`
+	UpstreamAuthorized bool   `json:"upstream_authorized,omitempty"`
+	UpstreamStatus     int    `json:"upstream_status,omitempty"`
+	Finished           bool   `json:"finished"`
+	Cancelled          bool   `json:"cancelled"`
 }
 
 func (e *Endpoint) Diagnostics() Diagnostics {
@@ -57,12 +63,37 @@ func diagnosticStatus(status int) int {
 	return 0
 }
 
-// Only this package constructs these failures, using literal stages. Preserve
-// errors.Is(ErrUpstream) without keeping or formatting an underlying error.
-type upstreamFailure struct {
-	stage  string
-	status int
+func diagnosticRejection(reason responseRejection) string {
+	switch reason {
+	case rejectionUpgrade:
+		return "protocol_upgrade"
+	case rejectionContentEncoding:
+		return "content_encoding"
+	case rejectionLocation:
+		return "location"
+	case rejectionTrailer:
+		return "trailer"
+	case rejectionContentTypeMissing:
+		return "content_type_missing"
+	case rejectionContentTypeInvalid:
+		return "content_type_invalid"
+	case rejectionMediaType:
+		return "media_type_mismatch"
+	default:
+		return ""
+	}
 }
 
-func (upstreamFailure) Error() string { return ErrUpstream.Error() }
-func (upstreamFailure) Unwrap() error { return ErrUpstream }
+// Never retain the original MIME string or parameters in diagnostics.
+func diagnosticMedia(media string) string {
+	switch media {
+	case "application/json":
+		return "json"
+	case "text/event-stream":
+		return "event_stream"
+	case "text/html":
+		return "html"
+	default:
+		return "other"
+	}
+}

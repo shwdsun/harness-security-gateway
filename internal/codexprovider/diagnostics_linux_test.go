@@ -24,21 +24,21 @@ func (diagnosticCloseFailure) Close() error { return errors.New(diagnosticSecret
 
 func TestDiagnosticOutcomes(t *testing.T) {
 	for _, row := range []struct {
-		name, stage string
-		status      int
+		name, stage, reason, media string
+		status                     int
 	}{
-		{"success", "complete", 200},
-		{"unauthorized", "upstream_status", 401},
-		{"forbidden", "upstream_status", 403},
-		{"limited", "upstream_status", 429},
-		{"transport", "upstream", 0},
-		{"dial", "upstream_dial", 0},
-		{"redirect", "upstream_policy", 302},
-		{"cleanup", "complete", 200},
-		{"media", "upstream_policy", 200},
-		{"truncated", "response_read", 200},
-		{"budget", "response_budget", 200},
-		{"policy", "request_policy", 0},
+		{"success", "complete", "", "event_stream", 200},
+		{"unauthorized", "upstream_status", "", "", 401},
+		{"forbidden", "upstream_status", "", "", 403},
+		{"limited", "upstream_status", "", "", 429},
+		{"transport", "upstream", "", "", 0},
+		{"dial", "upstream_dial", "", "", 0},
+		{"redirect", "upstream_policy", "location", "", 302},
+		{"cleanup", "complete", "", "event_stream", 200},
+		{"media", "upstream_policy", "media_type_mismatch", "other", 200},
+		{"truncated", "response_read", "", "event_stream", 200},
+		{"budget", "response_budget", "", "event_stream", 200},
+		{"policy", "request_policy", "", "", 0},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -54,7 +54,11 @@ func TestDiagnosticOutcomes(t *testing.T) {
 					return Response{}, errors.New(diagnosticSecret)
 				}
 				if row.name == "dial" || row.name == "redirect" {
-					return Response{}, upstreamFailure{stage: row.stage, status: row.status}
+					failure := upstreamFailure{stage: row.stage, status: row.status}
+					if row.name == "redirect" {
+						failure.rejection = rejectionLocation
+					}
+					return Response{}, failure
 				}
 				response := Response{Status: row.status, MediaType: "text/event-stream", Body: io.NopCloser(strings.NewReader(diagnosticSecret))}
 				switch row.name {
@@ -91,7 +95,7 @@ func TestDiagnosticOutcomes(t *testing.T) {
 			}
 			// Join completed exchanges before stopping admission: ordinary local
 			// teardown must not label a successful exchange as cancelled.
-			e.workers.Wait()
+			waitEndpointExchanges(t, ctx, e, 1)
 			if !errors.Is(e.Close(ctx), cleanupError) {
 				t.Fatal("close")
 			}
@@ -106,6 +110,9 @@ func TestDiagnosticOutcomes(t *testing.T) {
 			}
 			if got.Stage != row.stage || got.UpstreamStatus != row.status || got.Operation != op || !got.Finished || got.Cancelled || calls.Load() != wantCalls {
 				t.Fatalf("outcome: %+v, calls=%d", got, calls.Load())
+			}
+			if got.Reason != row.reason || got.MediaClass != row.media || got.UpstreamAuthorized != (wantCalls == 1) {
+				t.Fatalf("response classification/authorization: %+v", got)
 			}
 			data, err := json.Marshal(d)
 			if err != nil || strings.Contains(string(data), diagnosticSecret) || strings.Contains(string(data), "chatgpt.com") || strings.Contains(string(data), "backend-api") || len(data) > 8<<10 {
@@ -151,7 +158,7 @@ func TestDiagnosticBound(t *testing.T) {
 		t.Fatal("diagnostic count")
 	}
 	for _, exchange := range d.Exchanges {
-		if !exchange.Finished || exchange.Operation != "settings" || exchange.Stage != "local_settings" || exchange.UpstreamStatus != 0 {
+		if !exchange.Finished || exchange.Operation != "settings" || exchange.Stage != "local_settings" || exchange.UpstreamStatus != 0 || exchange.UpstreamAuthorized || exchange.Reason != "" || exchange.MediaClass != "" {
 			t.Fatal("local response presented as upstream evidence")
 		}
 	}

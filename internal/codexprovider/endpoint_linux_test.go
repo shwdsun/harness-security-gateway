@@ -24,10 +24,17 @@ func testEndpoint(t *testing.T, ctx context.Context, respond responder, cleanupE
 	if os.Geteuid() == 0 {
 		t.Skip("concrete non-root peer required")
 	}
-	dir, err := os.MkdirTemp(t.TempDir(), "owner-")
+	// t.TempDir includes the full test/subtest name, which can exceed the
+	// Unix socket pathname limit. Keep this owned fixture independent of it.
+	dir, err := os.MkdirTemp("", "hsg-provider-")
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Error(err)
+		}
+	})
 	e, err := newEndpoint(ctx, dir, localidentity.UID(os.Geteuid()), respond)
 	if err != nil {
 		t.Fatal(err)
@@ -72,6 +79,30 @@ func testInference(ctx context.Context, client *http.Client) (int, []byte, error
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
 	return response.StatusCode, body, err
+}
+
+// Observe completed batches under the endpoint mutex. Its worker WaitGroup
+// belongs to serve: waiting on it while admission is open can race with Add.
+func waitEndpointExchanges(t *testing.T, ctx context.Context, e *Endpoint, count int) {
+	t.Helper()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		e.mu.Lock()
+		complete := len(e.diagnostics) == count && len(e.active) == 0
+		for _, diagnostic := range e.diagnostics {
+			complete = complete && diagnostic.Finished
+		}
+		e.mu.Unlock()
+		if complete {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("expected %d completed exchanges: %+v", count, e.Diagnostics())
+		case <-ticker.C:
+		}
+	}
 }
 
 func TestEndpointAdmissionAndTLS(t *testing.T) {

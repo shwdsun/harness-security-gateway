@@ -277,9 +277,23 @@ func TestProviderRelayOwnerLoss(t *testing.T) {
 	}
 	// A new connection still targets the old pinned object and must fail;
 	// neither a caller retry nor a stale pathname starts another owner.
+	// The earlier refresh can leave a pooled TLS tunnel. Its EOF alone does
+	// not exercise a new Unix dial or require the relay to stop with ErrEndpoint.
+	client.CloseIdleConnections()
 	_, _, err = relayRequest(ctx, client, true, relayRefresh)
-	if err == nil || !errors.Is(relay.Wait(), providerrelay.ErrEndpoint) {
-		t.Fatal("dead owner accepted new work")
+	var timeout net.Error
+	if err == nil || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &timeout) && timeout.Timeout() {
+		t.Fatalf("new request to dead owner did not fail promptly: %v", err)
+	}
+	relayDone := make(chan error, 1)
+	go func() { relayDone <- relay.Wait() }()
+	select {
+	case err := <-relayDone:
+		if !errors.Is(err, providerrelay.ErrEndpoint) {
+			t.Fatalf("new dial to dead owner lost endpoint failure: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("relay did not join after the failed new owner dial")
 	}
 	t.Logf("owned SIGKILL: active TLS request failed without timeout; fixed endpoint refused reuse; relay joined; elapsed=%s", time.Since(started))
 }
