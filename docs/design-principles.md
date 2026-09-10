@@ -119,6 +119,11 @@ claim -> threat or counterexample -> closed contract -> mechanism
       -> deterministic test -> production-shaped canary -> residual limit
 ```
 
+For changes, apply the [content evolution and verification contract](content-evolution-and-verification.md).
+Select checks by affected guarantees and assumptions, reuse unchanged evidence,
+and concentrate costly acceptance on the integrated delivery. This chain does
+not require every small edit to reopen research, formal proof or native trials.
+
 The evidence vocabulary is deliberately strict:
 
 - **design assumption**: accepted for progress but not yet demonstrated;

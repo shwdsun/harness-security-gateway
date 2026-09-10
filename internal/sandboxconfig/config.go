@@ -263,19 +263,19 @@ func (c Config) validateTarget(target targetmanifest.Definition) error {
 		return invalid("targets", "sandboxd/v2 accepts only harness-target/v1")
 	}
 	if target.Schema() == targetmanifest.SchemaV2 {
-		return validateV2MockProfile(target)
+		return validateMockProfile(target)
 	}
 	return nil
 }
 
 // This is a total matcher for the built-in, provider-free mock envelope only.
 // General profile resolution and real provider authority remain unsupported.
-func validateV2MockProfile(target targetmanifest.Definition) error {
+func validateMockProfile(target targetmanifest.Definition) error {
 	common := target.Common()
 	if common.Runner.Family != "mock" || common.Runner.AdapterVersion != "0.1.0" ||
 		common.PolicyRef != "builtin.locked-down-v1" || common.AuthProfileRef != "builtin.none" ||
 		common.SkillBundleRef != "builtin.none" || common.NetworkProfileRef != "builtin.none" {
-		return invalid("targets", "v2 execution supports only the locked-down mock profile")
+		return invalid("targets", "authority resolution supports only the locked-down mock profile")
 	}
 	return nil
 }

@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
 	"github.com/shwdsun/harness-security-gateway/internal/sandboxconfig"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
@@ -34,6 +36,7 @@ const (
 	labelTargetID          = "io.harness-gateway.target-id"
 	labelTargetRevision    = "io.harness-gateway.target-revision"
 	labelTargetFingerprint = "io.harness-gateway.target-fingerprint"
+	labelRuntimePolicy     = "io.harness-gateway.runtime-policy"
 )
 
 type ContainerRef string
@@ -43,9 +46,13 @@ func (r ContainerRef) String() string {
 }
 
 type Runtime struct {
-	cli      string
-	endpoint string
-	targets  map[targetKey]targetSpec
+	cli          string
+	endpoint     string
+	targets      map[targetKey]targetSpec
+	credentialMu sync.Mutex
+	credentials  map[ContainerRef]*credentialLaunch
+	providers    map[string]runProvider // Same process as runtime ownership.
+	inventoryPin string
 }
 
 type targetKey struct {
@@ -64,6 +71,7 @@ type targetSpec struct {
 	stdinLimit    int64
 	stdoutLimit   int64
 	stderrLimit   int64
+	credential    *credentialSpec
 }
 
 func New(config sandboxconfig.Config) (*Runtime, error) {
@@ -145,6 +153,10 @@ func New(config sandboxconfig.Config) (*Runtime, error) {
 // Create creates one stopped, immutable runner container. The returned
 // reference is a full Docker container ID, never a caller-selected name.
 func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (ContainerRef, error) {
+	return r.create(ctx, runID, manifest, nil)
+}
+
+func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff) (ContainerRef, error) {
 	if err := r.ready(ctx); err != nil {
 		return "", err
 	}
@@ -154,8 +166,10 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 	if err := manifest.Validate(); err != nil {
 		return "", fmt.Errorf("%w: target manifest", ErrInvalidArgument)
 	}
-	if err := validateProfile(manifest); err != nil {
-		return "", err
+	if handoff == nil {
+		if err := validateProfile(manifest); err != nil {
+			return "", err
+		}
 	}
 	fingerprint, err := manifest.Fingerprint()
 	if err != nil {
@@ -165,6 +179,16 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 	if !exists || spec.fingerprint != fingerprint || spec.image != manifest.Common().Runner.Image {
 		return "", ErrTargetNotConfigured
 	}
+	if spec.credential == nil {
+		if err := validateProfile(manifest); err != nil {
+			return "", err
+		}
+		if handoff != nil {
+			return "", ErrCredentialUnavailable
+		}
+	} else if err := spec.credential.prepare(handoff, runID, fingerprint); err != nil {
+		return "", err
+	}
 	// Recheck immediately before passing authority-bearing paths to the CLI.
 	// This narrows (but cannot eliminate) the CLI bind-mount TOCTOU window.
 	if err := validateSpecStorage(spec); err != nil {
@@ -173,9 +197,14 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 	if err := r.attestRootless(ctx); err != nil {
 		return "", err
 	}
+	// Allocate only after the one-use handoff is claimed, before an external
+	// Create could be accepted. Failure retains any allocated owner for cleanup.
+	if spec, err = r.prepareProvider(ctx, runID, spec); err != nil {
+		return "", err
+	}
 
 	name := deterministicName(runID)
-	labels := expectedLabels(runID, manifest, fingerprint)
+	labels := r.runtimeLabels(runID, manifest, fingerprint)
 	arguments := createArguments(name, labels, spec, manifest)
 	stdout, invoked, err := r.runObserved(ctx, "create", arguments...)
 	if err == nil {
@@ -322,7 +351,19 @@ func expectedLabels(runID string, manifest targetmanifest.Definition, fingerprin
 	}
 }
 
+func (r *Runtime) runtimeLabels(runID string, manifest targetmanifest.Definition, fingerprint string) map[string]string {
+	labels := expectedLabels(runID, manifest, fingerprint)
+	if spec := r.targets[targetKey{manifest.ID(), manifest.Revision()}]; spec.credential != nil {
+		labels[labelRuntimePolicy] = spec.credential.pin
+	}
+	return labels
+}
+
 func createArguments(name string, labels map[string]string, spec targetSpec, manifest targetmanifest.Definition) []string {
+	scratchBytes := tmpfsBytes
+	if spec.credential != nil {
+		scratchBytes = 512 << 20
+	}
 	arguments := []string{
 		"container", "create",
 		"--name", name,
@@ -330,6 +371,9 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 	}
 	for _, key := range []string{labelManaged, labelRunID, labelTargetID, labelTargetRevision, labelTargetFingerprint} {
 		arguments = append(arguments, "--label", key+"="+labels[key])
+	}
+	if pin, ok := labels[labelRuntimePolicy]; ok {
+		arguments = append(arguments, "--label", labelRuntimePolicy+"="+pin)
 	}
 	arguments = append(arguments,
 		"--interactive",
@@ -344,7 +388,7 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 		"--memory-swap", strconv.FormatInt(manifest.Common().Limits.MemoryBytes, 10),
 		"--cpus", formatCPU(manifest.Common().Limits.CPUMillis),
 		"--pids-limit", strconv.FormatInt(manifest.Common().Limits.PIDs, 10),
-		"--tmpfs", fmt.Sprintf("/tmp:rw,nosuid,nodev,noexec,size=%d,mode=1777", tmpfsBytes),
+		"--tmpfs", fmt.Sprintf("/tmp:rw,nosuid,nodev,noexec,size=%d,mode=1777", scratchBytes),
 		"--workdir", "/workspace",
 		// In a rootless daemon, container uid 0 maps to sandboxd's dedicated
 		// host uid. This lets the runner access private 0700 binds without
@@ -359,6 +403,9 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 	arguments = append(arguments, "--mount", workspaceMount)
 	if spec.stateKind == targetmanifest.RunnerStatePersistent {
 		arguments = append(arguments, "--mount", "type=bind,src="+spec.statePath+",dst=/state,bind-propagation=rprivate")
+	}
+	if spec.credential != nil {
+		arguments = append(arguments, spec.credential.arguments()...)
 	}
 	arguments = append(arguments, manifest.Common().Runner.Image)
 	return arguments

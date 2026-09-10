@@ -112,6 +112,25 @@ present, and runtime kind/endpoint/socket/CLI. This binds the built-in mock's
 resolved authority, not unimplemented credential or profile content. Enabling
 such authority requires a separately reviewed resolver/fingerprint domain.
 
+The strict [enrolled-target registration](credential-source-enrollment.md#implemented-credential-targetrevision-composition)
+now combines a caller-supplied non-credential authority pin with the stored
+credential source/generation/proof and independently approved exact scope under
+`harness-security-gateway.sandboxstore.credential-target/v1`. It preserves
+credential-free pins and performs the read and registration in one transaction.
+It does not turn the mock fingerprint or diagnostic candidate into complete
+real-provider authority; that provider content resolver remains absent.
+
+sandboxd now obtains each entry's base pin and state ownership from
+`sandboxconfig.ResolveTargetAuthority`, then sandboxservice registers the whole
+batch through that strict entrypoint. Resolution accepts only the exact configured
+locked-down mock projection in both v1 and v2; credentials are absent. The
+historical standalone v1 hash helper is unchanged, but cannot be substituted for
+the stricter executable resolver. A trusted future credential resolver must also
+supply the independently approved six-field scope, matching the target/revision;
+the service derives workspace/auth from the manifest and hashes the exact scope
+before transactional enrollment comparison. Resolver failure never falls back
+to a legacy hook or diagnostic candidate.
+
 ## Mock artifact and evidence boundary
 
 V2 matches only family `mock`, adapter `0.1.0`, policy

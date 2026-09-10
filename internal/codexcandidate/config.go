@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/strictjson"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
@@ -43,14 +44,7 @@ type workspace struct {
 	Path string `json:"path"`
 }
 
-type credential struct {
-	WorkspaceRef   string `json:"workspace_ref"`
-	AuthProfileRef string `json:"auth_profile_ref"`
-	SlotRef        string `json:"slot_ref"`
-	Generation     uint64 `json:"generation"`
-	Root           string `json:"root"`
-	Directory      string `json:"directory"`
-}
+type credential = credentialsource.Binding
 
 // Candidate carries only a validated configuration, not readiness or a live
 // source handle. Its fingerprint is diagnostic and never an execution pin.

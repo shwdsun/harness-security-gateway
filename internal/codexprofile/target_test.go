@@ -24,7 +24,7 @@ func matchingTarget(c Contract) targetmanifest.ManifestV2 {
 }
 
 func TestSealedTargetMatch(t *testing.T) {
-	for _, c := range []Contract{V1(), V2()} {
+	for _, c := range []Contract{V1(), V2(), V3()} {
 		m := matchingTarget(c)
 		d, err := targetmanifest.FromV2(m)
 		if err != nil {
@@ -71,7 +71,7 @@ func TestTargetProjectionRejectsAuthorityChanges(t *testing.T) {
 		},
 		"invalid limit": func(m *targetmanifest.ManifestV2) { m.Limits.PIDs = 0 },
 	}
-	for _, c := range []Contract{V1(), V2()} {
+	for _, c := range []Contract{V1(), V2(), V3()} {
 		for name, mutate := range mutations {
 			t.Run(c.ID+"/"+name, func(t *testing.T) {
 				m := matchingTarget(c)
@@ -106,7 +106,7 @@ func TestMessagingEnvelopeDoesNotChangeV1(t *testing.T) {
 		func(m *targetmanifest.ManifestV2) { m.Limits.MaxOutputBytes = 1999 },
 		func(m *targetmanifest.ManifestV2) { m.WorkspaceMode = targetmanifest.WorkspaceReadOnly },
 	} {
-		for _, c := range []Contract{V1(), V2()} {
+		for _, c := range []Contract{V1(), V2(), V3()} {
 			m := matchingTarget(c)
 			change(&m)
 			d, err := targetmanifest.FromV2(m)

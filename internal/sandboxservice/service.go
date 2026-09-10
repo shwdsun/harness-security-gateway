@@ -28,7 +28,7 @@ type Registry interface {
 // Store is the small, consumer-owned persistence view sandboxservice needs.
 // The concrete sandboxstore.Store satisfies it.
 type Store interface {
-	RegisterTargetAuthorities(context.Context, []sandboxstore.TargetAuthority) error
+	RegisterEnrolledTargetAuthorities(context.Context, []sandboxstore.EnrolledTargetAuthority) error
 	RegisterStart(ctx context.Context, request executionwire.StartRunRequest, resolvedRevision, workspaceID string, writable bool, sessionPolicy sandboxstore.SessionPolicy) (sandboxstore.Run, bool, error)
 	GetSnapshot(ctx context.Context, runID string) (executionwire.GetRunResponse, error)
 	MarkCancelling(ctx context.Context, runID string) (sandboxstore.Run, error)
@@ -43,7 +43,8 @@ type RevisionPinFunc func(manifest targetmanifest.Definition, manifestFingerprin
 
 // RunnerStateOwnershipFunc reports explicit none, or resolves persistent state
 // to a durable path fingerprint and a pre-registration absence observation.
-// It is required because a logical ref alone cannot prove storage identity.
+// This callback is required for the legacy credential-free construction path;
+// WithAuthorityResolver instead supplies ownership with the rest of authority.
 type RunnerStateOwnershipFunc func(
 	manifest targetmanifest.Definition,
 ) (sandboxstore.RunnerStateOwnership, error)
@@ -51,8 +52,9 @@ type RunnerStateOwnershipFunc func(
 type Option func(*options) error
 
 type options struct {
-	clock       Clock
-	revisionPin RevisionPinFunc
+	clock             Clock
+	revisionPin       RevisionPinFunc
+	authorityResolver AuthorityResolverFunc
 }
 
 // WithClock injects a clock for deadline checks. Service always normalizes its
@@ -72,8 +74,8 @@ func WithClock(clock Clock) Option {
 // frozen for the lifetime of the service.
 func WithRevisionPin(revisionPin RevisionPinFunc) Option {
 	return func(config *options) error {
-		if revisionPin == nil {
-			return errors.New("sandboxservice: nil revision pin function")
+		if revisionPin == nil || config.authorityResolver != nil {
+			return errors.New("sandboxservice: missing or conflicting revision pin function")
 		}
 		config.revisionPin = revisionPin
 		return nil
@@ -101,6 +103,8 @@ type registeredTarget struct {
 // returns a usable service. A reused revision with changed manifest semantics
 // or a changed consumer-supplied authority binding fails closed through
 // sandboxstore.ErrConflict.
+// WithAuthorityResolver requires a nil runnerStateOwnership callback. Both
+// construction paths use strict whole-registry enrollment-aware registration.
 func New(
 	ctx context.Context,
 	registry Registry,
@@ -117,14 +121,8 @@ func New(
 	if nilInterface(store) {
 		return nil, errors.New("sandboxservice: nil sandbox store")
 	}
-	if runnerStateOwnership == nil {
-		return nil, errors.New("sandboxservice: nil runner-state ownership function")
-	}
 	config := options{
 		clock: func() time.Time { return time.Now().UTC() },
-		revisionPin: func(_ targetmanifest.Definition, manifestFingerprint string) (string, error) {
-			return manifestFingerprint, nil
-		},
 	}
 	for index, option := range supplied {
 		if option == nil {
@@ -134,13 +132,16 @@ func New(
 			return nil, fmt.Errorf("sandboxservice: apply option %d: %w", index, err)
 		}
 	}
+	if (config.authorityResolver == nil) == (runnerStateOwnership == nil) {
+		return nil, errors.New("sandboxservice: select exactly one authority resolver or runner-state callback")
+	}
 
 	entries := registry.Entries()
 	if len(entries) == 0 {
 		return nil, errors.New("sandboxservice: target registry is empty")
 	}
 	registered := make(map[targetKey]registeredTarget, len(entries))
-	registrations := make([]sandboxstore.TargetAuthority, 0, len(entries))
+	registrations := make([]sandboxstore.EnrolledTargetAuthority, 0, len(entries))
 	for index, entry := range entries {
 		if err := entry.Manifest.Validate(); err != nil {
 			return nil, fmt.Errorf("sandboxservice: invalid target entry %d: %w", index, err)
@@ -156,17 +157,13 @@ func New(
 		if _, exists := registered[key]; exists {
 			return nil, fmt.Errorf("sandboxservice: duplicate target revision in entry %d", index)
 		}
-		manifestForPin := entry.Manifest.Clone()
-		revisionPin, err := config.revisionPin(manifestForPin, fingerprint)
+		resolved, err := config.resolveAuthority(entry.Manifest, fingerprint, runnerStateOwnership)
 		if err != nil {
-			return nil, fmt.Errorf("sandboxservice: compute revision pin for target entry %d: %w", index, err)
+			return nil, fmt.Errorf("sandboxservice: resolve authority for target entry %d: %w", index, err)
 		}
+		revisionPin, ownership := resolved.RevisionPin, resolved.RunnerState
 		if err := validateRevisionPin(revisionPin); err != nil {
 			return nil, fmt.Errorf("sandboxservice: target entry %d revision pin: %w", index, err)
-		}
-		ownership, err := runnerStateOwnership(manifestForPin)
-		if err != nil {
-			return nil, fmt.Errorf("sandboxservice: resolve runner-state ownership for target entry %d: %w", index, err)
 		}
 		if ownership.Kind != entry.Manifest.RunnerState().Kind() {
 			return nil, fmt.Errorf("sandboxservice: target entry %d runner-state kind is inconsistent", index)
@@ -186,7 +183,7 @@ func New(
 			revisionPin:         revisionPin,
 		}
 		registered[key] = frozen
-		registrations = append(registrations, sandboxstore.TargetAuthority{
+		registration := sandboxstore.EnrolledTargetAuthority{Target: sandboxstore.TargetAuthority{
 			TargetID:              key.id,
 			TargetRevision:        key.revision,
 			RevisionPin:           frozen.revisionPin,
@@ -194,9 +191,13 @@ func New(
 			RunnerStateRef:        ownership.Ref,
 			RunnerStatePathDigest: ownership.PathDigest,
 			StatePathAbsent:       ownership.PathAbsent,
-		})
+		}}
+		if err := bindResolvedCredential(entry.Manifest, resolved.Credential, &registration); err != nil {
+			return nil, fmt.Errorf("sandboxservice: target entry %d: %w", index, err)
+		}
+		registrations = append(registrations, registration)
 	}
-	if err := store.RegisterTargetAuthorities(ctx, registrations); err != nil {
+	if err := store.RegisterEnrolledTargetAuthorities(ctx, registrations); err != nil {
 		return nil, mapInitStoreError(err)
 	}
 
@@ -363,6 +364,8 @@ func mapStartStoreError(err error) error {
 		return serviceError(executionhttp.ErrorRevisionMismatch, err)
 	case errors.Is(err, sandboxstore.ErrSessionNotFound), errors.Is(err, sandboxstore.ErrSessionScope):
 		return serviceError(executionhttp.ErrorInvalidSession, err)
+	case errors.Is(err, sandboxstore.ErrCredentialAuthority):
+		return serviceError(executionhttp.ErrorPolicyDenied, err)
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return serviceError(executionhttp.ErrorUnavailable, err)
 	default:

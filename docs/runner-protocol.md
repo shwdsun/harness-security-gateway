@@ -196,10 +196,11 @@ V1 runner error codes are `input_rejected`, `invalid_session`, `policy_denied`,
 violations, and malformed protocol are classified independently by `sandboxd`;
 runner claims are not trusted.
 
-Typed artifacts are intentionally deferred until text-only Codex and Claude
-conformance proves the common contract. Workspace patches can initially be
-computed and bounded by `sandboxd`, rather than accepting a runner-supplied host
-path.
+Typed artifacts remain outside HRP/1. A future authorized content extension
+follows the [content evolution contract](content-evolution-and-verification.md);
+it does not require both Codex and Claude text conformance as a sequencing gate.
+Workspace patches can initially be computed and bounded by `sandboxd`, rather
+than accepting a runner-supplied host path.
 
 ## Cancellation and deadlines
 

@@ -37,7 +37,7 @@ func (s *Store) AppendEvent(
 	if err != nil {
 		return Run{}, err
 	}
-	if run.TerminalPending {
+	if run.TerminalPending || run.CredentialRequired && event.Type != executionwire.RunEventStarted && event.Type != executionwire.RunEventProgress {
 		return Run{}, ErrIllegalTransition
 	}
 	run, err = appendEventTx(ctx, tx, run, event, mapping)

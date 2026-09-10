@@ -31,7 +31,20 @@ func (c *Controller) reconcileManaged(ctx context.Context) error {
 	return nil
 }
 
+// Startup retirement precedes every runtime observation or cleanup. It must
+// finish before an old occupant can disappear or a new worker can gain authority.
+func (c *Controller) reconcileStartup(ctx context.Context) error {
+	if err := c.store.RetireOccupiedCredentialGenerations(ctx); err != nil {
+		return fmt.Errorf("sandboxcontroller: retire interrupted credentials: %w", err)
+	}
+	return c.reconcileRuns(ctx, true)
+}
+
 func (c *Controller) reconcile(ctx context.Context) error {
+	return c.reconcileRuns(ctx, false)
+}
+
+func (c *Controller) reconcileRuns(ctx context.Context, startup bool) error {
 	runs, err := c.store.ListUnreconciled(ctx)
 	if err != nil {
 		return fmt.Errorf("sandboxcontroller: list unreconciled runs: %w", err)
@@ -39,6 +52,19 @@ func (c *Controller) reconcile(ctx context.Context) error {
 	var failures []error
 	for _, run := range runs {
 		runCtx, cancel := context.WithTimeout(ctx, c.cleanupTimeout)
+		if startup && run.CredentialRequired && run.State == executionwire.RunStateAccepted &&
+			!run.RuntimeIntentPending && run.RuntimeRef == nil && !run.TerminalPending {
+			// Lost process-local credential validation/locks cannot be rebuilt by
+			// reoffering an old accepted Run. Stage its failure, then use the same
+			// exact cleanup/publication path as other interrupted work. Ordinary
+			// reconciliation must still leave fresh accepted Runs available.
+			run, err = c.commitReconciledTerminal(runCtx, run.RunID, terminalInterrupted)
+			if err != nil {
+				cancel()
+				failures = append(failures, err)
+				continue
+			}
+		}
 		spec, certainNoRuntime, desired := c.desiredTerminal(run.RunID)
 		var err error
 		if desired {
@@ -131,7 +157,7 @@ func (c *Controller) reconcileRun(ctx context.Context, run sandboxstore.Run) err
 			if err := c.cleanupRuntimeContext(ctx, *run.RuntimeRef); err != nil {
 				return err
 			}
-		} else if run.WorkspaceLockHeld || run.RuntimeIntentPending || run.TerminalPending {
+		} else if run.WorkspaceLockHeld || run.CredentialLeaseHeld || run.RuntimeIntentPending || run.TerminalPending {
 			// A crash can occur after Docker accepted Create but before
 			// SetRuntimeRef committed. Only identity-verified LookupIntent plus the
 			// boot epoch may prove it gone; reconciliation never issues Create.
@@ -374,6 +400,12 @@ func (c *Controller) confirmStopped(runID string) error {
 }
 
 func (c *Controller) confirmStoppedContext(ctx context.Context, runID string) error {
+	if err := c.runtime.CloseRunResources(ctx, runID); err != nil {
+		return cleanupCause("run-resources", err)
+	}
+	if err := c.closeCredential(ctx, runID); err != nil {
+		return err
+	}
 	_, err := c.store.ConfirmRuntimeStopped(ctx, runID)
 	return err
 }

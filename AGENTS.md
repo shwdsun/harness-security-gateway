@@ -42,6 +42,8 @@ repository. Human maintainers own scope, security claims, and release decisions.
   its enablement gates.
 - `docs/codex-profile-v2.md`: sealed, blocked private-messaging behavior
   profile and its native Codex instruction mapping.
+- `docs/codex-profile-v3.md`: blocked native tool-package template, startup
+  checks and component/runtime evidence boundaries.
 - `docs/runbook.md`: local mock execution.
 
 Code and deterministic evidence outrank prose if they disagree. Report the

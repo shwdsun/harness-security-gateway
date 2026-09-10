@@ -51,7 +51,10 @@ func (c Candidate) check(inspect bool, uid int, fs metadataFS) (Report, error) {
 		ConfigurationFingerprint: c.fingerprint, TargetFingerprint: c.manifestFingerprint,
 		ProfileFingerprint: c.profileFingerprint, Classification: c.profile.Classification,
 		LocalMetadata: "not_checked", Findings: []string{},
-		ExecutionBlockers: []string{"image_provenance", "network_mediation", "context_closure",
+		// V3 configures the native host, but no profile has complete accepted
+		// image/provider/tool evidence. This offline report inspects neither
+		// the CLI package nor the provider's resolved model metadata.
+		ExecutionBlockers: []string{"image_provenance", "model_tool_compatibility", "network_mediation", "context_closure",
 			"credential_lifecycle", "confidentiality_domains", "revision_security_binding", "runtime_canaries"},
 	}
 	if !inspect {

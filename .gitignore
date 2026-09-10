@@ -26,6 +26,15 @@
 !/demo/security/**
 !/internal/
 !/internal/**
+
+# Reviewed opt-in formal pilot sources; do not export tools or run artifacts.
+!/formal/
+/formal/*
+!/formal/recovery/
+/formal/recovery/*
+!/formal/recovery/README.md
+!/formal/recovery/check.py
+!/formal/recovery/traces.json
 !/runners/
 !/runners/mock/
 !/runners/mock/Dockerfile

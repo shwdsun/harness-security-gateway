@@ -11,6 +11,7 @@ import (
 )
 
 const expectedFingerprintV1 = "96ca4f1845f5ee673d7302fb938e698d1344435d62280b8174e31200738f143d"
+const expectedFingerprintV3 = "8bbae8b91929e32c4eca53270716c35e03999ec03d535f7011a088472b80ce50"
 const expectedFingerprintV2 = "d8ee4889edd0bac79fd8ee6278bf10c06a29b0dcdc743433ecad17a5cee0aa68"
 const expectedMessagingInstructionFingerprintV1 = "1e4af42e7e6778a46cca4637eedf6cccb7f1b90556c867ecaf478db908720369"
 
@@ -59,6 +60,20 @@ func TestV2ContractAndFingerprintAreStable(t *testing.T) {
 	}
 }
 
+func TestV3ToolContractAndFingerprintAreStable(t *testing.T) {
+	c := V3()
+	fp, err := c.Fingerprint()
+	if err != nil || fp != expectedFingerprintV3 || ContractFingerprintV3 != expectedFingerprintV3 {
+		t.Fatalf("V3 fingerprint = %q, error %v", fp, err)
+	}
+	if c.Runner.AdapterVersion != AdapterVersionV3 || c.CLI.Version != CLIVersionV1 ||
+		c.CLI.BinarySHA256 != CLIBinarySHA256V1 || c.Model != V2().Model ||
+		c.ToolRuntime.AgentCapacity != "one-including-root" {
+		t.Fatal("V3 changed the fixed model/CLI or tool capacity")
+	}
+	testRejectsAndFingerprintsEveryContractMutation(t, c)
+}
+
 func TestMessagingInstructionProfileAndFingerprintAreStable(t *testing.T) {
 	profile := MessagingInstructionV1()
 	if err := profile.Validate(); err != nil {
@@ -103,7 +118,7 @@ func TestMessagingInstructionProfileAndFingerprintAreStable(t *testing.T) {
 }
 
 func TestResolveAcceptsOnlySealedIDs(t *testing.T) {
-	for _, want := range []Contract{V1(), V2()} {
+	for _, want := range []Contract{V1(), V2(), V3()} {
 		got, err := Resolve(want.ID)
 		if err != nil || got != want {
 			t.Fatalf("Resolve(%q) = %#v, %v", want.ID, got, err)
@@ -159,7 +174,7 @@ func testRejectsAndFingerprintsEveryContractMutation(t *testing.T, baseline Cont
 
 func TestContractsContainNoOpenAuthorityContainersOrCredentialBytes(t *testing.T) {
 	assertClosedType(t, reflect.TypeOf(V1()), "Contract")
-	for _, contract := range []Contract{V1(), V2()} {
+	for _, contract := range []Contract{V1(), V2(), V3()} {
 		encoded, err := jsonBytes(contract)
 		if err != nil {
 			t.Fatal(err)

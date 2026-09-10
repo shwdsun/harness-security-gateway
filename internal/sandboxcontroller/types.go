@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/executionhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
@@ -54,6 +55,9 @@ type Registry interface {
 // Store is the consumer-owned persistence surface. No method accepts a prompt.
 type Store interface {
 	GetRun(ctx context.Context, runID string) (sandboxstore.Run, error)
+	RetireOccupiedCredentialGenerations(ctx context.Context) error
+	GetRunCredentialEnrollment(ctx context.Context, runID string) (sandboxstore.CredentialGeneration, credentialsource.Proof, error)
+	RevokeRunCredential(ctx context.Context, runID string) error
 	BeginRuntimeIntent(ctx context.Context, runID, bootID string) (sandboxstore.Run, bool, error)
 	ClearRuntimeIntent(ctx context.Context, runID string) (sandboxstore.Run, error)
 	SetRuntimeRef(ctx context.Context, runID, runtimeRef string) (sandboxstore.Run, error)
@@ -82,6 +86,19 @@ type Runtime interface {
 	Stop(ctx context.Context, ref string) error
 	Kill(ctx context.Context, ref string) error
 	RemoveStopped(ctx context.Context, ref string) error
+	// CloseRunResources stops and joins process-owned resources for the exact
+	// durable Run, including when its container is already absent. Success is
+	// required before credentials or terminal publication may be released.
+	CloseRunResources(ctx context.Context, runID string) error
+}
+
+// CredentialRuntime receives a borrowed one-Run source capability after the
+// durable Create intent. Its AttachStart must keep the bootstrap inert until
+// independent receiver verification, then consume the private launch phase
+// before returning ordinary HRP pipes. A Runtime without this surface cannot
+// execute a credential-bearing Run through the credential-free Create method.
+type CredentialRuntime interface {
+	CreateWithCredential(context.Context, string, targetmanifest.Definition, *credentialsource.Handoff) (string, error)
 }
 
 type BridgeFunc func(
@@ -101,14 +118,16 @@ type BootIDSource func() (string, error)
 type Option func(*options) error
 
 type options struct {
-	queueCapacity  int
-	cleanupTimeout time.Duration
-	waitGrace      time.Duration
-	reconcileEvery time.Duration
-	bridge         BridgeFunc
-	sessionRef     SessionRefGenerator
-	clock          Clock
-	bootIDSource   BootIDSource
+	queueCapacity      int
+	cleanupTimeout     time.Duration
+	waitGrace          time.Duration
+	reconcileEvery     time.Duration
+	bridge             BridgeFunc
+	sessionRef         SessionRefGenerator
+	clock              Clock
+	bootIDSource       BootIDSource
+	credentialBindings map[string]credentialsource.Binding
+	openCredential     credentialOpener
 }
 
 func WithQueueCapacity(capacity int) Option {

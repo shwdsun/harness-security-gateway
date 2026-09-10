@@ -63,6 +63,11 @@ func (c *Controller) execute(
 		defer func() { value = "" }()
 	}
 
+	if err := c.prepareCredential(run, entry.Manifest); err != nil {
+		c.finishWithoutRuntime(request, terminalPolicyDenied)
+		return
+	}
+
 	// Intent persistence is control-plane work. A caller cancellation or Run
 	// deadline must not make the Begin result ambiguous merely because the
 	// execution context expired while SQLite was committing it.
@@ -123,9 +128,18 @@ func (c *Controller) execute(
 		intentCancel()
 		return
 	}
+	if run.CredentialRequired && c.validateCredential(intentCtx, request.RunID) != nil {
+		if c.clearCertainRuntimeIntent(intentCtx, request.RunID) == nil {
+			c.finishCertainNoRuntime(intentCtx, request, terminalPolicyDenied)
+		} else {
+			c.finishWithoutRuntime(request, terminalPolicyDenied)
+		}
+		intentCancel()
+		return
+	}
 	intentCancel()
 
-	ref, err := c.runtime.Create(executionCtx, request.RunID, entry.Manifest)
+	ref, err := c.createRuntime(executionCtx, run, entry.Manifest)
 	if err != nil {
 		c.finishCreateFailure(
 			request,
@@ -156,6 +170,15 @@ func (c *Controller) execute(
 	if boundRun.State == executionwire.RunStateCancelling {
 		c.finishWithRuntime(request, ref, terminalCancelled)
 		return
+	}
+	if run.CredentialRequired {
+		credentialCtx, credentialCancel := context.WithTimeout(context.Background(), c.cleanupTimeout)
+		err := c.validateCredential(credentialCtx, request.RunID)
+		credentialCancel()
+		if err != nil {
+			c.finishWithRuntime(request, ref, terminalPolicyDenied)
+			return
+		}
 	}
 
 	process, err := c.runtime.AttachStart(executionCtx, ref)
@@ -519,6 +542,9 @@ func (c *Controller) classifyFailure(request executionwire.StartRunRequest, caus
 	if !request.Deadline.After(c.clock().UTC()) || errors.Is(cause, context.DeadlineExceeded) {
 		return terminalDeadline
 	}
+	if errors.Is(cause, ErrCredentialUnavailable) || errors.Is(cause, dockerruntime.ErrCredentialUnavailable) {
+		return terminalPolicyDenied
+	}
 	if errors.Is(cause, sandboxstore.ErrSessionNotFound) || errors.Is(cause, sandboxstore.ErrSessionScope) {
 		return terminalInvalidSession
 	}
@@ -550,6 +576,18 @@ func (c *Controller) classifyFailure(request executionwire.StartRunRequest, caus
 		return terminalInterrupted
 	}
 	return terminalInternal
+}
+
+func (c *Controller) createRuntime(ctx context.Context, run sandboxstore.Run, manifest targetmanifest.Definition) (string, error) {
+	if !run.CredentialRequired {
+		return c.runtime.Create(ctx, run.RunID, manifest)
+	}
+	runtime, ok := c.runtime.(CredentialRuntime)
+	state := c.credentialForRun(run.RunID)
+	if !ok || state == nil || state.invalid || state.handoff == nil {
+		return "", ErrCredentialUnavailable
+	}
+	return runtime.CreateWithCredential(ctx, run.RunID, manifest, state.handoff)
 }
 
 func (c *Controller) resolveVendorSession(request executionwire.StartRunRequest) (string, error) {

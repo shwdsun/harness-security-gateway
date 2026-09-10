@@ -36,6 +36,9 @@ func (s *Store) StageTerminal(ctx context.Context, event executionwire.RunEvent,
 	if err != nil {
 		return Run{}, err
 	}
+	if err := requireRunCredential(ctx, tx, run, true); err != nil {
+		return Run{}, err
+	}
 	if run.TerminalPending {
 		candidate, err := stagedTerminal(ctx, tx, event.RunID)
 		if err != nil {

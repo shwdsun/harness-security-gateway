@@ -36,7 +36,7 @@ func (c Contract) MatchTarget(target targetmanifest.Definition) error {
 	// V2's compiled instruction states about five minutes and a 2,000-byte
 	// transport ceiling. Do not approve configuration contradicting those facts.
 	// The requested 1,500-byte answer remains probabilistic guidance only.
-	if c.ID == IDV2 && (m.Limits.TimeoutSeconds != 300 || m.Limits.MaxOutputBytes != 2000 || m.WorkspaceMode != targetmanifest.WorkspaceReadWrite) {
+	if (c.ID == IDV2 || c.ID == IDV3) && (m.Limits.TimeoutSeconds != 300 || m.Limits.MaxOutputBytes != 2000 || m.WorkspaceMode != targetmanifest.WorkspaceReadWrite) {
 		return fmt.Errorf("%w: messaging target requires rw workspace, 300 seconds and 2000 output bytes", ErrInvalid)
 	}
 	return nil

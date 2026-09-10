@@ -11,18 +11,21 @@ consume it either.
 
 ## Use
 
-After `make build`, copy the [example](../config/codex-candidate.example.json)
+After `make build`, copy the [V3 tools example](../config/codex-tools-candidate.example.json)
 to an operator-owned regular file, mode `0600` (a non-group/other-writable
 `0644` file is also accepted). Keep local paths and slot names private. For
 example, once a private operator directory already exists:
 
 ```sh
-install -m 0600 config/codex-candidate.example.json /private/operator/codex-candidate.json
+install -m 0600 config/codex-tools-candidate.example.json /private/operator/codex-candidate.json
 ./bin/hgwctl codex check -config /private/operator/codex-candidate.json
 ```
 
 Replace the illustrative destination with your actual private directory.
 The shipped image digest and paths are placeholders, not a runnable target.
+The [older V2 example](../config/codex-candidate.example.json) remains unchanged
+for compatibility. V3's fixed package and native settings are documented in
+[the tool-package template](codex-profile-v3.md).
 Default checking reads only this configuration, so nonexistent workspace and
 credential paths do not prevent structural validation. It emits one JSON
 report with `configuration: valid`, `local_metadata: not_checked` and
@@ -49,7 +52,7 @@ commands retain their prior success/error behavior.
 | Field | Owner and meaning |
 | --- | --- |
 | `schema` | Exact candidate document version, not `sandboxd/v3` |
-| `profile_id` | Local selection of one sealed Codex v1/v2 contract |
+| `profile_id` | Local selection of one sealed Codex v1/v2/v3 contract |
 | `target` | Complete original TargetManifest v2 with explicit non-null fields |
 | `workspace` | One logical `ref` and canonical absolute local `path` |
 | `credential` | Exact workspace/auth scope, opaque `slot_ref`, positive signed-64-bit-range `generation`, dedicated `root`, and one canonical `directory` component |
@@ -67,17 +70,18 @@ fields.
 The matcher requires exact runner family/adapter/protocol/features, profile
 refs, `new_only` and `runner_state: {kind: none}`. V1 manifests remain
 persistent and cannot match either Codex contract. As a conservative product
-envelope, messaging profile v2 additionally requires `rw`, 300 seconds and a
+envelope, messaging profiles v2/v3 additionally require `rw`, 300 seconds and a
 2,000-byte output limit. The effective deadline may be shorter due to Core's
 deadline and startup time. Other validated manifest limits remain explicit
 operator choices and are fingerprinted. V1's sealed values are unchanged.
 
-The candidate's slot DTO exists in one place in `internal/codexcandidate`.
-When an actual credential lease/runtime resolver is implemented, move/extract
-that definition into its owner and replace this wrapper's use; do not maintain
-a second independent binding schema or silently promote this diagnostic to
-production configuration. No generic credential catalog or new daemon is
-introduced now.
+The slot DTO exists once in `internal/credentialsource` and is reused by the
+candidate with unchanged JSON order and diagnostic digest. That package also
+contains an isolated Linux held-file primitive; this diagnostic never calls it.
+The sandbox store separately implements durable generation/occupancy records
+with synthetic authority. This diagnostic neither enrolls nor consults them;
+see [credential lifecycle](credential-source-lifecycle.md). No generic credential
+catalog or new daemon is introduced.
 
 ## What inspection proves—and does not
 
@@ -118,12 +122,28 @@ are untouched.
 
 No token bytes or file size/mtime/inode are hashed. Refresh, including replacing
 an inode, does not itself change the configuration identity. Generation is
-only an operator label here: there is no historical monotonicity, revocation or
-slot-ownership record. Changing scope, generation or path changes the candidate
-digest but does not revoke or update any actual runtime authority.
+only an operator label here: the check does not consult historical monotonicity,
+revocation or slot-ownership records. Changing scope, generation or path changes
+the candidate digest but does not revoke or update any actual runtime authority.
 
 The executable content behind policy/auth/network refs is still unresolved.
-The report always lists image provenance, network mediation, context closure,
-credential lifecycle, confidentiality domains, revision-security binding and
-real-runtime canaries as blockers. Desired contract strings and matching
-filesystem permissions cannot substitute for those mechanisms or evidence.
+The report always lists image provenance, model/tool compatibility, network
+mediation, context closure, credential lifecycle, confidentiality domains,
+revision-security binding and real-runtime canaries as blockers. Desired
+contract strings and matching filesystem permissions cannot substitute for
+those mechanisms or evidence.
+
+`model_tool_compatibility` identifies an unresolved candidate configuration,
+not a live CLI or provider inspection. On 2026-09-08, the exact pinned CLI's
+`debug models --bundled` reports `gpt-5.6-sol` as `code_mode_only`, while both
+V1/V2 adapters disable Code Mode host. The old fixture observed an empty
+top-level tools array and a host-disabled diagnostic. On 2026-09-09 the V3
+investigation found namespaced tool definitions in `input.additional_tools`;
+that old array check alone does not prove complete tool absence.
+
+V3 now configures and pins the native host, and has bounded component evidence.
+It still lacks accepted image/provider/tool execution evidence, so this offline
+check retains the blocker for all profiles. It neither verifies the package nor
+inspects a provider catalog. The synthetic direct-mode catalog is not promoted
+into V3. See [V3's current gates](codex-profile-v3.md) and
+[the earlier integration evidence](codex-exec-integration.md).

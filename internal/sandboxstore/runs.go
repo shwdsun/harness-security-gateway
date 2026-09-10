@@ -44,12 +44,15 @@ r.run_id,
 	r.updated_at_unix_ms,
 	r.terminal_at_unix_ms,
 	EXISTS(SELECT 1 FROM workspace_locks wl WHERE wl.run_id = r.run_id),
-	EXISTS(SELECT 1 FROM staged_terminals st WHERE st.run_id = r.run_id)`
+	EXISTS(SELECT 1 FROM staged_terminals st WHERE st.run_id = r.run_id),
+	EXISTS(SELECT 1 FROM target_revisions tr WHERE tr.target_id=r.target_id AND tr.revision=r.target_revision AND tr.credential_kind='bound'),
+	EXISTS(SELECT 1 FROM credential_occupancy co WHERE co.run_id=r.run_id)`
 
 // RegisterStart durably registers a StartRun and, for writable targets,
-// acquires the workspace writer lock in the same transaction. Read-only Runs
-// do not serialize each other or a writer. The full input text is hashed and
-// discarded.
+// acquires the workspace writer lock in the same transaction. Credential-bound
+// targets also acquire source occupancy, including read-only Runs. Without a
+// credential, read-only Runs do not serialize each other or a writer. The full
+// input text is hashed and discarded.
 // A repeated run_id with the same executionwire fingerprint returns the
 // existing Run with created=false. A changed payload returns ErrConflict.
 func (s *Store) RegisterStart(
@@ -219,6 +222,13 @@ func (s *Store) registerStartWithClock(
 	if inserted != 1 {
 		return Run{}, false, fmt.Errorf("insert run changed %d rows", inserted)
 	}
+	admitted, err := getRunQuerier(ctx, tx, request.RunID)
+	if err != nil {
+		return Run{}, false, err
+	}
+	if err := acquireRunCredential(ctx, tx, admitted); err != nil {
+		return Run{}, false, err
+	}
 	if writable {
 		result, err := tx.ExecContext(ctx,
 			`INSERT OR IGNORE INTO workspace_locks(workspace_id, run_id, acquired_at_unix_ms) VALUES (?, ?, ?)`,
@@ -295,6 +305,13 @@ func (s *Store) BeginRuntimeIntent(ctx context.Context, runID, bootID string) (r
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	prior, err := getRunQuerier(ctx, tx, runID)
+	if err != nil {
+		return Run{}, false, err
+	}
+	if err := requireRunCredential(ctx, tx, prior, false); err != nil {
+		return Run{}, false, err
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE runs SET
         runtime_intent_pending = 1, runtime_intent_boot_id = ?, updated_at_unix_ms = ?
     WHERE run_id = ?
@@ -408,6 +425,15 @@ func (s *Store) SetRuntimeRef(ctx context.Context, runID, runtimeRef string) (Ru
 		return Run{}, fmt.Errorf("begin runtime reference update: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	prior, err := getRunQuerier(ctx, tx, runID)
+	if err != nil {
+		return Run{}, err
+	}
+	// A granted Create may already be running when revoked. Retain its exact
+	// occupant while binding the resulting runtime so cleanup can reconcile it.
+	if err := requireRunCredential(ctx, tx, prior, true); err != nil {
+		return Run{}, err
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE OR IGNORE runs SET
         runtime_ref = ?, runtime_intent_pending = 0,
 		runtime_intent_boot_id = NULL, updated_at_unix_ms = ?
@@ -525,6 +551,11 @@ func (s *Store) ConfirmRuntimeStopped(ctx context.Context, runID string) (Run, e
 	if run.RuntimeIntentPending {
 		return Run{}, ErrIllegalTransition
 	}
+	if run.TerminalPending || run.CredentialLeaseHeld || run.RuntimeRef != nil || run.WorkspaceLockHeld {
+		if err := requireRunCredential(ctx, tx, run, true); err != nil {
+			return Run{}, err
+		}
+	}
 	if run.TerminalPending {
 		candidate, err := stagedTerminal(ctx, tx, runID)
 		if err != nil {
@@ -547,6 +578,9 @@ func (s *Store) ConfirmRuntimeStopped(ctx context.Context, runID string) (Run, e
 	if _, err := tx.ExecContext(ctx, `DELETE FROM workspace_locks WHERE run_id = ?`, runID); err != nil {
 		return Run{}, fmt.Errorf("release workspace lock: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM credential_occupancy WHERE run_id = ?`, runID); err != nil {
+		return Run{}, fmt.Errorf("release credential occupancy: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM staged_terminals WHERE run_id = ?`, runID); err != nil {
 		return Run{}, fmt.Errorf("retire published terminal candidate: %w", err)
 	}
@@ -565,13 +599,14 @@ func (s *Store) ListNonTerminal(ctx context.Context) ([]Run, error) {
 }
 
 // ListUnreconciled includes terminal rows that still retain a runtime
-// reference, pending Create intent, or writer lock, in addition to every
-// nonterminal Run.
+// reference, pending Create intent, credential occupancy, or writer lock, in
+// addition to every nonterminal Run.
 func (s *Store) ListUnreconciled(ctx context.Context) ([]Run, error) {
 	return s.listRuns(ctx, `r.state IN ('accepted','running','cancelling')
         OR r.runtime_ref IS NOT NULL
 		OR r.runtime_intent_pending = 1
-        OR EXISTS(SELECT 1 FROM workspace_locks pending WHERE pending.run_id = r.run_id)`)
+        OR EXISTS(SELECT 1 FROM workspace_locks pending WHERE pending.run_id = r.run_id)
+        OR EXISTS(SELECT 1 FROM credential_occupancy co WHERE co.run_id=r.run_id)`)
 }
 
 func (s *Store) listRuns(ctx context.Context, predicate string) ([]Run, error) {
@@ -686,6 +721,8 @@ func scanRun(scanner rowScanner) (Run, error) {
 		&terminalMS,
 		&workspaceLockHeld,
 		&run.TerminalPending,
+		&run.CredentialRequired,
+		&run.CredentialLeaseHeld,
 	); err != nil {
 		return Run{}, err
 	}

@@ -159,6 +159,9 @@ func (r *Runtime) verifyManaged(record inspectRecord) (targetSpec, error) {
 	if !exists || record.Labels[labelTargetFingerprint] != spec.fingerprint || record.Image != spec.image {
 		return targetSpec{}, ErrForeignContainer
 	}
+	if spec.credential != nil && record.Labels[labelRuntimePolicy] != spec.credential.pin {
+		return targetSpec{}, ErrForeignContainer
+	}
 	if normalizeContainerName(record.Name) != deterministicName(runID) {
 		return targetSpec{}, ErrForeignContainer
 	}
@@ -222,6 +225,9 @@ func (r *Runtime) probeFullRef(ctx context.Context, ref ContainerRef) (bool, err
 func (r *Runtime) Inspect(ctx context.Context, ref ContainerRef) (Inspection, error) {
 	record, _, err := r.inspectManaged(ctx, ref)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			r.forgetCredential(ref)
+		}
 		return Inspection{}, err
 	}
 	return Inspection{

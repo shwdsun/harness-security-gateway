@@ -314,12 +314,39 @@ recreated by a host reboot.
   reopen refuses contradictory ownership/session evidence. SQL guards prevent
   none targets from acquiring owners or resumable sessions, and none does not
   bypass the workspace lock or post-cleanup publication;
+- sandbox schema v10 adds immutable credential generations and target bindings,
+  one-way revocation and exclusive source/slot/Run occupancy. Acquisition joins
+  admission; release joins post-cleanup publication. Earlier targets remain
+  credential-free. Only synthetic enrollment is exercised. A separate Linux
+  held-file primitive pins and revalidates local objects with advisory locks;
+  its native-ext4 adapter now collects and compares source/object/locator
+  digests. Schema v11 records generation and proof together in the same immutable
+  row, preserving proofless history and exact replay. Strict enrolled-target
+  registration now reads that pair, compares independently approved exact scope
+  and hashes it into the durable target pin in one whole-batch transaction.
+  The service now uses this strict registration for the whole registry after
+  freezing one trusted resolver result per entry and checking its exact scope
+  against the manifest. Compiled ingress policy supplies an independent six-field
+  scope projection. Public sandbox configuration resolves only credential-free
+  locked-down mocks and retains their historical base pins.
+  The caller's non-credential authority resolution remains a separate obligation.
+  Controller startup retires
+  occupied generations before cleanup; idle generations remain enrolled. For
+  fresh admitted Runs the controller now compares Run-derived enrollment/proof
+  with frozen scope and local binding, holds/revalidates the source, and closes
+  physical locks before durable publication/release. Failed validation retires
+  the Run's generation; uncertain close retains occupancy until restart recovery.
+  Synthetic integration is exercised. Trusted real enrollment, complete target
+  security resolution, exact-object runtime handoff and real OAuth remain
+  unresolved. See
+  [credential source lifecycle](credential-source-lifecycle.md);
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;
 - `agentd` reconciles durable running Runs before claiming newer queued work;
 - `sandboxd` has one global execution lane. A staged candidate, durable runtime
-  reference, pending intent, running/cancelling row, or reconciliation-store
-  read failure closes it before the next Create/Attach. It reopens only after
+  reference, pending intent, running/cancelling row, retained physical credential
+  handle, or reconciliation-store read failure closes it before the next
+  Create/Attach. It reopens only after
   cleanup crosses the durable proof boundary. Candidates also prevent a new
   Create intent, progress append, cancellation replacement, or session-token
   resolution for that Run. No Codex-specific publication branch exists.
@@ -353,8 +380,14 @@ recreated by a host reboot.
 - a pending record without a boot ID is therefore unsupported legacy/manual
   state, not something the automatic migration creates. As a defensive rule it
   is never cleared automatically, regardless of the lookup result;
-- startup first reconciles durable database records, then inventories and
-  cleans identity-verified managed containers not accounted for by that state.
+- startup, under the daemon's exclusive process lock, first atomically retires
+  every generation referenced by retained credential occupancy. Failure prevents
+  controller startup. It then reconciles durable Runs and finally inventories
+  and cleans identity-verified managed containers not accounted for by that state.
+  Old accepted credential Runs are staged as interrupted and recovered only for
+  cleanup, even if Create was never granted. Staged results remain unchanged.
+  Cleanup needs no credential reopen. Store opens and ordinary reconciliation
+  do not retire idle generations or interrupt current-process accepted Runs.
 
 These rules deliberately forbid a second create and forbid treating one absent
 lookup as an unlock fence. They avoid the name-reuse race in which the original
@@ -386,6 +419,16 @@ the runner. `StartRun` is idempotent by payload fingerprint. A non-null
 means the trusted Core scope currently has no ref. No wire field carries the
 target-authored age/turn policy: sandboxd resolves it from the immutable target
 revision before admission.
+
+An admission-time credential-authority rejection (including a retired generation
+or a scope mismatch) returns HTTP 403 with only `{"error":"policy_denied"}`.
+It reveals no credential identity or cause. Core uses its existing fixed
+policy-denied result, but only after `GetRun` proves that exact Run absent;
+an existing snapshot takes precedence, and an unavailable/denied observation
+cannot prove absence. Exact admitted replay still returns the original receipt
+after revocation. Credential/workspace occupancy and operational failures remain
+retryable. An unknown error code, including on an older Core, is also retryable;
+generic `internal` must never be interpreted as permanent denial.
 
 `sandboxd` to a runner container uses HRP/1 over pipes. The runner never receives
 a control-plane socket and cannot request additional authority. See
@@ -478,8 +521,14 @@ integrates it under a new resolved fingerprint domain. Real provider profiles
 remain rejected. A future provider-specific resolver must combine the
 contract with resolved policy/auth/network content, any nontrivial skill
 content, and the complete local credential binding under a new fingerprint
-domain while preserving the legacy and v2 mock fingerprints. The
-current runtime continues to reject the expressible Codex projection.
+domain while preserving the legacy and v2 mock fingerprints. The strict store
+entrypoint now composes enrolled source/generation/proof and exact scope with a
+caller-supplied non-credential authority pin in one registration transaction;
+it does not implement that provider resolver or attest its input's completeness.
+The service/daemon now use a single startup authority resolver and strict batch
+registration, with the public configuration refusing every unsupported profile.
+See [credential TargetRevision composition](credential-source-enrollment.md#implemented-credential-targetrevision-composition).
+The current runtime continues to reject the expressible Codex projection.
 
 The [offline candidate preflight](codex-candidate-preflight.md) implements only
 total matching and local configuration/metadata diagnostics. Its distinct

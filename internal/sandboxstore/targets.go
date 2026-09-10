@@ -15,6 +15,9 @@ import (
 // to one exact TargetRevision. An exact retry is idempotent. A directory which
 // has no exact durable owner may receive its first owner only when the trusted
 // caller proves that the resolved path was absent before registration.
+// Credential refs on this low-level path retain synthetic registration
+// semantics: the supplied pin is not checked for credential proof/scope content.
+// Real enrollment consumers must use RegisterEnrolledTargetAuthorities.
 func (s *Store) RegisterTargetAuthorities(ctx context.Context, authorities []TargetAuthority) error {
 	if err := s.ready(ctx); err != nil {
 		return err
@@ -56,6 +59,11 @@ func validateTargetAuthorityBatch(authorities []TargetAuthority) error {
 		}
 		if err := validateSHA256("revision pin", authority.RevisionPin); err != nil {
 			return fmt.Errorf("target authority %d: %w", index, err)
+		}
+		if authority.Credential != nil {
+			if err := validateCredentialRef(*authority.Credential); err != nil {
+				return err
+			}
 		}
 		targetKey := authority.TargetID + "\x00" + authority.TargetRevision
 		if _, exists := targets[targetKey]; exists {
@@ -110,28 +118,35 @@ func validateRunnerStateRef(value string) error {
 }
 
 func registerTargetAuthority(ctx context.Context, tx *sql.Tx, authority TargetAuthority) error {
-	var storedPin, storedKind string
+	var storedPin, storedKind, storedCredentialKind string
+	credentialKind := "none"
+	if authority.Credential != nil {
+		credentialKind = "bound"
+	}
 	existingRevision := false
-	err := tx.QueryRowContext(ctx, `SELECT semantic_fingerprint, runner_state_kind
+	err := tx.QueryRowContext(ctx, `SELECT semantic_fingerprint, runner_state_kind, credential_kind
         FROM target_revisions WHERE target_id = ? AND revision = ?`,
-		authority.TargetID, authority.TargetRevision).Scan(&storedPin, &storedKind)
+		authority.TargetID, authority.TargetRevision).Scan(&storedPin, &storedKind, &storedCredentialKind)
 	switch {
 	case err == nil:
 		existingRevision = true
-		if storedPin != authority.RevisionPin || storedKind != string(authority.RunnerStateKind) {
+		if storedPin != authority.RevisionPin || storedKind != string(authority.RunnerStateKind) || storedCredentialKind != credentialKind {
 			return ErrConflict
 		}
 	case errors.Is(err, sql.ErrNoRows):
 		if _, err := tx.ExecContext(ctx, `INSERT INTO target_revisions(
-            target_id, revision, semantic_fingerprint, registered_at_unix_ms, runner_state_kind
-        ) VALUES (?, ?, ?, ?, ?)`, authority.TargetID, authority.TargetRevision,
-			authority.RevisionPin, time.Now().UTC().UnixMilli(), authority.RunnerStateKind); err != nil {
+            target_id, revision, semantic_fingerprint, registered_at_unix_ms, runner_state_kind, credential_kind
+        ) VALUES (?, ?, ?, ?, ?, ?)`, authority.TargetID, authority.TargetRevision,
+			authority.RevisionPin, time.Now().UTC().UnixMilli(), authority.RunnerStateKind, credentialKind); err != nil {
 			return fmt.Errorf("register target revision: %w", err)
 		}
 	default:
 		return fmt.Errorf("query target revision: %w", err)
 	}
 
+	if err := registerTargetCredential(ctx, tx, authority, existingRevision); err != nil {
+		return err
+	}
 	var storedRef, storedDigest string
 	err = tx.QueryRowContext(ctx, `SELECT runner_state_ref, runner_state_path_digest
         FROM runner_state_owners WHERE target_id = ? AND target_revision = ?`,

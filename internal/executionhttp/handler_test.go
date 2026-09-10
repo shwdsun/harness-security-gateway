@@ -139,6 +139,7 @@ func TestHandlerMapsOnlyClosedServiceErrors(t *testing.T) {
 	}{
 		{"target", NewServiceError(ErrorTargetNotFound, errors.New("sensitive detail")), http.StatusNotFound, "target_not_found"},
 		{"workspace", NewServiceError(ErrorWorkspaceBusy, nil), http.StatusConflict, "workspace_busy"},
+		{"policy", NewServiceError(ErrorPolicyDenied, errors.New("sensitive credential detail")), http.StatusForbidden, "policy_denied"},
 		{"unavailable", NewServiceError(ErrorUnavailable, nil), http.StatusServiceUnavailable, "unavailable"},
 		{"plain internal", errors.New("database path and secret"), http.StatusInternalServerError, "internal"},
 		{"forged code becomes internal", &ServiceError{Code: "raw_secret"}, http.StatusInternalServerError, "internal"},

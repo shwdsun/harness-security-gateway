@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestExampleIsBlockedAndCannotBeMutated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Status != "blocked" || r.Configuration != "valid" || r.LocalMetadata != "not_checked" || len(r.ExecutionBlockers) != 7 || r.ProfileFingerprint != codexprofile.ContractFingerprintV2 || len(r.ConfigurationFingerprint) != len(Schema)+1+64 {
+	if r.Status != "blocked" || r.Configuration != "valid" || r.LocalMetadata != "not_checked" || len(r.ExecutionBlockers) != 8 || !slices.Contains(r.ExecutionBlockers, "model_tool_compatibility") || r.ProfileFingerprint != codexprofile.ContractFingerprintV2 || len(r.ConfigurationFingerprint) != len(Schema)+1+64 {
 		t.Fatalf("report = %+v", r)
 	}
 	const golden = "codex-candidate/v1:17ffcd464336784004102fc378eb5c002c6cbc677f72e4090778f8b87173d6d8"
@@ -58,6 +59,32 @@ func TestExampleIsBlockedAndCannotBeMutated(t *testing.T) {
 	}
 	if strings.Contains(string(encode(t, r)), "/srv/") {
 		t.Fatal("report leaked local path")
+	}
+}
+
+func TestToolsExampleRemainsBlockedAndCannotMixProfiles(t *testing.T) {
+	data, err := os.ReadFile("../../config/codex-tools-candidate.example.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := c.Check(false)
+	if err != nil || r.Status != "blocked" || r.Configuration != "valid" || r.LocalMetadata != "not_checked" ||
+		r.ProfileFingerprint != codexprofile.ContractFingerprintV3 || len(r.ExecutionBlockers) != 8 ||
+		!slices.Contains(r.ExecutionBlockers, "model_tool_compatibility") {
+		t.Fatalf("V3 report: %+v %v", r, err)
+	}
+	for _, pair := range [][2]string{
+		{codexprofile.IDV3, codexprofile.IDV2},
+		{codexprofile.AdapterVersionV3, codexprofile.AdapterVersionV2},
+		{codexprofile.PolicyProfileRefV3, codexprofile.PolicyProfileRefV1},
+	} {
+		if _, err := Decode([]byte(strings.ReplaceAll(string(data), pair[0], pair[1]))); !errors.Is(err, ErrInvalid) {
+			t.Fatal("mixed V2/V3 candidate accepted")
+		}
 	}
 }
 

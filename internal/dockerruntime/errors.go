@@ -6,19 +6,20 @@ import (
 )
 
 var (
-	ErrInvalidConfig       = errors.New("docker runtime: invalid configuration")
-	ErrInvalidArgument     = errors.New("docker runtime: invalid argument")
-	ErrInvalidRef          = errors.New("docker runtime: invalid container reference")
-	ErrNotFound            = errors.New("docker runtime: container not found")
-	ErrInvalidStorage      = errors.New("docker runtime: invalid storage directory")
-	ErrUnsupportedProfile  = errors.New("docker runtime: unsupported security profile")
-	ErrTargetNotConfigured = errors.New("docker runtime: target revision is not configured")
-	ErrForeignContainer    = errors.New("docker runtime: refusing foreign container")
-	ErrInvalidState        = errors.New("docker runtime: invalid container state")
-	ErrInvalidResponse     = errors.New("docker runtime: invalid Docker response")
-	ErrRootlessRequired    = errors.New("docker runtime: daemon is not attested rootless")
-	ErrOutputLimit         = errors.New("docker runtime: command output limit exceeded")
-	ErrCommandFailed       = errors.New("docker runtime: Docker CLI command failed")
+	ErrInvalidConfig         = errors.New("docker runtime: invalid configuration")
+	ErrInvalidArgument       = errors.New("docker runtime: invalid argument")
+	ErrInvalidRef            = errors.New("docker runtime: invalid container reference")
+	ErrNotFound              = errors.New("docker runtime: container not found")
+	ErrInvalidStorage        = errors.New("docker runtime: invalid storage directory")
+	ErrUnsupportedProfile    = errors.New("docker runtime: unsupported security profile")
+	ErrTargetNotConfigured   = errors.New("docker runtime: target revision is not configured")
+	ErrForeignContainer      = errors.New("docker runtime: refusing foreign container")
+	ErrInvalidState          = errors.New("docker runtime: invalid container state")
+	ErrInvalidResponse       = errors.New("docker runtime: invalid Docker response")
+	ErrRootlessRequired      = errors.New("docker runtime: daemon is not attested rootless")
+	ErrOutputLimit           = errors.New("docker runtime: command output limit exceeded")
+	ErrCommandFailed         = errors.New("docker runtime: Docker CLI command failed")
+	ErrCredentialUnavailable = errors.New("docker runtime: credential launch unavailable")
 	// ErrCreateUncertain means the Docker CLI process carrying a container
 	// create request was started, but this call could not prove either the
 	// exact managed container or a completed failure. Callers must preserve the

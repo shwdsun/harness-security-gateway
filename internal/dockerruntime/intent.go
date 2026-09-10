@@ -33,7 +33,9 @@ func (r *Runtime) LookupIntent(
 		return "", false, ErrInvalidArgument
 	}
 	if err := validateProfile(manifest); err != nil {
-		return "", false, err
+		if spec, ok := r.targets[targetKey{manifest.ID(), manifest.Revision()}]; !ok || spec.credential == nil {
+			return "", false, err
+		}
 	}
 	fingerprint, err := manifest.Fingerprint()
 	if err != nil {
@@ -60,7 +62,7 @@ func (r *Runtime) lookupIntentAttested(
 	fingerprint string,
 ) (ContainerRef, bool, error) {
 	name := deterministicName(runID)
-	labels := expectedLabels(runID, manifest, fingerprint)
+	labels := r.runtimeLabels(runID, manifest, fingerprint)
 	record, err := r.inspectIdentifier(ctx, name)
 	if err == nil {
 		if verifyErr := verifyIntentRecord(record, name, manifest.Common().Runner.Image, labels); verifyErr != nil {

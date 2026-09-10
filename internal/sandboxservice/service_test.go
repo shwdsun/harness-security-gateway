@@ -350,12 +350,14 @@ type fakeStore struct {
 	lastPolicy    sandboxstore.SessionPolicy
 }
 
-func (s *fakeStore) RegisterTargetAuthorities(
+func (s *fakeStore) RegisterEnrolledTargetAuthorities(
 	_ context.Context,
-	authorities []sandboxstore.TargetAuthority,
+	authorities []sandboxstore.EnrolledTargetAuthority,
 ) error {
 	s.registerCalls++
-	s.registered = append(s.registered, authorities...)
+	for _, authority := range authorities {
+		s.registered = append(s.registered, authority.Target)
+	}
 	return s.registerErr
 }
 
@@ -431,6 +433,33 @@ func TestInternalFailuresAreClosedAndSanitized(t *testing.T) {
 	registry.resolveErr = secretError
 	_, err = service.StartRun(context.Background(), request("run-b", target.ID, target.Revision))
 	requireServiceCode(t, err, executionhttp.ErrorInternal)
+}
+
+func TestCredentialAdmissionDenialKeepsOperationalFailuresDistinct(t *testing.T) {
+	target := manifest("target-a", "target-a-r1", "workspace-a", targetmanifest.WorkspaceReadWrite)
+	registry := newRegistry(t, target)
+	for _, test := range []struct {
+		name  string
+		cause error
+		want  executionhttp.ErrorCode
+	}{
+		{"authority", sandboxstore.ErrCredentialAuthority, executionhttp.ErrorPolicyDenied},
+		{"credential occupied", sandboxstore.ErrCredentialBusy, executionhttp.ErrorInternal},
+		{"workspace occupied", sandboxstore.ErrWorkspaceBusy, executionhttp.ErrorWorkspaceBusy},
+		{"storage", errors.New("synthetic storage failure"), executionhttp.ErrorInternal},
+		{"cancelled operation", context.Canceled, executionhttp.ErrorUnavailable},
+		{"operation timeout", context.DeadlineExceeded, executionhttp.ErrorUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cause := fmt.Errorf("private credential detail: %w", test.cause)
+			service := newService(t, registry, &fakeStore{startErr: cause})
+			_, err := service.StartRun(context.Background(), request("run-error", target.ID, target.Revision))
+			requireServiceCode(t, err, test.want)
+			if !errors.Is(err, test.cause) {
+				t.Fatal("local diagnostic cause was lost")
+			}
+		})
+	}
 }
 
 func TestSessionAdmissionFailuresShareOneNonEnumeratingPublicError(t *testing.T) {

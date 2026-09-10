@@ -120,8 +120,8 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 		parent,
 		registry,
 		store,
-		config.RunnerStateOwnership,
-		sandboxservice.WithRevisionPin(config.RevisionSecurityFingerprint),
+		nil,
+		sandboxservice.WithAuthorityResolver(config.ResolveTargetAuthority),
 	)
 	if err != nil {
 		return fmt.Errorf("create durable sandbox service: %w", err)

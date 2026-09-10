@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	CurrentSchemaVersion               = 9
+	CurrentSchemaVersion               = 11
 	minimumCreateIntentEvidenceVersion = 3
 	exactSessionScopeVersion           = 5
 	runnerStateOwnershipVersion        = 6
@@ -632,6 +632,8 @@ WHEN NOT EXISTS (SELECT 1 FROM target_revisions tr
 BEGIN
     SELECT RAISE(ABORT, 'provider session requires persistent target');
 END;`,
+	credentialMigration,
+	credentialProofMigration,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -851,7 +853,7 @@ func (s *Store) verifyIntegrity(ctx context.Context) error {
 	if inconsistent != 0 {
 		return ErrRunnerStateOwnershipUnknown
 	}
-	return nil
+	return s.verifyCredentialIntegrity(ctx)
 }
 
 func migrationChecksum(migration string) string {

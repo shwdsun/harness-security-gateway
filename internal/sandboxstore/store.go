@@ -72,6 +72,7 @@ type RunnerStateOwnership struct {
 // exist before this registration attempt. It authorizes first ownership only;
 // it never permits adoption of an unowned existing directory.
 type TargetAuthority struct {
+	Credential            *CredentialRef
 	TargetID              string
 	TargetRevision        string
 	RevisionPin           string
@@ -123,6 +124,8 @@ type Run struct {
 	UpdatedAt           time.Time
 	TerminalAt          *time.Time
 	WorkspaceLockHeld   bool
+	CredentialRequired  bool
+	CredentialLeaseHeld bool
 }
 
 func validateBootID(value string) error {

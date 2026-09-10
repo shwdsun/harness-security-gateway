@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
 	"github.com/shwdsun/harness-security-gateway/internal/runnerbridge"
@@ -255,6 +256,13 @@ func (r *fakeRuntime) Create(ctx context.Context, runID string, manifest targetm
 	r.intents[runID] = ref
 	r.states[ref] = dockerruntime.StateCreated
 	return ref, nil
+}
+
+func (r *fakeRuntime) CreateWithCredential(ctx context.Context, runID string, manifest targetmanifest.Definition, h *credentialsource.Handoff) (string, error) {
+	if h == nil {
+		return "", ErrCredentialUnavailable
+	}
+	return r.Create(ctx, runID, manifest)
 }
 
 func (r *fakeRuntime) LookupIntent(

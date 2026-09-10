@@ -1,0 +1,113 @@
+//go:build linux
+
+package codexprovider
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io"
+	"mime"
+	"net"
+	"net/http"
+	"sync"
+	"time"
+)
+
+// One exact HTTPS exchange. No ambient proxy, redirect, retry, WebSocket,
+// cookie jar or generic RoundTripper. Cancellation closes the owned socket.
+func liveResponse(ctx context.Context, request Request) (Response, error) {
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	return upstreamResponse(ctx, request, dialer.DialContext, nil)
+}
+
+// The private dial/root seam is used only by local transport tests. Live
+// construction fixes the standard dialer and system certificate roots.
+func upstreamResponse(ctx context.Context, request Request, dial func(context.Context, string, string) (net.Conn, error), roots *x509.CertPool) (Response, error) {
+	method, host, path := route(request.Operation)
+	if method == "" {
+		return Response{}, ErrDenied
+	}
+	conn, err := dial(ctx, "tcp", net.JoinHostPort(host, "443"))
+	if err != nil {
+		return Response{}, upstreamFailure{stage: "upstream_dial"}
+	}
+	secure := tls.Client(conn, &tls.Config{ServerName: host, RootCAs: roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}})
+	owned := &upstreamBody{conn: secure}
+	owned.stop = context.AfterFunc(ctx, func() { _ = owned.closeSocket() })
+	success := false
+	defer func() {
+		if !success {
+			_ = owned.Close()
+		}
+	}()
+	if secure.SetDeadline(deadline(ctx, IdleTimeout)) != nil || secure.HandshakeContext(ctx) != nil {
+		return Response{}, upstreamFailure{stage: "upstream_tls"}
+	}
+	r, err := http.NewRequestWithContext(ctx, method, "https://"+host+path, bytes.NewReader(request.Body))
+	if err != nil {
+		return Response{}, upstreamFailure{stage: "upstream_request"}
+	}
+	r.Header = request.Header.Clone()
+	r.Close = true
+	if r.Write(secure) != nil {
+		return Response{}, upstreamFailure{stage: "upstream_write"}
+	}
+	limited := &io.LimitedReader{R: secure, N: MaxHeaderBytes}
+	response, err := http.ReadResponse(bufio.NewReader(limited), r)
+	if err != nil {
+		return Response{}, upstreamFailure{stage: "upstream_headers"}
+	}
+	owned.body = response.Body
+	// The application body is independently bounded after decomposing HTTP
+	// framing. No decompression is enabled or accepted here.
+	limited.N = MaxBodyBytes + MaxHeaderBytes
+	if response.StatusCode == 101 || response.Header.Get("Content-Encoding") != "" || response.Header.Get("Location") != "" || len(response.Trailer) != 0 {
+		return Response{}, upstreamFailure{stage: "upstream_policy", status: diagnosticStatus(response.StatusCode)}
+	}
+	media, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil && response.StatusCode == 200 {
+		return Response{}, upstreamFailure{stage: "upstream_policy", status: diagnosticStatus(response.StatusCode)}
+	}
+	success = true
+	return Response{Status: response.StatusCode, MediaType: media, Body: owned}, nil
+}
+
+type upstreamBody struct {
+	conn net.Conn
+	body io.ReadCloser
+	once sync.Once
+	stop func() bool
+	err  error
+}
+
+func (b *upstreamBody) Read(p []byte) (int, error) {
+	if b.body == nil {
+		return 0, ErrUpstream
+	}
+	if b.conn.SetReadDeadline(time.Now().Add(IdleTimeout)) != nil {
+		return 0, ErrUpstream
+	}
+	return b.body.Read(p)
+}
+func (b *upstreamBody) Close() error {
+	err := b.closeSocket()
+	if b.stop != nil {
+		b.stop()
+	}
+	return err
+}
+func (b *upstreamBody) closeSocket() error {
+	b.once.Do(func() {
+		// Close the socket before the HTTP body: its drain must not wait for a
+		// remote peer. No transport pool/goroutine survives this per-call owner.
+		b.err = b.conn.Close()
+		if errors.Is(b.err, net.ErrClosed) {
+			b.err = nil
+		}
+	})
+	return b.err
+}

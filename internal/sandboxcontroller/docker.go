@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
@@ -36,6 +37,11 @@ func (r *DockerRuntime) ListManaged(ctx context.Context) ([]string, error) {
 
 func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error) {
 	ref, err := r.runtime.Create(ctx, runID, manifest)
+	return ref.String(), err
+}
+
+func (r *DockerRuntime) CreateWithCredential(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff) (string, error) {
+	ref, err := r.runtime.CreateWithCredential(ctx, runID, manifest, handoff)
 	return ref.String(), err
 }
 
@@ -90,6 +96,10 @@ func (r *DockerRuntime) RemoveStopped(ctx context.Context, value string) error {
 		return err
 	}
 	return r.runtime.RemoveStopped(ctx, ref)
+}
+
+func (r *DockerRuntime) CloseRunResources(ctx context.Context, runID string) error {
+	return r.runtime.CloseRunResources(ctx, runID)
 }
 
 type dockerProcess struct {

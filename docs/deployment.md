@@ -96,13 +96,21 @@ live checkout is outside the intended deployment boundary.
 Harness-specific behavior belongs in the Runner artifact:
 
 ```text
-runner-codex  = thin HRP adapter + pinned Codex executable + fixed profile
+runner-codex  = thin HRP adapter + pinned Codex package + fixed profile
 runner-claude = thin HRP adapter + pinned Claude executable + fixed profile
 ```
 
 The image and immutable TargetManifest select this combination. Adding a
 harness therefore adds a reviewed Runner artifact and target revision, not a
 vendor branch in `agentd` and not a message-selectable plugin.
+
+The [Codex v3 candidate](codex-profile-v3.md) fixes the native companion host,
+package manifest and bundled helpers with the CLI. Its reusable configuration
+and pre-readiness package checks are implemented; it has no approved image or
+executable target. Package composition and native settings belong to this
+versioned artifact, while local credential/workspace mappings remain separate
+operator inputs. System sandbox prerequisites require environment evidence;
+the package recipe never changes host security settings.
 
 Platform-specific behavior belongs in a Connector artifact. A Discord
 Connector image or binary contains the reviewed Connector implementation and

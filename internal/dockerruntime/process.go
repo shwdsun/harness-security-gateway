@@ -38,6 +38,16 @@ func (r *Runtime) AttachStart(ctx context.Context, ref ContainerRef) (*Process, 
 	if err := validateSpecStorage(spec); err != nil {
 		return nil, err
 	}
+	var launch *credentialLaunch
+	if spec.credential != nil {
+		launch, err = r.claimCredentialLaunch(ref)
+		if err != nil {
+			return nil, err
+		}
+		if launch.source.Validate(launch.runID, spec.fingerprint, spec.credential.binding) != nil || spec.credential.checkArtifacts() != nil {
+			return nil, ErrCredentialUnavailable
+		}
+	}
 
 	command := r.command(ctx, "container", "start", "--attach", "--interactive", string(ref))
 	stdin, err := command.StdinPipe()
@@ -76,7 +86,7 @@ func (r *Runtime) AttachStart(ctx context.Context, ref ContainerRef) (*Process, 
 	}
 	stdoutStream, stdoutDone := startBoundedStream(stdout, spec.stdoutLimit, terminateAttach)
 	stderrStream, stderrDone := startBoundedStream(stderr, spec.stderrLimit, terminateAttach)
-	return &Process{
+	process := &Process{
 		Stdin:      input,
 		Stdout:     stdoutStream,
 		Stderr:     stderrStream,
@@ -87,7 +97,26 @@ func (r *Runtime) AttachStart(ctx context.Context, ref ContainerRef) (*Process, 
 		stderr:     stderrStream,
 		stdoutDone: stdoutDone,
 		stderrDone: stderrDone,
-	}, nil
+	}
+	if launch != nil {
+		if err := r.releaseCredentialBootstrap(ctx, ref, spec, launch, process); err != nil {
+			process.abortAttach()
+			_ = process.Wait()
+			return nil, err
+		}
+	}
+	return process, nil
+}
+
+func (p *Process) abortAttach() {
+	// Close the underlying OS pipe directly: the bounded writer's mutex may
+	// be held by a blocked write. os.File.Close interrupts that write.
+	_ = p.input.writer.Close()
+	_ = p.Stdout.Close()
+	_ = p.Stderr.Close()
+	if p.command.Process != nil {
+		_ = p.command.Process.Kill()
+	}
 }
 
 // Wait waits exactly once. It never returns exec.ExitError or child stderr.

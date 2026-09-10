@@ -42,6 +42,8 @@ var (
 	errInvalidConfig = errors.New("codex adapter: invalid configuration")
 	errFinalOutput   = errors.New("codex adapter: invalid final output")
 	errOutputLimit   = errors.New("codex adapter: diagnostic output limit exceeded")
+	errNativeWait    = errors.New("Codex native process failed")
+	errRelayWait     = errors.New("Codex provider relay failed")
 )
 
 // Config is baked into a reviewed runner image. None of these values may come
@@ -91,6 +93,15 @@ func MessagingConfig(model string) Config {
 	}
 }
 
+// MessagingToolsConfig selects the versioned native tool package. It is a
+// blocked candidate, with its own adapter identity and immutable target revision.
+func MessagingToolsConfig(model string) Config {
+	c := MessagingConfig(model)
+	c.ProfileID = codexprofile.IDV3
+	c.Binary = codexprofile.CLIBinaryPathV3
+	return c
+}
+
 // Invocation is the complete child-process request assembled by the adapter.
 // Stdin contains the untrusted user prompt; Args never do. A V2 Args value
 // contains only the fixed, non-secret developer instruction profile.
@@ -122,6 +133,11 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 	profile, developerInstructions, err := config.resolve()
 	if err != nil {
 		return err
+	}
+	if profile.ID == codexprofile.IDV3 {
+		if err := verifyToolsPackage(config.Binary); err != nil {
+			return err
+		}
 	}
 
 	encoder := runnerwire.NewEncoder(output)
@@ -188,7 +204,7 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 		return emitCancelled(encoder, start.RunID, 2)
 	}
 	if waitErr != nil {
-		return emitFailure(encoder, start.RunID, 2, runnerwire.ErrorCodeHarnessError, "Codex execution failed")
+		return emitFailure(encoder, start.RunID, 2, runnerwire.ErrorCodeHarnessError, executionFailureMessage(waitErr))
 	}
 	if stderr.Matched() {
 		return emitFailure(encoder, start.RunID, 2, runnerwire.ErrorCodeRunnerInternal, "Codex result was unavailable")
@@ -211,6 +227,22 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 		return fmt.Errorf("codex adapter: emit completed: %w", err)
 	}
 	return nil
+}
+
+// The tagged canary launcher supplies only these private, fixed sentinels.
+// Ordinary launchers retain the generic message; never format a process error.
+func executionFailureMessage(err error) string {
+	native, relay := errors.Is(err, errNativeWait), errors.Is(err, errRelayWait)
+	switch {
+	case native && relay:
+		return "Codex native process and provider relay failed"
+	case native:
+		return errNativeWait.Error()
+	case relay:
+		return errRelayWait.Error()
+	default:
+		return "Codex execution failed"
+	}
 }
 
 func (c Config) resolve() (codexprofile.Contract, string, error) {
@@ -236,6 +268,13 @@ func (c Config) resolve() (codexprofile.Contract, string, error) {
 	}
 	if pathsOverlap(c.Binary, c.Workspace) || pathsOverlap(c.Binary, c.CodexHome) || pathsOverlap(c.Binary, c.OutputDirectory) {
 		return codexprofile.Contract{}, "", fmt.Errorf("%w: binary overlaps a writable trust domain", errInvalidConfig)
+	}
+	if profile.ID == codexprofile.IDV3 {
+		root := filepath.Dir(filepath.Dir(c.Binary))
+		if filepath.Base(c.Binary) != "codex" || filepath.Base(filepath.Dir(c.Binary)) != "bin" || root == "/" ||
+			pathsOverlap(root, c.Workspace) || pathsOverlap(root, c.CodexHome) || pathsOverlap(root, c.OutputDirectory) {
+			return codexprofile.Contract{}, "", fmt.Errorf("%w: native package layout or writable overlap", errInvalidConfig)
+		}
 	}
 	if c.Model != profile.Model.Name {
 		return codexprofile.Contract{}, "", fmt.Errorf("%w: model", errInvalidConfig)
@@ -332,6 +371,25 @@ func (c Config) invocation(prompt, developerInstructions, finalPath string, stdo
 		"--config", `history.persistence="none"`,
 		"-",
 	)
+	if c.ProfileID == codexprofile.IDV3 {
+		// The model's bundled metadata already requires Code Mode. Leave the
+		// experimental forcing switch off; enable only its local native host.
+		for i, arg := range args {
+			if arg == "features.code_mode_host=false" {
+				args[i] = `features.code_mode_host={enabled=true,disable_in_process_fallback=true}`
+			}
+		}
+		args = append(args[:len(args)-1],
+			"--config", `features.shell_tool=true`,
+			"--config", `features.unified_exec=true`,
+			"--config", `features.multi_agent_v2={enabled=false,max_concurrent_threads_per_session=1,usage_hint_enabled=false}`,
+			"--config", `agents.max_threads=1`,
+			"--config", `features.skip_host_skill_discovery=true`,
+			"--config", `analytics.enabled=false`,
+			"--config", `features.runtime_metrics=false`,
+			"-",
+		)
+	}
 	return Invocation{
 		Path: c.Binary,
 		Args: args,

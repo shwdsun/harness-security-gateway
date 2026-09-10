@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/executionhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
 	"github.com/shwdsun/harness-security-gateway/internal/hostepoch"
@@ -29,10 +30,12 @@ type offeredRun struct {
 }
 
 type Controller struct {
-	durable  DurableService
-	registry Registry
-	store    Store
-	runtime  Runtime
+	durable            DurableService
+	registry           Registry
+	store              Store
+	runtime            Runtime
+	credentialBindings map[string]credentialsource.Binding
+	openCredential     credentialOpener
 
 	bridge         BridgeFunc
 	sessionRef     SessionRefGenerator
@@ -57,8 +60,12 @@ type Controller struct {
 	startsInFlight   int
 	startsDrained    chan struct{}
 	startsClosed     bool
+	credentials      map[string]*runCredential
 }
 
+// New performs recovery before starting workers. Its caller must already hold
+// exclusive sandbox mutation ownership and retain it until Close completes;
+// sandboxd holds its process lock across this entire lifetime.
 func New(
 	ctx context.Context,
 	durable DurableService,
@@ -82,6 +89,7 @@ func New(
 		sessionRef:     secureid.NewSessionRef,
 		clock:          func() time.Time { return time.Now().UTC() },
 		bootIDSource:   hostepoch.Current,
+		openCredential: openHeldCredential,
 	}
 	for index, option := range supplied {
 		if option == nil {
@@ -98,33 +106,35 @@ func New(
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	controller := &Controller{
-		durable:          durable,
-		registry:         registry,
-		store:            store,
-		runtime:          runtime,
-		bridge:           config.bridge,
-		sessionRef:       config.sessionRef,
-		clock:            config.clock,
-		bootID:           bootID,
-		cleanupTimeout:   config.cleanupTimeout,
-		waitGrace:        config.waitGrace,
-		reconcileEvery:   config.reconcileEvery,
-		rootCtx:          rootCtx,
-		rootCancel:       rootCancel,
-		queue:            make(chan executionwire.StartRunRequest, config.queueCapacity),
-		workerDone:       make(chan struct{}),
-		reconcileWake:    make(chan struct{}, 1),
-		reconcileDone:    make(chan struct{}),
-		offered:          make(map[string]*offeredRun),
-		desired:          make(map[string]terminalSpec),
-		certainNoRuntime: make(map[string]bool),
-		startsDrained:    make(chan struct{}),
+		durable:            durable,
+		registry:           registry,
+		store:              store,
+		runtime:            runtime,
+		credentialBindings: config.credentialBindings,
+		openCredential:     config.openCredential,
+		bridge:             config.bridge,
+		sessionRef:         config.sessionRef,
+		clock:              config.clock,
+		bootID:             bootID,
+		cleanupTimeout:     config.cleanupTimeout,
+		waitGrace:          config.waitGrace,
+		reconcileEvery:     config.reconcileEvery,
+		rootCtx:            rootCtx,
+		rootCancel:         rootCancel,
+		queue:              make(chan executionwire.StartRunRequest, config.queueCapacity),
+		workerDone:         make(chan struct{}),
+		reconcileWake:      make(chan struct{}, 1),
+		reconcileDone:      make(chan struct{}),
+		offered:            make(map[string]*offeredRun),
+		desired:            make(map[string]terminalSpec),
+		certainNoRuntime:   make(map[string]bool),
+		startsDrained:      make(chan struct{}),
 	}
 	// DB-known runtime references and pending Create authority must be
 	// reconciled before the broad inventory sweep. In particular, inventory
 	// must never remove the only evidence for a same-boot pending intent before
 	// its exact LookupIntent boundary has run.
-	if err := controller.reconcile(ctx); err != nil {
+	if err := controller.reconcileStartup(ctx); err != nil {
 		rootCancel()
 		return nil, err
 	}
@@ -386,12 +396,13 @@ func (c *Controller) waitForRuntimeQuiescence(ctx context.Context) bool {
 		queryCtx, cancel := context.WithTimeout(ctx, c.cleanupTimeout)
 		runs, err := c.store.ListUnreconciled(queryCtx)
 		cancel()
-		blocked := err != nil
+		blocked := err != nil || c.hasRetainedCredentials()
 		if err == nil {
 			for _, run := range runs {
 				if run.RuntimeRef != nil || run.RuntimeIntentPending || run.TerminalPending ||
 					run.State == executionwire.RunStateRunning ||
-					run.State == executionwire.RunStateCancelling {
+					run.State == executionwire.RunStateCancelling ||
+					run.CredentialLeaseHeld && run.State != executionwire.RunStateAccepted {
 					blocked = true
 					break
 				}

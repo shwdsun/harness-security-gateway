@@ -167,9 +167,13 @@ rare duplicate platform message remains possible.
 - The `/v1/` path selects the schema; unknown V1 fields are not extension
   points.
 - New platform-specific options are not passed through as maps.
-- Attachments, buttons, native commands, and delivery receipts require a new
-  reviewed closed union after a second real platform demonstrates the common
-  semantics.
+- Attachments require an explicitly scoped, reviewed closed schema extension.
+  A second platform is not a prerequisite. Apply the
+  [content evolution contract](content-evolution-and-verification.md) to scope,
+  compatibility and verification; V1 remains unchanged.
+- Buttons, native commands, and delivery receipts retain their separate
+  requirement for a reviewed closed union after a second real platform
+  demonstrates the common semantics.
 - Cell lifecycle/setup actions cannot appear in Connector v1. They require a
   new reviewed protocol only after Cell, Operation, action-specific policy, and
   lifecycle evidence exist. A platform menu is optional derived presentation,
