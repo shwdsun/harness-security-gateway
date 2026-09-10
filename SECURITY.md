@@ -2,10 +2,10 @@
 
 ## Project maturity
 
-Harness Security Gateway is an independently developed, AI-assisted experiment
-and reference project at the pre-alpha stage. It is not ready for production
-use. Normal daemon configuration is mock-only; the separate opt-in provider
-canary has two failed real Runs recorded on 2026-09-10. There is no public
+Harness Security Gateway is a pre-alpha personal messaging-to-harness gateway.
+It is not ready for production use. Normal daemon configuration is mock-only;
+the separate opt-in provider canary has two failed real Runs recorded on
+2026-09-10. There is no public
 Discord Connector or approved production Codex target. AI review is advisory;
 the human maintainer owns security claims and release decisions. The limitations in
 [`docs/implementation-status.md`](docs/implementation-status.md) are part of the

@@ -3,9 +3,6 @@
 [![CI](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**An independently developed, AI-assisted experiment and reference project for
-messaging-to-harness security boundaries.**
-
 Harness Security Gateway (HSG) is a small, single-user gateway between a
 messaging platform and an agent *harness*: a coding-agent environment that can
 read files, run tools, use credentials, and reach networks. It turns
@@ -30,11 +27,10 @@ Those dated observations are separate from the CI badge and release status.
 
 ## Why this exists
 
-This project uses AI assistance for design, implementation and review. Its
-purpose is to test the gateway's boundaries and provide a concrete reference
-for studying the design, verification process and failure records. The human
-maintainer owns scope and release decisions; generated code and model reviews
-must be checked against explicit invariants, tests and observed behavior.
+The goal is a practical personal gateway: request coding work from a private
+conversation, run it within an operator-approved environment, and receive the
+result in that conversation. The first intended path is private Discord to one
+immutable Codex target.
 
 Messaging-to-agent connectivity is easy to demonstrate; authority is the
 harder problem. A message is untrusted intent entering a powerful execution
@@ -235,6 +231,9 @@ matrix are deliberately deferred.
 - [Local mock runbook](docs/runbook.md)
 
 ## Security and license
+
+HSG is developed independently with AI assistance; its implementation and
+verification records are also available as a reference for other projects.
 
 Please report vulnerabilities through
 [GitHub private vulnerability reporting](https://github.com/shwdsun/harness-security-gateway/security/advisories/new),

@@ -1,14 +1,15 @@
 # Product position and scope
 
-Status as of **2026-09-10**: an independently developed, AI-assisted experiment
-and reference project; research prototype / pre-alpha.
+Status as of **2026-09-10**: research prototype / pre-alpha.
 
-The project provides a concrete implementation, verification approach and
-record of failed as well as successful experiments for others to study. AI
-assists design, implementation and review; the human maintainer owns scope and
-release decisions. Neither generated code nor model agreement establishes a
-security guarantee. Claims follow the evidence boundaries in
-[implementation status](implementation-status.md).
+The goal is a usable personal gateway for requesting coding work from private
+messaging, executing it within a pre-approved environment and receiving the
+result in the same conversation. Security, a small scope and clear behavior
+serve that practical use. Current capabilities and remaining gates are recorded
+in [implementation status](implementation-status.md).
+
+The project is developed independently with AI assistance. Its implementation
+and verification records can also serve as a reference for others.
 
 ## Category
 
