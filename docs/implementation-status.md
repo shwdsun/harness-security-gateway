@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-10 (two admitted real-canary Runs failed; authenticated-provider acceptance and deployment gates remain open)
+Last verified: 2026-09-10 (three admitted real-canary Runs failed; authenticated-provider acceptance and deployment gates remain open)
 
 The [2026-09-10 checkpoint assessment](checkpoint-2026-09-10.md) summarizes the
 completed local work, verification limits, design/practice review and next work
@@ -54,10 +54,22 @@ deployment remain disabled.
 The subsequent [response-rejection work package](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
 now implements closed predicate/media diagnostics and operation-scoped blocking
 at upstream dispatch authorization. It preserves the response acceptance rules,
-other operations, transient/status behavior and joined cleanup. The next real
-experiment must use newly pinned artifacts and an explicitly authorized
-continuation; these local changes do not explain the earlier response predicate
-or count as a third real Run.
+other operations, transient/status behavior and joined cleanup. Its implementation
+and read-only preparation did not explain the earlier response predicate or
+execute another Run.
+
+The third separately authorized Run at **07:08 UTC** then failed without a
+marker. One authorized inference received HTTP 200 with an empty/missing
+Content-Type (`content_type_missing`); twelve later inference requests were
+denied locally without new upstream authorization. Two catalog exchanges
+completed with JSON media and HTTP 200, and settings stayed local. At
+**07:11–07:12 UTC**, independent observations confirmed exact container absence,
+process exit, zero durable cleanup fences and the same source/proof across
+generations 1–3. All three failed Runs and pending deliveries remain retained.
+The consumed plan rejects reuse. This demonstrates bounded rejection handling,
+not inference acceptance or a diagnosis of the earlier Runs. The next work is
+to resolve the response-contract mismatch before another real execution. See
+[the third Run's evidence and limits](codex-provider-canary.md#third-real-run--2026-09-10).
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are
@@ -132,7 +144,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Versioned template and startup guard implemented; normal daemon execution blocked | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No production target implemented | No approved production image/auth/network/context profile; two opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
+| Real Codex target | No production target implemented | No approved production image/auth/network/context profile; three opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
@@ -426,8 +438,9 @@ and evidence. Its synthetic delivery unit now connects provider control,
 enrolled credential handoff and the fixed V3 runtime under fake ingress, with
 the scoped evidence below. The subsequent
 [response rejection and bounded failure handling](codex-provider-canary.md#actionable-rejection-and-bounded-failure-handling--2026-09-10)
-package adds actionable diagnostics before preparing another controlled real
-attempt; provider compatibility remains an open gate.
+package now has a real-Run witness for precise rejection and suppression of
+later same-operation dispatch; response-contract compatibility remains an open
+gate.
 The [provider-control/credential-delivery decision](codex-control-boundary.md)
 defines a bounded synthetic Responses consumer and a pre-execution mounted-object
 gate. The verifier/bootstrap component has six passing local rootless cases
@@ -477,7 +490,7 @@ domain. The dated standalone native witness and subsequent
 cleanup/publication integration within their experimental scope, with a distinct
 opt-in pin. Normal executable configuration, production enrollment/rotation,
 complete production authority and deployment isolation remain unresolved.
-Real-provider acceptance failed in the two Runs recorded above; Discord
+Real-provider acceptance failed in the three Runs recorded above; Discord
 acceptance remains later work. The production target remains blocked.
 
 ### Deployment identities and local IPC

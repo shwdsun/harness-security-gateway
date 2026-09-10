@@ -77,7 +77,7 @@ Runner; it is not yet a real platform-to-provider integration.
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; normal daemon enrollment remains unavailable |
 | Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
-| Controlled provider canary | Separate opt-in local owner, operation endpoint/relay, bounded diagnostics and retained-history continuation; two real Runs failed on 2026-09-10, with independent cleanup observations |
+| Controlled provider canary | Separate opt-in local owner, operation endpoint/relay and retained-history continuation; three real Runs failed on 2026-09-10. The third identified an empty/missing response Content-Type and blocked subsequent same-operation dispatch; cleanup was independently checked |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |

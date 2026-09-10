@@ -373,6 +373,50 @@ At **2026-09-10 06:49 UTC**, newly pinned owner/Runner artifacts and one retaine
 history continuation passed default read-only preflight with `awaiting_operator`
 and no findings. Both retained databases and both prior configurations were
 unchanged; credential metadata matched before and after, without reading or
-hashing its bytes. The third Run remains unexecuted. This is preparation
+hashing its bytes. At that point, the third Run was unexecuted. This is preparation
 evidence, not a current authentication, Docker-service or real-provider
 acceptance result.
+
+### Third real Run — 2026-09-10
+
+After explicit approval of the frozen one-Run effects, the new continuation
+ran at **07:08:10–07:08:58 UTC** and failed without its marker. The owner exited
+1 after 47.030 seconds, with no supervisor timeout or forced kill. The local
+generation advanced from 2 to 3 while preserving the enrolled source/proof and
+both earlier failed histories.
+
+The joined diagnostic snapshot contains sixteen exchanges:
+
+- Two catalog exchanges completed with HTTP 200 and parsed JSON media.
+- One settings request received the fixed local response.
+- One inference obtained upstream authorization and received HTTP 200, then
+  was rejected with `content_type_missing`.
+- Twelve later inference requests ended locally at `operation_rejected` with
+  that earlier reason, no new upstream authorization and no upstream status.
+
+The precise observed predicate is
+`response.Header.Get("Content-Type") == ""` in the fixed upstream parser.
+It does not distinguish an absent field from an empty first value, establish
+the body's format, or explain why the field was empty. It also does not prove
+authentication, inference completion or provider-side processing/usage. No raw
+upstream headers/body or native output were retained for diagnosis. The second
+Run's grouped rejection cannot be retroactively assigned this reason.
+
+At **07:11–07:12 UTC**, separate observations confirmed that the exact container
+had exited and been removed, the owner process group was absent, and credential
+occupancy, workspace locks and staged terminals were zero. All three Runs are
+failed, dispatched once each, with pending local deliveries at zero attempts;
+none retains a runtime reference or intent. Generations 1 and 2 are retired,
+generation 3 remains enrolled, and the source/proof fields match across all
+three. Credential object/size/mtime metadata were unchanged; its bytes were not
+read or hashed by diagnostic collection. The workspace remained empty and
+provider leaves retained only public CA files. Cleanup-only recovery was not
+needed. The consumed plan now reports `blocked_run_exists` in read-only mode.
+
+This Run supplies real-path evidence for precise rejection and prevention of
+new same-operation dispatch after that rejection. It does not complete provider
+acceptance. The next bounded task is to examine request projection and native
+response-mode assumptions, then collect only any missing response-contract
+evidence needed for a compatibility decision. Retain the current response
+validation until that decision is supported. Another real Run requires a new
+concrete plan; public Discord and deployment remain blocked.
