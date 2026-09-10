@@ -748,7 +748,10 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.TerminalPending && run.RuntimeIntentPending
+			// Staging commits before the asynchronous cleanup lookup. Observing
+			// that row alone does not order the following runtime assertion.
+			return run.TerminalPending && run.RuntimeIntentPending &&
+				containsCall(runtime.callSnapshot(), "lookup:"+request.RunID)
 		})
 		if run.RuntimeIntentBootID == nil || *run.RuntimeIntentBootID != testBootID ||
 			creates.Load() != 0 || !containsCall(runtime.callSnapshot(), "lookup:"+request.RunID) {

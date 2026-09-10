@@ -16,7 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/executionhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/localhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/localidentity"
@@ -36,6 +35,8 @@ const (
 
 type options struct {
 	configPath string
+	check      bool
+	enroll     bool
 }
 
 func main() {
@@ -59,6 +60,16 @@ func run(ctx context.Context, arguments []string) error {
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
+	if parsed.check {
+		_, err := prepareExecution(config)
+		if err == nil {
+			_, err = fmt.Fprintln(os.Stdout, "configuration and fixed artifacts checked; no enrollment, runtime or provider operation performed")
+		}
+		return err
+	}
+	if parsed.enroll {
+		return enrollCredential(ctx, config)
+	}
 	return serve(ctx, config)
 }
 
@@ -67,6 +78,8 @@ func parseOptions(arguments []string) (options, error) {
 	flags.SetOutput(io.Discard)
 	var parsed options
 	flags.StringVar(&parsed.configPath, "config", "", "path to sandboxd JSON configuration")
+	flags.BoolVar(&parsed.check, "check", false, "check configuration and fixed local artifacts only")
+	flags.BoolVar(&parsed.enroll, "enroll-credential", false, "explicitly enroll the exact configured local credential; do not serve")
 	if err := flags.Parse(arguments); err != nil {
 		return options{}, err
 	}
@@ -76,6 +89,9 @@ func parseOptions(arguments []string) (options, error) {
 	if parsed.configPath == "" {
 		return options{}, errors.New("-config is required")
 	}
+	if parsed.check && parsed.enroll {
+		return options{}, errors.New("-check and -enroll-credential are mutually exclusive")
+	}
 	return parsed, nil
 }
 
@@ -84,6 +100,10 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 		return errors.New("nil context")
 	}
 	if err := config.Validate(); err != nil {
+		return err
+	}
+	execution, err := prepareExecution(config)
+	if err != nil {
 		return err
 	}
 	if err := privatefs.EnsureParent(config.ProcessLockPath(), 0o700); err != nil {
@@ -121,7 +141,7 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 		registry,
 		store,
 		nil,
-		sandboxservice.WithAuthorityResolver(config.ResolveTargetAuthority),
+		sandboxservice.WithAuthorityResolver(execution.authority),
 	)
 	if err != nil {
 		return fmt.Errorf("create durable sandbox service: %w", err)
@@ -132,7 +152,7 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 	if err := prepareRunnerStateFilesystem(config); err != nil {
 		return err
 	}
-	lockedRuntime, err := dockerruntime.New(config)
+	lockedRuntime, err := execution.runtime()
 	if err != nil {
 		return fmt.Errorf("create Docker runtime: %w", err)
 	}
@@ -140,7 +160,8 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 	if err != nil {
 		return fmt.Errorf("adapt Docker runtime: %w", err)
 	}
-	controller, err := sandboxcontroller.New(parent, durable, registry, store, runtimeAdapter)
+	controller, err := sandboxcontroller.New(parent, durable, registry, store, runtimeAdapter,
+		sandboxcontroller.WithCredentialBindings(execution.bindings))
 	if err != nil {
 		return fmt.Errorf("create sandbox controller: %w", err)
 	}

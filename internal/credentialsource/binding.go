@@ -4,7 +4,8 @@ package credentialsource
 
 // Binding names one dedicated auth.json slot. It carries no credential bytes.
 // Keep field order and JSON names stable: the offline candidate digest uses it.
-// Real source resolution, refresh and mount attestation remain disabled.
+// Resolution, enrollment and exact-object runtime handoff are separate actions;
+// the shape alone grants none of them.
 type Binding struct {
 	WorkspaceRef   string `json:"workspace_ref"`
 	AuthProfileRef string `json:"auth_profile_ref"`

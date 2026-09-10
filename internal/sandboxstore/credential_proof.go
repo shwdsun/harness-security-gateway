@@ -13,7 +13,8 @@ import (
 // under the caller's exclusive sandbox mutation ownership. The caller must
 // already have resolved and checked the exact held source and approved scope.
 // This store does not inspect a credential or grant a mount/Create. A constructed
-// proof is not trusted evidence. All current callers are synthetic tests.
+// proof is not trusted evidence. The opt-in local enrollment caller performs
+// native held-source observation before calling this storage boundary.
 // Exact replay includes proof presence/content and never removes revocation.
 func (s *Store) RegisterCredentialEnrollment(ctx context.Context, g CredentialGeneration, proof credentialsource.Proof) error {
 	return s.registerCredentialGeneration(ctx, g, &proof)

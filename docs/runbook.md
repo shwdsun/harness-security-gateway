@@ -11,6 +11,10 @@ produces a nonempty repository digest. The prepared BuildKit path may record a
 local `RepoDigest`; another engine may require an operator-controlled registry.
 Use `make demo-security` for the credential-free, Docker-free witness.
 
+The separate [fixed Codex startup guide](codex-daemon-startup.md) documents
+opt-in local development configuration and explicit credential enrollment.
+Its effects and evidence limits differ from this mock runbook.
+
 The example configuration documents target `project-mock` and session mode
 `opaque_resume`. Its `project-mock-unset` revision and all-zero image digest are
 deliberate placeholders; the commands below derive a local immutable revision

@@ -27,9 +27,16 @@ installer.
 The [controlled provider canary](codex-provider-canary.md) is a separate opt-in
 experiment, omitted from the default build. It requires pinned local artifacts,
 explicit prerequisites and authorization for real credential/provider effects.
-Two real Runs failed on **2026-09-10** with independently observed cleanup; this
-adds experimental evidence, not a third supported deployment path. Its dated
-results and limitations are recorded in the [checkpoint](checkpoint-2026-09-10.md).
+Four real Runs failed on **2026-09-10**; the fifth completed native inference,
+a tool-written marker and local delivery at **21:52–21:53 UTC**, with
+independently observed cleanup. These remain experimental observations, not a
+supported production deployment; see the [dated results](codex-provider-canary.md#fifth-real-run--2026-09-10).
+
+The subsequent [fixed Codex startup configuration](codex-daemon-startup.md)
+wires that template into the existing `sandboxd` behind an explicit build
+switch. It supplies scope export, read-only local artifact checks and explicit
+enrollment. Its deterministic startup/recovery tests do not establish a real
+daemon-to-provider Run or change the production placement gates below.
 
 The default local mock path retains v1 resumable Runner state. An explicit
 `sandboxd/v3` no-state example and a build-time fixed `new-only` mock artifact
@@ -90,7 +97,7 @@ boundary itself. The following placement rules are normative:
   requires new runtime support plus a different reviewed profile and
   TargetRevision; configuration alone cannot enable it.
 - Provider access requires enforcement of the target's reviewed operations and
-  lifetime. The opt-in canary implements a runtime-owned Unix/TLS endpoint and
+  lifetime. The opt-in canary and fixed daemon factory use a runtime-owned Unix/TLS endpoint and
   a relay inside a network-none container. Its V3 `credential-exposed-personal`
   contract still binds the dedicated credential file into that container;
   native tools can read it. Operation mediation does not establish credential

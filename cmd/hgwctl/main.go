@@ -40,6 +40,21 @@ type resetOutput struct {
 	Result    corestore.SessionResetResult `json:"result"`
 }
 
+type scopeFields struct {
+	BindingFingerprint string `json:"binding_fingerprint"`
+	ConnectorID        string `json:"connector_id"`
+	ActorRef           string `json:"actor_ref"`
+	ConversationRef    string `json:"conversation_ref"`
+	TargetID           string `json:"target_id"`
+	TargetRevision     string `json:"target_revision"`
+}
+
+type scopeOutput struct {
+	Schema    string      `json:"schema"`
+	BindingID string      `json:"binding_id"`
+	Scope     scopeFields `json:"scope"`
+}
+
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "hgwctl: %v\n", err)
@@ -68,6 +83,13 @@ func run(ctx context.Context, arguments []string, output io.Writer) error {
 	key, err := resolveSessionKey(config, command.bindingID)
 	if err != nil {
 		return err
+	}
+	if command.action == "scope" {
+		// Pure configuration projection: no Core lock/DB, sandbox state,
+		// credential, runtime or provider access. It is not live-state approval.
+		return json.NewEncoder(output).Encode(scopeOutput{Schema: "hgwctl/session-scope/v1", BindingID: command.bindingID,
+			Scope: scopeFields{BindingFingerprint: key.BindingFingerprint, ConnectorID: key.ConnectorID,
+				ActorRef: key.ActorRef, ConversationRef: key.ConversationRef, TargetID: key.TargetID, TargetRevision: key.TargetRevision}})
 	}
 	owner, err := processlock.Acquire(config.ProcessLockPath())
 	if err != nil {
@@ -118,7 +140,7 @@ func run(ctx context.Context, arguments []string, output io.Writer) error {
 
 func parseCommand(arguments []string) (sessionCommand, error) {
 	if len(arguments) < 2 || arguments[0] != "session" {
-		return sessionCommand{}, errors.New("usage: hgwctl session status|reset [flags]")
+		return sessionCommand{}, errors.New("usage: hgwctl session scope|status|reset [flags]")
 	}
 	command := sessionCommand{action: arguments[1]}
 	flags := flag.NewFlagSet("hgwctl session "+command.action, flag.ContinueOnError)
@@ -126,11 +148,11 @@ func parseCommand(arguments []string) (sessionCommand, error) {
 	flags.StringVar(&command.configPath, "config", "", "path to agentd JSON configuration")
 	flags.StringVar(&command.bindingID, "binding", "", "operator binding ID")
 	switch command.action {
-	case "status":
+	case "status", "scope":
 	case "reset":
 		flags.StringVar(&command.expectedSessionRef, "expected-session-ref", "", "expected opaque session reference")
 	default:
-		return sessionCommand{}, errors.New("session action must be status or reset")
+		return sessionCommand{}, errors.New("session action must be scope, status or reset")
 	}
 	if err := flags.Parse(arguments[2:]); err != nil {
 		return sessionCommand{}, err

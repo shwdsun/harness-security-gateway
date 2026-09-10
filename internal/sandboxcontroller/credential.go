@@ -43,9 +43,9 @@ type runCredential struct {
 }
 
 // WithCredentialBindings freezes trusted local locators by slot. It neither
-// enrolls a source nor grants a target/runtime capability. Executable config
-// does not wire this option yet; complete target pins and exact-object mount
-// handoff remain required. Remote requests never carry these values.
+// enrolls a source nor grants a target/runtime capability. The opt-in fixed
+// Codex startup supplies it together with resolved pins and exact-object mount
+// handoff. Remote requests never carry these values.
 func WithCredentialBindings(bindings []credentialsource.Binding) Option {
 	frozen := append([]credentialsource.Binding(nil), bindings...)
 	return func(config *options) error {

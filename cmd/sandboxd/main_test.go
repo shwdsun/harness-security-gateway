@@ -24,7 +24,7 @@ func TestParseOptions(t *testing.T) {
 	if err != nil || parsed.configPath != "config/sandboxd.json" {
 		t.Fatalf("parseOptions = %#v, %v", parsed, err)
 	}
-	for _, arguments := range [][]string{nil, {"-config", "x", "extra"}, {"-unknown"}} {
+	for _, arguments := range [][]string{nil, {"-config", "x", "extra"}, {"-unknown"}, {"-config", "x", "-check", "-enroll-credential"}} {
 		if _, err := parseOptions(arguments); err == nil {
 			t.Fatalf("parseOptions(%q) unexpectedly succeeded", arguments)
 		}

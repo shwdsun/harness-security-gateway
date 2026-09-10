@@ -40,8 +40,8 @@ type EnrolledTargetAuthority struct {
 // registration for the whole batch. Missing proof/scope fails closed; nothing
 // is backfilled. Exact replay may reference revoked history but cannot revive
 // it or authorize a new target binding. sandboxservice uses this for every
-// registry; executable configuration supplies only credential-free mocks.
-// Credential-bearing callers still use constructed synthetic authority in tests.
+// registry; the opt-in fixed Codex configuration supplies separately resolved
+// authority. Default executable configuration remains credential-free.
 func (s *Store) RegisterEnrolledTargetAuthorities(ctx context.Context, entries []EnrolledTargetAuthority) error {
 	if err := s.ready(ctx); err != nil {
 		return err

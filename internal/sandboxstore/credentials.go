@@ -18,7 +18,7 @@ var (
 // CredentialGeneration is a trusted local enrollment result, never wire input.
 // SourceDigest must identify a canonical source supplied by a trusted resolver;
 // a digest of token bytes, a caller-chosen ref, or a path alone is not proof.
-// This store currently has synthetic callers only; it does not inspect sources.
+// This store does not inspect sources; the trusted enrollment caller does.
 type CredentialGeneration struct {
 	SlotRef        string
 	Generation     int64

@@ -4,6 +4,11 @@ Status: **implemented candidate configuration, execution blocked**.
 Observed on **2026-09-09 UTC**. No approved image, real-provider target or
 production deployment is supplied by this profile.
 
+**2026-09-10 update:** the [provider canary](codex-provider-canary.md) and
+[fixed daemon startup](codex-daemon-startup.md) use this native package with
+separate owner/artifact/provider pins. The sealed profile fingerprint alone
+still grants no execution authority; production acceptance remains open.
+
 V3 keeps CLI **0.151.0**, `gpt-5.6-sol`, `medium`, the fixed messaging
 instructions and the existing credential/network/lifecycle requirements. It
 adds the matching local Code Mode host and an explicit package layout. The

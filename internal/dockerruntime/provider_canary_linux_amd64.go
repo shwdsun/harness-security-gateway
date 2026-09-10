@@ -14,6 +14,7 @@ import (
 
 	"github.com/shwdsun/harness-security-gateway/internal/codexprovider"
 	"github.com/shwdsun/harness-security-gateway/internal/localidentity"
+	"github.com/shwdsun/harness-security-gateway/internal/sandboxconfig"
 )
 
 // ProviderCanaryConfig freezes a local experiment, not a production V3
@@ -29,15 +30,8 @@ type ProviderCanaryConfig struct {
 // checks local files. Provider I/O needs a separately admitted held-credential
 // Run, mounted-object verification and the bootstrap permit.
 func NewProviderCanary(config ProviderCanaryConfig) (*Runtime, string, func() *codexprovider.Diagnostics, error) {
-	// The first controlled canary reuses this measured cached image/template.
-	// No arbitrary image or system-root override is part of this live candidate.
-	if config.Runtime.Manifest.Common().Runner.Image != "golang@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd" {
-		return nil, "", nil, ErrInvalidConfig
-	}
-	for _, name := range []string{"SSL_CERT_FILE", "SSL_CERT_DIR"} {
-		if _, present := os.LookupEnv(name); present {
-			return nil, "", nil, ErrInvalidConfig
-		}
+	if err := validateLiveProvider(config); err != nil {
+		return nil, "", nil, err
 	}
 	observation := &providerObservation{}
 	r, pin, err := newProviderCanary(config, "live", func(ctx context.Context, dir string) (runProvider, error) {
@@ -48,6 +42,20 @@ func NewProviderCanary(config ProviderCanaryConfig) (*Runtime, string, func() *c
 		return endpoint, err
 	})
 	return r, pin, observation.snapshot, err
+}
+
+func validateLiveProvider(config ProviderCanaryConfig) error {
+	// The first controlled canary reuses this measured cached image/template.
+	// No arbitrary image or system-root override is part of this live candidate.
+	if config.Runtime.Manifest.Common().Runner.Image != sandboxconfig.FixedCodexImage {
+		return ErrInvalidConfig
+	}
+	for _, name := range []string{"SSL_CERT_FILE", "SSL_CERT_DIR"} {
+		if _, present := os.LookupEnv(name); present {
+			return ErrInvalidConfig
+		}
+	}
+	return nil
 }
 
 // Retain one endpoint observation after Runtime releases its ownership entry.

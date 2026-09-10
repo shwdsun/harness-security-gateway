@@ -57,6 +57,7 @@ type Config struct {
 	Workspaces      []StorageEntry              `json:"workspaces"`
 	RunnerStates    []StorageEntry              `json:"runner_states"`
 	Targets         []targetmanifest.Definition `json:"targets"`
+	Codex           *Codex                      `json:"codex,omitempty"`
 }
 
 // ProcessLockPath is deliberately global to the current OS user. V1 permits
@@ -101,6 +102,11 @@ func Load(path string) (Config, error) {
 	if err := strictjson.Decode(data, MaxConfigBytes, MaxJSONDepth, &config); err != nil {
 		return Config{}, err
 	}
+	if config.Schema == SchemaCodexV1 {
+		if err := exactCodexFields(data); err != nil {
+			return Config{}, err
+		}
+	}
 	base := filepath.Dir(absolute)
 	for field, value := range map[string]*string{
 		"socket":            &config.Socket,
@@ -129,8 +135,11 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if c.Schema != SchemaV2 && c.Schema != SchemaV3 {
-		return invalid("schema", "must be sandboxd/v2 or sandboxd/v3")
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && c.Schema != SchemaCodexV1 {
+		return invalid("schema", "unsupported sandbox configuration")
+	}
+	if c.Schema != SchemaCodexV1 && c.Codex != nil {
+		return invalid("codex", "requires sandboxd/codex-v1")
 	}
 	if err := c.PeerUID.Validate(); err != nil {
 		return invalid("peer_uid", err.Error())
@@ -203,10 +212,10 @@ func (c Config) Validate() error {
 		return err
 	}
 	stateRefs := make(map[string]struct{})
-	if c.Schema == SchemaV3 && c.RunnerStates == nil {
+	if c.Schema != SchemaV2 && c.RunnerStates == nil {
 		return invalid("runner_states", "must be an explicit array (may be empty)")
 	}
-	if c.Schema != SchemaV3 || len(c.RunnerStates) != 0 {
+	if c.Schema == SchemaV2 || len(c.RunnerStates) != 0 {
 		stateRefs, err = validateStorageEntries("runner_states", c.RunnerStates)
 	}
 	if err != nil {
@@ -238,11 +247,14 @@ func (c Config) Validate() error {
 		}
 		usedTargetStates[stateRef] = index
 	}
+	if c.Schema == SchemaCodexV1 {
+		return c.validateCodex()
+	}
 	return nil
 }
 
 func (c Config) Registry() (*targetregistry.Registry, error) {
-	if c.Schema != SchemaV2 && c.Schema != SchemaV3 {
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && c.Schema != SchemaCodexV1 {
 		return nil, invalid("schema", "unsupported sandbox configuration")
 	}
 	for _, target := range c.Targets {
@@ -262,6 +274,9 @@ func (c Config) validateTarget(target targetmanifest.Definition) error {
 	if c.Schema == SchemaV2 && target.Schema() != targetmanifest.SchemaV1 {
 		return invalid("targets", "sandboxd/v2 accepts only harness-target/v1")
 	}
+	if c.Schema == SchemaCodexV1 {
+		return matchCodex(target)
+	}
 	if target.Schema() == targetmanifest.SchemaV2 {
 		return validateMockProfile(target)
 	}
@@ -269,7 +284,7 @@ func (c Config) validateTarget(target targetmanifest.Definition) error {
 }
 
 // This is a total matcher for the built-in, provider-free mock envelope only.
-// General profile resolution and real provider authority remain unsupported.
+// The separate fixed Codex schema never acquires authority through this gate.
 func validateMockProfile(target targetmanifest.Definition) error {
 	common := target.Common()
 	if common.Runner.Family != "mock" || common.Runner.AdapterVersion != "0.1.0" ||

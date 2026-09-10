@@ -1,0 +1,98 @@
+{
+  "schema": "sandboxd/codex-v1",
+  "socket": "/srv/hsg/control/sandboxd.sock",
+  "peer_uid": 1000,
+  "state_database": "/srv/hsg/control/sandboxd.sqlite3",
+  "workspace_root": "/srv/hsg/workspaces",
+  "runner_state_root": "/srv/hsg/runner-state",
+  "runtime": {
+    "kind": "rootless-docker",
+    "endpoint": "unix:///run/user/1000/docker.sock",
+    "cli": "/usr/bin/docker"
+  },
+  "workspaces": [
+    {
+      "ref": "project-main",
+      "directory": "project-main"
+    }
+  ],
+  "runner_states": [],
+  "targets": [
+    {
+      "schema": "harness-target/v2",
+      "id": "project-codex",
+      "revision": "project-codex-daemon-unset",
+      "runner": {
+        "family": "codex",
+        "adapter_version": "0.3.0-new-only",
+        "protocol": "hrp/1",
+        "image": "golang@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd",
+        "required_features": []
+      },
+      "workspace_ref": "project-main",
+      "workspace_mode": "rw",
+      "runner_state": {
+        "kind": "none"
+      },
+      "policy_ref": "codex.locked-tools-v3",
+      "auth_profile_ref": "codex.chatgpt-file-personal-v1",
+      "skill_bundle_ref": "builtin.none",
+      "network_profile_ref": "codex.provider-control-v1",
+      "session_mode": "new_only",
+      "limits": {
+        "timeout_seconds": 300,
+        "memory_bytes": 536870912,
+        "cpu_millis": 1000,
+        "pids": 64,
+        "max_input_bytes": 32768,
+        "max_output_bytes": 2000,
+        "max_progress_bytes": 4096,
+        "max_stderr_bytes": 4096,
+        "max_events": 16,
+        "max_session_age_seconds": 0,
+        "max_session_turns": 0
+      }
+    }
+  ],
+  "codex": {
+    "credential": {
+      "workspace_ref": "project-main",
+      "auth_profile_ref": "codex.chatgpt-file-personal-v1",
+      "slot_ref": "personal-codex",
+      "generation": 1,
+      "root": "/srv/hsg/credentials",
+      "directory": "codex-project-main"
+    },
+    "scope": {
+      "binding_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "connector_id": "private-local",
+      "actor_ref": "operator",
+      "conversation_ref": "private",
+      "target_id": "project-codex",
+      "target_revision": "project-codex-daemon-unset"
+    },
+    "provider_root": "/srv/hsg/provider",
+    "tool_package": "/srv/hsg/artifacts/codex-package",
+    "owner_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "uid_setup": {
+      "path": "/srv/hsg/artifacts/uid-setup",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "bootstrap": {
+      "path": "/srv/hsg/artifacts/credential-bootstrap",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "runner": {
+      "path": "/srv/hsg/artifacts/codex-provider-runner",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "canary": {
+      "path": "/srv/hsg/artifacts/startup-canary",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "seccomp": {
+      "path": "/srv/hsg/artifacts/seccomp.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}

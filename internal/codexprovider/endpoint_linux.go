@@ -54,7 +54,7 @@ type Endpoint struct {
 
 // NewLive creates no external connection. Only a later verified Open followed
 // by an accepted operation can use the fixed TLS upstream. Normal executable
-// configuration does not select this candidate.
+// configuration selects it only through the opt-in fixed Codex factory.
 func NewLive(ctx context.Context, directory string, peer localidentity.UID) (*Endpoint, error) {
 	return newEndpoint(ctx, directory, peer, liveResponse)
 }

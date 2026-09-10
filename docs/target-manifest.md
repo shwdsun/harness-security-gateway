@@ -120,20 +120,26 @@ credential-free pins and performs the read and registration in one transaction.
 It does not turn the mock fingerprint or diagnostic candidate into complete
 real-provider authority; that provider content resolver remains absent.
 
-sandboxd now obtains each entry's base pin and state ownership from
+Default sandboxd obtains each mock entry's base pin and state ownership from
 `sandboxconfig.ResolveTargetAuthority`, then sandboxservice registers the whole
 batch through that strict entrypoint. Resolution accepts only the exact configured
 locked-down mock projection in both v1 and v2; credentials are absent. The
 historical standalone v1 hash helper is unchanged, but cannot be substituted for
-the stricter executable resolver. A trusted future credential resolver must also
+the stricter executable resolver. A trusted credential resolver must also
 supply the independently approved six-field scope, matching the target/revision;
 the service derives workspace/auth from the manifest and hashes the exact scope
 before transactional enrollment comparison. Resolver failure never falls back
 to a legacy hook or diagnostic candidate.
 
+The explicit [fixed Codex daemon](codex-daemon-startup.md) uses
+`sandboxd/codex-v1` and a separate checked owner/artifact/provider factory. It
+supplies one no-state V3 target, its frozen credential binding and independent
+approved scope to the same registry/service/controller. Normal mock schemas
+cannot select it; no legacy fingerprint encoding or execution wire changes.
+
 ## Mock artifact and evidence boundary
 
-V2 matches only family `mock`, adapter `0.1.0`, policy
+Within the mock configuration, v2 matches only family `mock`, adapter `0.1.0`, policy
 `builtin.locked-down-v1` and three `builtin.none` refs. Image digests, resource
 limits, workspace and session policy remain explicitly pinned. Unsupported
 provider profiles fail before a Docker CLI call; configuration alone cannot

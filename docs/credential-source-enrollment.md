@@ -1,5 +1,13 @@
 # Credential source enrollment and re-open contract
 
+**2026-09-10 update:** the dated sections below retain the 2026-09-08 contract
+and implementation state. The [controlled canaries](codex-provider-canary.md)
+subsequently exercised native held-source enrollment and handoff. The new
+[fixed daemon startup](codex-daemon-startup.md) adds explicit local enrollment
+and already-enrolled startup behind a build switch, with deterministic tests.
+Default mock builds and production acceptance remain unchanged; this wiring
+has not executed another real enrollment or provider Run.
+
 Status, 2026-09-08: **identity/proof storage, Run re-open/release and startup
 recovery integrated with synthetic tests; real enrollment and runtime use
 remain blocked**.

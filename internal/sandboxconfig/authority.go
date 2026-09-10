@@ -7,8 +7,8 @@ import (
 
 // ResolveTargetAuthority resolves only a configured, immutable locked-down mock
 // target. The base pin covers that implemented built-in authority; all historical
-// v1/v2 encodings remain unchanged. Real provider policy/network/context/teardown
-// resolution is absent, so unsupported profiles cannot produce an authority here.
+// v1/v2 encodings remain unchanged. The opt-in fixed Codex runtime has a separate
+// artifact/owner-bound resolver; it cannot produce authority through this helper.
 // This function never opens credentials or invokes a runtime.
 func (c Config) ResolveTargetAuthority(manifest targetmanifest.Definition, fingerprint string) (sandboxservice.ResolvedAuthority, error) {
 	if err := c.Validate(); err != nil {

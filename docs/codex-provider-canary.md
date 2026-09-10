@@ -3,8 +3,10 @@
 Implemented **2026-09-10 UTC** as an opt-in local experiment. The
 [fifth controlled Run](#fifth-real-run--2026-09-10) completed real native
 inference, a tool-written marker and local delivery with joined cleanup.
-The normal build and `sandboxd` remain mock-only; this is not a production
-target, deployment or Discord implementation.
+The default build remains mock-only. The subsequent opt-in
+[fixed daemon startup wiring](codex-daemon-startup.md) uses the same native
+template with a separate authority pin; its new executable path has no real
+provider Run yet. Neither path is a production deployment or Discord implementation.
 
 ## Implemented ownership
 
@@ -648,7 +650,8 @@ recovery was unnecessary and no sixth Run was executed.
 
 This closes the controlled marker-completion gate for this fixed candidate and
 these inputs. Real refresh/revocation, broader provider-error behavior, complete
-context/deployment acceptance and public Discord remain open. The proposed next
-product step is narrow executable wiring for the fixed Codex target, retaining
-the existing authority and ownership model. A successful local canary is not
+context/deployment acceptance and public Discord remain open. The subsequent
+[fixed-target executable wiring](codex-daemon-startup.md) implements the proposed
+next step while retaining the existing authority and ownership model; it has
+not executed another real-provider Run. A successful local canary is not
 authorization to enable a production target or messaging service.

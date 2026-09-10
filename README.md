@@ -15,7 +15,8 @@ orchestrator.
 > implemented within their documented scopes. The fifth controlled real-provider
 > Run passed native completion, a tool-written marker, local delivery and cleanup
 > at 21:52–21:53 UTC; four earlier failed Runs remain retained. Normal daemon
-> configuration is mock-only. No public Discord Connector, approved production
+> configuration now has an explicit opt-in fixed Codex path; default builds
+> remain mock-only. No public Discord Connector, approved production
 > Codex target or production deployment is available.
 
 Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
@@ -23,6 +24,9 @@ The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race
 results, scoped native experiments and the initial failed real Runs. The
 [fifth Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) records the
 subsequent scoped success and remaining product gates.
+The [fixed Codex startup guide](docs/codex-daemon-startup.md) covers the new
+local configuration, scope export and explicit enrollment; no real Run through
+that daemon has been established.
 Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
@@ -78,9 +82,10 @@ Runner; it is not yet a real platform-to-provider integration.
 | Sandbox lifecycle and uncertain-create reconciliation | Implemented and deterministically tested with a fake runtime; the digest-pinned mock Runner was exercised locally on rootless Docker, outside public CI |
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
-| Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; normal daemon enrollment remains unavailable |
+| Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
 | Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
 | Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
+| Fixed Codex daemon startup | Explicit configuration, read-only scope/artifact checks, enrolled authority and existing recovery integrated with deterministic tests; no real daemon-to-provider Run or deployment acceptance yet |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |

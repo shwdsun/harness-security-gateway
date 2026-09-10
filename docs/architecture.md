@@ -5,8 +5,10 @@
 The intended Harness Security Gateway boundary owns transport, identity,
 durable routing, Run lifecycle, and containment. A selected harness would own
 reasoning, tools, harness-specific skills, and any internal subagents. The
-shipped path currently uses only the deterministic mock Runner; no Codex,
-Claude Code, or messaging-platform target is enabled.
+default build uses the deterministic mock Runner. An explicit opt-in
+[fixed Codex startup path](codex-daemon-startup.md) now connects the validated
+native template to the same daemon/controller; production and messaging-platform
+targets remain disabled.
 
 `live` means the entrypoint and state are persistent. Harness processes are
 created for a Run and are not permanent agents.
@@ -17,7 +19,7 @@ created for a Run and are not permanent agents.
 | --- | --- | --- |
 | Connector instance | one platform credential and platform protocol | Core DB, workspaces, model credentials, runtime socket |
 | `agentd` | exact bindings, inbox/outbox, Runs, opaque session refs | workspaces, model credentials, container runtime |
-| local `hgwctl` | offline status and compare-protected reset for one configured Binding | raw scope selection, sandbox DB, vendor token, runtime or remote control |
+| local `hgwctl` | configuration-only scope export, offline status and compare-protected reset for one configured Binding | raw scope selection, sandbox DB, vendor token, runtime or remote control |
 | `sandboxd` | target manifests, workspace locks, harness state, runner runtime | platform credentials, Core DB |
 | Runner container | one workspace and one bounded Run capability | platform credentials, Core DB, runtime socket, other targets |
 | Auth proxy, when enabled | provider credentials and narrow model egress | workspace, platform credentials, runtime socket |
@@ -317,7 +319,8 @@ recreated by a host reboot.
 - sandbox schema v10 adds immutable credential generations and target bindings,
   one-way revocation and exclusive source/slot/Run occupancy. Acquisition joins
   admission; release joins post-cleanup publication. Earlier targets remain
-  credential-free. Only synthetic enrollment is exercised. A separate Linux
+  credential-free. Synthetic enrollment tests and the dated real canaries
+  exercise this boundary. A separate Linux
   held-file primitive pins and revalidates local objects with advisory locks;
   its native-ext4 adapter now collects and compares source/object/locator
   digests. Schema v11 records generation and proof together in the same immutable
@@ -327,8 +330,11 @@ recreated by a host reboot.
   The service now uses this strict registration for the whole registry after
   freezing one trusted resolver result per entry and checking its exact scope
   against the manifest. Compiled ingress policy supplies an independent six-field
-  scope projection. Public sandbox configuration resolves only credential-free
-  locked-down mocks and retains their historical base pins.
+  scope projection. Default sandbox configuration resolves credential-free
+  locked-down mocks and retains their historical base pins. The explicit
+  `sandboxd/codex-v1` path uses its separately checked owner/artifact/provider
+  runtime pin and already enrolled exact scope. A configuration check never
+  enrolls; the local enrollment mode and normal daemon share global ownership.
   The caller's non-credential authority resolution remains a separate obligation.
   Controller startup retires
   occupied generations before cleanup; idle generations remain enrolled. For
@@ -336,9 +342,9 @@ recreated by a host reboot.
   with frozen scope and local binding, holds/revalidates the source, and closes
   physical locks before durable publication/release. Failed validation retires
   the Run's generation; uncertain close retains occupancy until restart recovery.
-  Synthetic integration is exercised. Trusted real enrollment, complete target
-  security resolution, exact-object runtime handoff and real OAuth remain
-  unresolved. See
+  Synthetic integration and scoped native/real-source canaries are exercised.
+  The new daemon wiring has no real provider Run yet; complete production
+  image, source lifecycle, context and deployment acceptance remain open. See
   [credential source lifecycle](credential-source-lifecycle.md);
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;
