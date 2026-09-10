@@ -88,6 +88,11 @@ func upstreamResponse(ctx context.Context, request Request, dial func(context.Co
 		return Response{}, upstreamFailure{stage: "upstream_headers"}
 	}
 	owned.body = response.Body
+	owned.metadata = responseMetadata(response)
+	// Transfer every parsed response to the endpoint, including rejections.
+	// It must latch rejection before diagnostic reads or socket cleanup.
+	success = true
+	result := Response{Status: response.StatusCode, Body: owned}
 	// The application body is independently bounded after decomposing HTTP
 	// framing. No decompression is enabled or accepted here.
 	limited.N = MaxBodyBytes + MaxHeaderBytes
@@ -104,7 +109,7 @@ func upstreamResponse(ctx context.Context, request Request, dial func(context.Co
 		failure.rejection = rejectionTrailer
 	}
 	if failure.rejection != rejectionNone {
-		return Response{}, failure
+		return result, failure
 	}
 	contentType := response.Header.Get("Content-Type")
 	media, _, err := mime.ParseMediaType(contentType)
@@ -113,18 +118,19 @@ func upstreamResponse(ctx context.Context, request Request, dial func(context.Co
 		if contentType == "" {
 			failure.rejection = rejectionContentTypeMissing
 		}
-		return Response{}, failure
+		return result, failure
 	}
-	success = true
-	return Response{Status: response.StatusCode, MediaType: media, Body: owned}, nil
+	result.MediaType = media
+	return result, nil
 }
 
 type upstreamBody struct {
-	conn net.Conn
-	body io.ReadCloser
-	once sync.Once
-	stop func() bool
-	err  error
+	conn     net.Conn
+	body     io.ReadCloser
+	once     sync.Once
+	stop     func() bool
+	err      error
+	metadata wireMetadata
 }
 
 func (b *upstreamBody) Read(p []byte) (int, error) {

@@ -16,9 +16,12 @@ observed. The subsequent local
 implementation identified an empty/missing response Content-Type in the
 [third Run](codex-provider-canary.md#third-real-run--2026-09-10) and blocked
 twelve subsequent inference requests locally. Cleanup was independently
-verified; real-provider acceptance remains open. Next, resolve the response
-contract mismatch from request projection and native response-mode assumptions
-before changing compatibility policy or preparing another real execution.
+verified; real-provider acceptance remains open. The subsequent
+[response-contract investigation](codex-provider-canary.md#response-contract-investigation--2026-09-10)
+checks synthetic Lite request preservation and adds bounded evidence collection
+after rejection. Existing observations cannot establish the upstream cause.
+Next, collect the missing response metadata under a new, explicitly approved
+plan before deciding whether a compatibility change is justified.
 Discord and deployment composition follow provider acceptance.
 
 Apply the [content evolution and verification contract](content-evolution-and-verification.md)

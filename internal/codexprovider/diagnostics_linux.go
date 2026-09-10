@@ -24,6 +24,12 @@ type ExchangeDiagnostic struct {
 	MediaClass         string `json:"media_class,omitempty"`
 	UpstreamAuthorized bool   `json:"upstream_authorized,omitempty"`
 	UpstreamStatus     int    `json:"upstream_status,omitempty"`
+	ResponseProtocol   string `json:"response_protocol,omitempty"`
+	ContentTypeState   string `json:"content_type_state,omitempty"`
+	ResponseFraming    string `json:"response_framing,omitempty"`
+	DeclaredBody       string `json:"declared_body,omitempty"`
+	BodyPrefix         string `json:"body_prefix,omitempty"`
+	BodyProbeEnd       string `json:"body_probe_end,omitempty"`
 	Finished           bool   `json:"finished"`
 	Cancelled          bool   `json:"cancelled"`
 }

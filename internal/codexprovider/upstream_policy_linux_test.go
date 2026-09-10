@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -59,11 +60,44 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 				t.Fatal("CA")
 			}
 			var calls, dials atomic.Int32
+			// A synthetic Lite-shaped request, including nested tools and UTF-8,
+			// must survive both HTTP hops byte-for-byte. No native/provider call.
+			inputBody := ""
+			headers := http.Header{}
+			headers.Set("Authorization", "Bearer "+diagnosticSecret)
+			headers.Set("Chatgpt-Account-Id", diagnosticSecret)
+			headers.Set("User-Agent", "synthetic-client/0.151.0")
+			if row.operation == Inference {
+				inputBody = strings.TrimSuffix(inferenceBody, "}") + `, "input":{"additional_tools":[{"type":"custom","name":"synthetic"}],"text":"合成输入"}}`
+				for name, value := range map[string]string{
+					"Content-Type": "application/json", "Accept": "text/event-stream",
+					"X-Openai-Internal-Codex-Responses-Lite": "true", "Originator": "synthetic-cli",
+					"Session-Id": diagnosticSecret, "Thread-Id": diagnosticSecret,
+					"X-Client-Request-Id": diagnosticSecret, "X-Codex-Turn-Metadata": `{"synthetic":true}`,
+					"X-Codex-Window-Id": diagnosticSecret, "Cache-Control": "no-cache",
+				} {
+					headers.Set(name, value)
+				}
+			}
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
 				method, host, path := route(row.operation)
 				if r.Method != method || r.Host != host || r.URL.RequestURI() != path {
 					t.Error("fixed route changed")
+				}
+				data, err := io.ReadAll(r.Body)
+				if err != nil || string(data) != inputBody || r.ContentLength != int64(len(inputBody)) || len(r.TransferEncoding) != 0 || r.Proto != "HTTP/1.1" || !r.Close {
+					t.Error("request body or owned HTTP framing changed")
+				}
+				for name, values := range headers {
+					if !reflect.DeepEqual(r.Header.Values(name), values) {
+						t.Error("admitted request header changed")
+					}
+				}
+				for name := range r.Header {
+					if headers.Get(name) == "" && name != "Content-Length" && name != "Connection" {
+						t.Error("unexpected upstream request header")
+					}
 				}
 				conn, _, err := w.(http.Hijacker).Hijack()
 				if err != nil {
@@ -92,17 +126,13 @@ func TestUpstreamResponsePolicyClassification(t *testing.T) {
 			method, host, path := route(row.operation)
 			var input io.Reader
 			if row.operation == Inference {
-				input = strings.NewReader(inferenceBody)
+				input = strings.NewReader(inputBody)
 			}
 			r, err := http.NewRequestWithContext(ctx, method, "https://"+host+path, input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			r.Header.Set("Authorization", "Bearer "+diagnosticSecret)
-			r.Header.Set("Chatgpt-Account-Id", diagnosticSecret)
-			if input != nil {
-				r.Header.Set("Content-Type", "application/json")
-			}
+			r.Header = headers.Clone()
 			response, err := client.Do(r)
 			if err != nil {
 				t.Fatal(err)

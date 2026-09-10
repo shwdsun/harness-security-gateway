@@ -386,7 +386,16 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 		stopClose()
 		closeBody()
 	}
+	if body, ok := response.Body.(*upstreamBody); ok {
+		diagnostic.ResponseProtocol = body.metadata.protocol
+		diagnostic.ContentTypeState = body.metadata.contentType
+		diagnostic.ResponseFraming = body.metadata.framing
+		diagnostic.DeclaredBody = body.metadata.length
+	}
 	if err != nil || callCtx.Err() != nil {
+		if callCtx.Err() == nil && (failure.rejection == rejectionContentTypeMissing || failure.rejection == rejectionContentTypeInvalid) {
+			diagnostic.observeRejectedBody(callCtx, response.Body)
+		}
 		writeDenied(secure, 502)
 		return
 	}
@@ -408,6 +417,7 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 		diagnostic.Stage = "upstream_policy"
 		diagnostic.Reason = diagnosticRejection(rejectionMediaType)
 		e.rejectOperation(request.Operation, rejectionMediaType)
+		diagnostic.observeRejectedBody(callCtx, response.Body)
 		writeDenied(secure, 502)
 		return
 	}

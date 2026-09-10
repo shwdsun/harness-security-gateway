@@ -67,9 +67,18 @@ completed with JSON media and HTTP 200, and settings stayed local. At
 process exit, zero durable cleanup fences and the same source/proof across
 generations 1–3. All three failed Runs and pending deliveries remain retained.
 The consumed plan rejects reuse. This demonstrates bounded rejection handling,
-not inference acceptance or a diagnosis of the earlier Runs. The next work is
-to resolve the response-contract mismatch before another real execution. See
+not inference acceptance or a diagnosis of the earlier Runs. See
 [the third Run's evidence and limits](codex-provider-canary.md#third-real-run--2026-09-10).
+
+The subsequent [response-contract investigation](codex-provider-canary.md#response-contract-investigation--2026-09-10)
+verifies complete synthetic Lite request forwarding through both HTTP/TLS hops.
+Existing fixed-native SSE evidence does not support inferring incompatibility
+from the Lite name. The endpoint now distinguishes closed response-field and
+framing metadata and samples a rejected HTTP-200 MIME response only after
+blocking further operation dispatch, within 512 bytes and one second. No raw
+body is retained and no response policy is relaxed. The third Run lacks these
+observations, so the upstream cause remains unknown; collecting the missing
+evidence requires a separately authorized, newly pinned real Run.
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are

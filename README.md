@@ -12,7 +12,7 @@ orchestrator.
 
 > **Status as of 2026-09-10: research prototype / pre-alpha.** The control plane,
 > mock path, credential lifecycle and opt-in V3/native provider canary are
-> implemented within their documented scopes. Two real-provider Runs failed;
+> implemented within their documented scopes. Three real-provider Runs failed;
 > authenticated completion remains unverified. Normal daemon configuration is
 > mock-only. No public Discord Connector, approved production Codex target or
 > production deployment is available.
@@ -77,7 +77,7 @@ Runner; it is not yet a real platform-to-provider integration.
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; normal daemon enrollment remains unavailable |
 | Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
-| Controlled provider canary | Separate opt-in local owner, operation endpoint/relay and retained-history continuation; three real Runs failed on 2026-09-10. The third identified an empty/missing response Content-Type and blocked subsequent same-operation dispatch; cleanup was independently checked |
+| Controlled provider canary | Separate opt-in local owner and retained-history continuation; three real Runs failed on 2026-09-10 with cleanup independently checked. The third found empty/missing Content-Type and blocked later dispatch; [bounded response diagnostics](docs/codex-provider-canary.md#response-contract-investigation--2026-09-10) prepare the remaining compatibility investigation |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |

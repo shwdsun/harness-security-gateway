@@ -34,7 +34,8 @@ func rejectionGet(ctx context.Context, client *http.Client, path string) (int, e
 
 func checkLocalRejection(t *testing.T, got ExchangeDiagnostic, reason string) {
 	t.Helper()
-	if got.Stage != "operation_rejected" || got.Reason != reason || got.UpstreamAuthorized || got.UpstreamStatus != 0 || got.MediaClass != "" || !got.Finished || got.Cancelled {
+	if got.Stage != "operation_rejected" || got.Reason != reason || got.UpstreamAuthorized || got.UpstreamStatus != 0 || got.MediaClass != "" || !got.Finished || got.Cancelled ||
+		got.ResponseProtocol != "" || got.ContentTypeState != "" || got.ResponseFraming != "" || got.DeclaredBody != "" || got.BodyPrefix != "" || got.BodyProbeEnd != "" {
 		t.Fatalf("local rejection presented as a new upstream exchange: %+v", got)
 	}
 }

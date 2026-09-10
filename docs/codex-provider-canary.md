@@ -420,3 +420,73 @@ response-mode assumptions, then collect only any missing response-contract
 evidence needed for a compatibility decision. Retain the current response
 validation until that decision is supported. Another real Run requires a new
 concrete plan; public Discord and deployment remain blocked.
+
+### Response-contract investigation — 2026-09-10
+
+The fixed upstream parser reads Content-Type before any response transformation,
+on a socket distinct from the local CONNECT handshake. Local TLS/HTTP checks
+now verify admitted request headers, including the Lite flag, and a synthetic
+Lite-shaped body with nested tools and UTF-8 remain unchanged across both hops.
+HTTP framing is reconstructed under the existing fixed policy. These tests
+exclude a demonstrated local projection error for their inputs; they do not
+reconstruct the third Run's unrecorded request or response.
+
+Earlier fixed-native offline tests accept synthetic SSE. Responses Lite's name
+alone does not establish another transport or explain the observed rejection.
+The third Run retained neither field-presence/framing metadata nor body evidence;
+its upstream cause is still unknown. No MIME acceptance rule has changed.
+
+The existing private result now adds only these closed observations for a
+parsed upstream response:
+
+| Field | Values and meaning |
+| --- | --- |
+| `response_protocol` | `http_1_1`, `http_1_0`, `other` |
+| `content_type_state` | `absent`, `empty`, `single`, `multiple`, `multiple_first_empty`; values after HTTP parsing, never the raw field |
+| `response_framing` | `fixed`, `chunked`, `close_delimited`, `unknown` |
+| `declared_body` | `zero`, `positive`, `unknown`; parsed length metadata, not observed completion |
+| `body_prefix` | `empty`, `whitespace`, `json_like`, `event_stream_like`, `html_like`, `other`; omitted when no prefix/clean empty EOF was observed |
+| `body_probe_end` | `eof`, `limit`, `timeout`, `read_error`, `cancelled`; absent when no probe was attempted |
+
+Only an HTTP-200 missing/invalid Content-Type or media mismatch permits the
+diagnostic probe. The endpoint first latches the typed operation rejection,
+then reads at most **512 decoded body bytes** under a **one-second absolute
+socket deadline**, bounded further by cancellation. It uses the existing owned
+worker/socket; no additional provider request, retry, sampler goroutine, sink
+or configuration option exists. Encoding, redirect, upgrade, trailer and
+non-200 failures are not sampled. Already-authorized calls retain their
+existing obligations; later local rejections carry none of this response data.
+
+A parsed response, including a rejection, now transfers to the endpoint owner
+before cleanup so the admission latch precedes potentially blocking I/O.
+Cancellation closes that socket and the endpoint still joins its worker before
+reporting cleanup. The diagnostic deadline does not reset as bytes arrive.
+Existing response and connection budgets still apply.
+
+Only the categories survive in the result: no prefix bytes, raw headers, body
+hashes, source errors or native output are retained. A prefix is a hint, not
+MIME validation, complete JSON/SSE parsing, model success or authority to forward
+an otherwise rejected body. An EOF is an HTTP-body observation, not a completed
+provider event stream. A short/truncated HTTP body remains `read_error`.
+
+Focused checks cover byte preservation, missing/empty/multiple fields, fixed,
+chunked and close-delimited framing, empty and partial prefixes, truncation,
+the byte cap, a stalled absolute deadline, rejection during that stall,
+cancellation/socket closure and bounded secret-free diagnostic output. Reuse
+the existing native, lifecycle and formal evidence within its dated scope.
+This local package does not execute another real Run or enable Discord or
+deployment; new artifact pins and a concrete continuation preview precede any
+request for real-execution authorization.
+
+On **2026-09-10 07:37–07:47 UTC**, the final Go sources passed ten provider race
+iterations, ordinary full-repository tests/race/vet, affected offline tagged
+race/vet and the security demo. The tagged selection excluded the native
+`TestCodexExecIntegration`; no native inventory or real provider stage was rerun.
+All final checks and the new owner/Runner builds match the same source hashes.
+
+At **07:43 UTC**, a new retained-history continuation passed default read-only
+preflight with `awaiting_operator`, matching credential metadata and no findings.
+All three previous configurations, both databases and credential lstat metadata
+were unchanged before/after preparation; credential bytes were not read/hashed.
+No fourth Run, generation transition, Docker/provider operation or recovery was
+executed. This preparation does not establish current provider acceptance.
