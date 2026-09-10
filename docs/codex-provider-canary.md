@@ -1,8 +1,10 @@
 # Runtime-owned provider canary
 
-Preparation implemented **2026-09-10 UTC**. This is an opt-in local experiment,
-not a production target, deployment, authenticated-provider acceptance or
-Discord implementation. The normal build and `sandboxd` remain mock-only.
+Implemented **2026-09-10 UTC** as an opt-in local experiment. The
+[fifth controlled Run](#fifth-real-run--2026-09-10) completed real native
+inference, a tool-written marker and local delivery with joined cleanup.
+The normal build and `sandboxd` remain mock-only; this is not a production
+target, deployment or Discord implementation.
 
 ## Implemented ownership
 
@@ -105,8 +107,9 @@ message endpoint. It asks native Codex to write a Run-specific marker and return
 one fixed answer, independently checks the private marker, and completes one
 local delivery. It emits fixed result fields rather than native transcripts or
 model text. The digest is an operator interlock, not a new authorization service.
-Authenticated provider compatibility remains unresolved. The first armed command
-failed local configuration validation; the corrected continuation admitted a Run
+One scoped real-provider Run has completed; production acceptance remains open.
+The first armed command failed local configuration validation; the corrected
+continuation admitted a Run
 but failed during native execution, as recorded below.
 
 Preserve state after any failure. `-recover-plan <same-digest>` runs cleanup only,
@@ -302,8 +305,9 @@ directory failures and a cgo temporary-file quota failure remain recorded.
 The final canary owner also rejects a wrong execute/recover plan without creating
 state, and its cleanup-report test rejects each retained durable fence.
 
-Real authenticated catalog/model behavior, real refresh/revocation, real error
-and residue handling, deployment identities and public Discord remain open.
+Beyond the fifth Run's scoped completion recorded below, catalog semantics,
+real refresh/revocation, provider-error behavior, deployment identities and
+public Discord remain open.
 V3's `credential-exposed-personal` classification still applies: native tools
 can read the dedicated credential, and an allowed provider request can disclose
 data. Preparing this canary does not establish credential secrecy or complete
@@ -598,9 +602,53 @@ hashes passed default read-only preflight with `awaiting_operator`, matching
 credential metadata and no findings. All four earlier configurations, both
 databases and the original device-login credential object's lstat metadata
 were unchanged before/after preparation; auth bytes were not read or hashed.
-The plan remains unarmed: no fifth real Run or generation transition occurred.
+At preparation time the plan remained unarmed; no fifth real Run or generation
+transition occurred during that work package.
 
 The final Go sources passed ordinary full-repository tests/race/vet and affected
 offline tagged race/vet on **09:07–09:17 UTC**, with matching owner/Runner builds.
 The native witness above is separately scoped; existing lifecycle/formal stages
 were not reopened. Public Discord and production deployment remain blocked.
+
+### Fifth real Run — 2026-09-10
+
+The operator authorized the prepared plan and its two provider destinations,
+continuing with the original dedicated device-code-login credentials. Fresh
+checks at **21:52 UTC** matched all 345 public files, owner/Runner/config pins,
+four retained histories and credential metadata to the verified preparation.
+The one authorized Run executed at **21:52:38–21:53:08 UTC**: owner exit 0,
+30.014 seconds, with no supervisor timeout, failure or forced kill.
+
+The native Run completed, its expected fixed reply passed validation, and the
+tool-written marker contained this Run's identifier. The local delivery was
+completed once. This exercises actual provider/native/tool execution through
+the controlled Core/controller path with fake ingress and local delivery.
+
+The five exchange observations were two HTTP-200/JSON catalog completions,
+one local settings response and two authorized HTTP-200 inference responses.
+Both inference responses had absent Content-Type and chunked framing, with
+effective `event_stream` media supplied by the fixed route. Their final transport
+stages were `complete` and `response_write` (both finished, neither cancelled).
+The second write's ending reason is unrecorded; clean HTTP EOF for that response
+is not established. Native completion, marker verification and local delivery
+are separate successful observations. No refresh, MIME rejection, diagnostic
+body probe or locally blocked inference was observed. No raw provider/native
+transcript or credential content was retained as diagnostics.
+
+Independent checks at **21:53–21:57 UTC** confirmed the single full container
+ID's create/start/exit/removal and subsequent absence, no owner process-group
+members, no runtime reference/pending intent and zero credential/workspace/result
+fences. The fifth Core/sandbox Run is completed with one dispatch; only its
+local delivery is delivered with one attempt. Four prior failed Runs and pending
+deliveries are unchanged. Generations 1–4 are retired; all five generations
+share one source and complete proof. Credential object/size/mtime metadata is
+unchanged. The workspace retains the verified marker and provider leaves only
+public CA files. Default read-only invocation now returns `blocked_run_exists`;
+recovery was unnecessary and no sixth Run was executed.
+
+This closes the controlled marker-completion gate for this fixed candidate and
+these inputs. Real refresh/revocation, broader provider-error behavior, complete
+context/deployment acceptance and public Discord remain open. The proposed next
+product step is narrow executable wiring for the fixed Codex target, retaining
+the existing authority and ownership model. A successful local canary is not
+authorization to enable a production target or messaging service.

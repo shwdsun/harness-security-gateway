@@ -1,6 +1,12 @@
 # Implementation status
 
-Last verified: 2026-09-10 (four admitted real-canary Runs failed; authenticated-provider acceptance and deployment gates remain open)
+Last verified: 2026-09-10 21:57 UTC (fifth controlled real-provider Run completed with tool marker, local delivery and independently checked cleanup; production/Discord gates remain open)
+
+The [fifth real canary](codex-provider-canary.md#fifth-real-run--2026-09-10)
+passed at **21:52–21:53 UTC** using the original dedicated device-login source
+and the fixed inference media adjustment. This is one scoped real-provider
+completion through the local owner; normal daemon configuration remains
+mock-only. The four earlier failures below retain their original evidence.
 
 The [2026-09-10 checkpoint assessment](checkpoint-2026-09-10.md) summarizes the
 completed local work, verification limits, design/practice review and next work
@@ -22,7 +28,7 @@ started its native runtime, but ended in `runner_failed` without the marker.
 Exact container absence and zero credential/workspace/result fences were
 independently verified. The failed local delivery remains pending for evidence.
 Provider operation/status details were not retained, so authenticated catalog,
-inference and tool completion have not been established. Both attempts are retained.
+inference and tool completion were not established by that Run. Both attempts are retained.
 Subsequent offline checks on **2026-09-10** verify bounded operation/stage/status
 snapshots in the private canary result and fixed native/relay failure separation.
 These observations do not change cleanup authority or explain the earlier Run;
@@ -103,7 +109,19 @@ single offline native container completed valid SSE and rejected plain JSON
 and incomplete SSE before its deadlines, with one inference per case and joined
 cleanup. A new continuation passed default read-only preflight at **09:14 UTC**
 with unchanged retained state and original device-login credential metadata.
-Real inference acceptance remains open; no fifth real Run was executed.
+That preparation executed no fifth Run; the separately authorized result follows.
+
+At **21:52:38–21:53:08 UTC**, the fifth Run completed in 30.014 seconds, with
+owner exit 0, the expected native reply and independently verified tool marker.
+Two catalog responses completed with JSON; two inference responses returned
+HTTP 200 with absent Content-Type and chunked framing, mapped to effective SSE.
+Their final transport stages were `complete` and `response_write`; the latter's
+write-ending reason is unrecorded. No refresh or MIME rejection was observed.
+At **21:53–21:57 UTC**, exact container absence, process exit, zero durable
+cleanup fences and one completed local delivery were independently checked.
+All five generations share the same source/complete proof; credential metadata
+was unchanged. The four earlier Runs/deliveries remain intact, and the consumed
+fifth plan rejects reuse. This does not enable public messaging or production.
 
 Credential identity/proof storage, enrolled-target pin composition, authoritative
 Run re-open, ordered held-lock release and controller startup retirement are
@@ -118,9 +136,9 @@ Permanent credential admission feedback passed the service/HTTP/Core path at
 20:28 UTC: fixed policy denial after exact Run absence, without waiting for its
 deadline; existing/uncertain Runs retain their observation path.
 The opt-in canary supplies a local enrollment caller and fixed candidate
-resolution. The failed canaries above exercised an initial real-source enrollment,
-a same-source generation transition and runtime handoffs; complete production resolution and
-normal executable configuration remain unimplemented. Offline checks alone
+resolution. The canaries above exercised an initial real-source enrollment,
+same-source generation transitions and runtime handoffs; complete production
+resolution and normal executable configuration remain unimplemented. Offline checks alone
 confer no authority for real credential use.
 Earlier live observations retain their own dates and evidence limits.
 
@@ -135,7 +153,7 @@ adds a pinned native tool package, fixed configuration and startup checks.
 A non-executable candidate manifest and
 offline preflight are present; no approved Codex image or executable target is
 shipped and the default build omits its entrypoint. There is no public Discord
-Connector, provider-authenticated target, or production deployment. The
+Connector, approved production Codex target, or production deployment. The
 project therefore does not yet demonstrate a secure Discord-to-Codex path.
 
 This document is the public source of truth for what is implemented, what is
@@ -151,8 +169,8 @@ only represented in code, and what remains work in progress.
 | Sandbox target and runtime lifecycle | Implemented for the mock path | Immutable manifests, rootless-runtime attestation logic, create-intent reconciliation, and lifecycle tests; the live rootless-Docker observation is local evidence, not public CI |
 | Post-cleanup terminal publication | Implemented and fault-tested; focused native and adversarial container witnesses | Sandbox schema v8 stages outcomes privately; exact cleanup precedes publication/unlock. On 2026-09-09, a fixed TERM-resistant/`setsid` Runner passed at 19:54 UTC and native deadline at 20:12 UTC; full native-launcher descendant matrix remains open; [scope](codex-control-boundary.md#deadline-and-resistant-descendant-witnesses) |
 | Runner-state v2 local mock path | Implemented and locally tested | Explicit `sandboxd/v3`, immutable version-aware target carrier, sandbox schema v9, conditional state mounts, real mock-process and fake-runtime recovery tests; no live Docker/provider claim |
-| Credential generation and occupancy | Implemented; normal executable configuration remains mock-only | Sandbox schema v10, immutable source/generation/target records, one-way revocation, atomic admission/release, SIGKILL and fake-runtime recovery tests; initial real-source enrollment and one same-source generation transition were observed only through the opt-in canary on 2026-09-10 |
-| Atomic credential proof registration | Implemented and tested; one real-source canary enrollment observed | Sandbox schema v11, immutable atomic proof, exact replay, no backfill/downgrade, migration/rollback/reopen/concurrency tests; the failed 2026-09-10 canary exercised one dedicated source, not production enrollment/rotation acceptance |
+| Credential generation and occupancy | Implemented; normal executable configuration remains mock-only | Sandbox schema v10, immutable source/generation/target records, one-way revocation, atomic admission/release, SIGKILL and fake-runtime recovery tests; initial real-source enrollment and same-source generation transitions were observed only through the opt-in canary on 2026-09-10 |
+| Atomic credential proof registration | Implemented and tested; one real-source canary enrollment observed | Sandbox schema v11, immutable atomic proof, exact replay, no backfill/downgrade, migration/rollback/reopen/concurrency tests; the 2026-09-10 opt-in canaries exercised one dedicated source, not production enrollment/rotation acceptance |
 | Enrolled credential target pin | Integrated into sandboxservice; one real-source canary binding observed | Database-derived generation/proof, exact target scope and atomic whole-batch registration; the separate experimental resolver does not establish complete production authority resolution |
 | Trusted target resolution | One frozen resolver per registry entry; executable wiring accepts only locked-down mocks | Compiled-policy scope projection, manifest/scope consistency, no fallback after resolution failure, and unchanged legacy mock pins; only the separate opt-in canary can produce its experimental provider pin |
 | Credential startup recovery | Integrated with synthetic authority; two native owner-restart cases passed on 2026-09-09 at 11:32–11:35 UTC | SIGKILL with bound running runtime or existing unbound Create, retirement before failed inspection, retained occupancy/staged result, exact healthy cleanup and one Core interruption; no execution-source reopen/recreate. Same-boot tagged fixture, not host reboot or delayed absent Create; [scope](codex-control-boundary.md#native-owner-crash-and-recovery-witnesses) |
@@ -178,7 +196,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Versioned template and startup guard implemented; normal daemon execution blocked | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No production target implemented | No approved production image/auth/network/context profile; four opt-in real-provider Runs failed on 2026-09-10 and do not establish provider acceptance |
+| Real Codex target | No production target implemented; one controlled canary passed | The fifth opt-in real-provider Run completed with tool marker/local delivery on 2026-09-10; four failures are retained. Approved production image/auth/network/context profile and public messaging remain open |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
@@ -444,7 +462,8 @@ Runner `/state`, which no valid v1 manifest can express. The v3 local mock
 path now integrates TargetManifest v2, explicit ownership kind and conditional
 mounts, but it deliberately rejects Codex. The complete production provider-profile resolver remains unimplemented.
 The separate tagged canary now supplies fixed credential/network runtime
-construction and local enrollment, pending real-provider acceptance.
+construction and local enrollment, with one scoped real-provider completion
+on 2026-09-10; it is not the production resolver.
 Context, credential, network, cancellation, and teardown gates remain open,
 including proof that repository-level, system, or managed customization cannot
 enter the harness unexpectedly.
@@ -524,8 +543,10 @@ domain. The dated standalone native witness and subsequent
 cleanup/publication integration within their experimental scope, with a distinct
 opt-in pin. Normal executable configuration, production enrollment/rotation,
 complete production authority and deployment isolation remain unresolved.
-Real-provider acceptance failed in the four Runs recorded above; Discord
-acceptance remains later work. The production target remains blocked.
+Four real Runs failed before the fifth controlled Run completed with its tool
+marker, local delivery and cleanup. Normal fixed-target executable wiring is
+the next proposed product step; Discord acceptance remains later work. The
+production target remains blocked.
 
 ### Deployment identities and local IPC
 

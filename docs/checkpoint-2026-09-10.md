@@ -3,10 +3,15 @@
 This checkpoint consolidates the public work since `e4318df`. The local
 implementation, scoped offline witnesses, two authorized real-provider Runs and
 the requested design/practice review have reached a recordable boundary.
-**Real-provider acceptance remains failed; the production path is blocked.**
+**At this checkpoint, both real Runs had failed and the production path was blocked.**
 [Implementation status](implementation-status.md) retains the detailed evidence
 and open gates. A source checkpoint does not establish merge, release or
 deployment status.
+
+Later on the same date, the [fifth controlled Run](codex-provider-canary.md#fifth-real-run--2026-09-10)
+completed native inference, a tool-written marker, local delivery and cleanup
+at **21:52–21:53 UTC**. The original assessment and verification table below
+retain their earlier scope; production and public Discord remain blocked.
 
 ## Completed local scope
 

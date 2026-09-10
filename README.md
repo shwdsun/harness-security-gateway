@@ -12,14 +12,17 @@ orchestrator.
 
 > **Status as of 2026-09-10: research prototype / pre-alpha.** The control plane,
 > mock path, credential lifecycle and opt-in V3/native provider canary are
-> implemented within their documented scopes. Four real-provider Runs failed;
-> authenticated completion remains unverified. Normal daemon configuration is
-> mock-only. No public Discord Connector, approved production Codex target or
-> production deployment is available.
+> implemented within their documented scopes. The fifth controlled real-provider
+> Run passed native completion, a tool-written marker, local delivery and cleanup
+> at 21:52–21:53 UTC; four earlier failed Runs remain retained. Normal daemon
+> configuration is mock-only. No public Discord Connector, approved production
+> Codex target or production deployment is available.
 
 Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
 The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race/vet
-results, scoped native experiments, failed real Runs and the next work package.
+results, scoped native experiments and the initial failed real Runs. The
+[fifth Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) records the
+subsequent scoped success and remaining product gates.
 Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
@@ -77,7 +80,7 @@ Runner; it is not yet a real platform-to-provider integration.
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; normal daemon enrollment remains unavailable |
 | Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
-| Controlled provider canary | Separate opt-in local owner and retained-history continuation; four real Runs failed on 2026-09-10 with cleanup independently checked. A [fixed inference media adjustment](docs/codex-provider-canary.md#absent-inference-media-compatibility--2026-09-10) passed local transport/native checks; real inference acceptance remains open |
+| Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |
