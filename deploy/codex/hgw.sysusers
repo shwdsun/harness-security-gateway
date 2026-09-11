@@ -1,0 +1,11 @@
+# Preparation template only. Do not install/apply without a reviewed host plan.
+# Fixed example IDs must be checked for collisions before provisioning.
+u hgw-agentd 21001 "HSG Core" /var/lib/hgw-agentd /usr/sbin/nologin
+u hgw-sandboxd 21002 "HSG Sandbox" /var/lib/hgw-sandboxd /usr/sbin/nologin
+u hgw-connector-local 21003 "HSG local test Connector" /var/lib/hgw-connector-local /usr/sbin/nologin
+g hgw-local-ipc 21101
+g hgw-sandbox-ipc 21102
+m hgw-agentd hgw-local-ipc
+m hgw-connector-local hgw-local-ipc
+m hgw-sandboxd hgw-sandbox-ipc
+m hgw-agentd hgw-sandbox-ipc

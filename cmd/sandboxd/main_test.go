@@ -41,6 +41,7 @@ func TestPrepareFilesystemCreatesPrivateStorage(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "sandbox-private")
 	config := sandboxconfig.Config{
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   filepath.Join(root, "workspaces"),
 		RunnerStateRoot: filepath.Join(root, "runner-state"),
@@ -81,6 +82,39 @@ func TestPrepareFilesystemCreatesPrivateStorage(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(config.RunnerStateRoot, "unused-state")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("unowned runner-state leaf was created: %v", err)
+	}
+}
+
+func TestPrepareFilesystemKeepsSharedSocketSeparateFromPrivateData(t *testing.T) {
+	config := runnerStateOwnershipConfig(t)
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(root, "edge")
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, os.ModeSetgid|0o710); err != nil {
+		t.Fatal(err)
+	}
+	config.Socket = filepath.Join(parent, "sandboxd.sock")
+	config.PeerUID = localidentity.UID(os.Geteuid()) + 1
+	if err := config.PeerUID.Validate(); err != nil {
+		t.Skip("requires a valid synthetic distinct peer UID")
+	}
+	if err := prepareFilesystem(config); err != nil {
+		t.Fatal(err)
+	}
+	shared, err := os.Stat(parent)
+	if err != nil || shared.Mode() != os.ModeDir|os.ModeSetgid|0o710 {
+		t.Fatal("shared socket directory changed")
+	}
+	for _, path := range []string{filepath.Dir(config.StateDatabase), config.WorkspaceRoot, config.RunnerStateRoot} {
+		info, err := os.Stat(path)
+		if err != nil || info.Mode().Perm() != 0o700 {
+			t.Fatal("shared socket permissions leaked into private data", path, err)
+		}
 	}
 }
 
@@ -249,7 +283,7 @@ func runnerStateOwnershipConfig(t *testing.T) sandboxconfig.Config {
 	return sandboxconfig.Config{
 		Schema:          sandboxconfig.SchemaV2,
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
-		PeerUID:         localidentity.UID(1000),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   filepath.Join(root, "workspaces"),
 		RunnerStateRoot: filepath.Join(root, "runner-state"),
@@ -277,6 +311,7 @@ func TestPrepareFilesystemRefusesRelaxedExistingRoot(t *testing.T) {
 	}
 	config := sandboxconfig.Config{
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   workspaceRoot,
 		RunnerStateRoot: filepath.Join(root, "runner-state"),

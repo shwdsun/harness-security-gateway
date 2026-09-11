@@ -119,7 +119,7 @@ func serve(parent context.Context, config agentconfig.Config, logger *log.Logger
 		return fmt.Errorf("prepare database directory: %w", err)
 	}
 	for _, connector := range config.Connectors {
-		if err := privatefs.EnsureParent(connector.Socket, 0o700); err != nil {
+		if err := localhttp.PrepareSocketParent(connector.Socket, connector.PeerUID); err != nil {
 			return fmt.Errorf("prepare connector socket directory: %w", err)
 		}
 	}

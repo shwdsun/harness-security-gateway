@@ -263,7 +263,7 @@ func acquireOwnership(socketPath string, peerUID localidentity.UID) (net.Listene
 }
 
 func prepareFilesystem(config sandboxconfig.Config) error {
-	if err := privatefs.EnsureParent(config.Socket, 0o700); err != nil {
+	if err := localhttp.PrepareSocketParent(config.Socket, config.PeerUID); err != nil {
 		return fmt.Errorf("prepare sandbox socket directory: %w", err)
 	}
 	if err := privatefs.EnsureParent(config.StateDatabase, 0o700); err != nil {

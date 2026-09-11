@@ -27,6 +27,23 @@
 !/internal/
 !/internal/**
 
+# Reviewed offline assembly recipe/templates; local deployment state stays out.
+!/deploy/
+/deploy/*
+!/deploy/codex/
+/deploy/codex/*
+!/deploy/codex/README.md
+!/deploy/codex/build.py
+!/deploy/codex/test_build.py
+!/deploy/codex/templates_test.go
+!/deploy/codex/inputs.lock.json
+!/deploy/codex/agentd.example.json
+!/deploy/codex/sandboxd.example.json
+!/deploy/codex/hgw.sysusers
+!/deploy/codex/hgw.tmpfiles
+!/deploy/codex/hgw-agentd.service
+!/deploy/codex/hgw-sandboxd.service
+
 # Reviewed opt-in formal pilot sources; do not export tools or run artifacts.
 !/formal/
 /formal/*

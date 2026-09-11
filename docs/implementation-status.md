@@ -1,6 +1,32 @@
 # Implementation status
 
-Last verified: 2026-09-11 00:49 UTC (first ordinary-service real Run with fake ingress, independent cleanup/source/history checks and unchanged source/artifact pins; production/Discord gates remain open)
+Last verified: 2026-09-11 01:46 UTC (offline bundle, empty-source artifact check and inactive identity templates; production/Discord gates remain open)
+
+The [offline deployment preparation](../deploy/codex/README.md) adds fixed-input
+assembly, a source/artifact manifest and inactive service identity/configuration
+templates. Both daemon startup paths now support pre-provisioned `02710` socket
+parents for a distinct configured peer UID; private storage remains `0700`.
+No host account, service activation, credential transition or new provider Run
+is part of this increment. Live cross-UID isolation and production acceptance
+remain open; assembly is not authenticated native artifact provenance.
+
+On **2026-09-11**, the complete default Go suite passed at **01:32 UTC**, race
+and vet at **01:40 UTC**, and tagged affected-package race/vet at **01:43 UTC**.
+Five Python boundary checks passed, including a new `umask 0002` case that fails
+the original recipe's intermediate-directory creation and passes the corrected
+explicit `0700` creation. No Go code changed after those Go checks.
+
+At **01:44 UTC**, the final recipe produced byte-identical **422,758,400-byte**
+archives from two independent source directories. Their SHA-256 was
+`3b37e15456080ae8bc26002fa8aad1f6f20f6ad8b0fb46d3fec0f0e16483cc61`.
+At **01:46 UTC**, independent archive/file checks and static-ELF inspection
+passed. The packaged daemon's `-check` passed with no auth file, DB or socket and
+unchanged fixture metadata. That fixture substituted the current test user's
+runtime endpoint; it does not establish the template's separate OS identities.
+Sysusers/tmpfiles dry-runs left their disposable roots unchanged, and the final
+service templates passed syntax checking with only executable paths substituted
+to the staged binaries. No template was installed or activated. These are local
+observations, separate from CI and the earlier real-Run evidence below.
 
 The [first ordinary-service Run](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
 passed at **00:47 UTC on 2026-09-11**. One fake event traversed ordinary `agentd`

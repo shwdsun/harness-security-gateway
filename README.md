@@ -28,6 +28,9 @@ subsequent scoped success and remaining product gates.
 The [fixed Codex startup guide](docs/codex-daemon-startup.md) covers local
 configuration, scope export, explicit enrollment and the
 [first ordinary-service Run](docs/codex-daemon-startup.md#first-ordinary-service-run--2026-09-11).
+The [offline deployment preparation](deploy/codex/README.md) packages pinned
+development inputs and supplies separate service-identity templates for review.
+It does not install or activate services.
 Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may

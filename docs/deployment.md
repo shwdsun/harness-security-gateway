@@ -252,9 +252,14 @@ provider-versus-tool egress, cancellation, descendant cleanup, and a durable
 Discord cursor/spool. Hiding those choices would make the prototype easier to
 start but harder to assess safely.
 
-The next deployment increment is reproducible fixed-target packaging and
-separate service-identity configuration, prepared and checked before any host
-activation. The scoped fake-ingress witness above is complete; production target
+The [offline fixed-target bundle](../deploy/codex/README.md) now provides a
+bounded assembly recipe, pinned measured native inputs and review-only separate
+service-identity templates. It compiles host services without network acquisition
+and creates no account, credential, runtime or service. The corresponding socket
+directory preparation supports the documented `02710` layout without changing
+private data permissions. Repeated assembly, source provenance and live identity
+isolation are distinct claims; see the recipe's evidence and activation gates.
+The scoped fake-ingress witness above is complete; production target
 and isolated private-Discord acceptance remain open. A turnkey installer becomes appropriate
 after that exact path has repeatable provisioning, rollback, and adversarial
 evidence. Until then, use the credential-free flows or an explicitly scoped

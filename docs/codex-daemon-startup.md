@@ -217,9 +217,12 @@ metadata is a narrower fact. No raw native/provider transcript was archived as
 diagnostics. No new product code, host-policy change, image pull, login, ongoing
 service activation or further Run was needed. The one-Run permission is consumed.
 
-The next bounded deployment work is reproducible fixed-target packaging and
-separate service-identity configuration, prepared and checked before any host
-activation. Keep the completed fake-ingress witness and existing verification;
+The next deployment work is prepared in the
+[offline bundle and service-identity templates](../deploy/codex/README.md).
+Assembly reuses the measured native tuple, compiles services and records hashes;
+it performs no enrollment or activation. Distinct-UID socket directories must
+be provisioned separately and are inspected without automatic permission repair.
+Keep the completed fake-ingress witness and existing verification;
 only changed artifacts or unresolved boundaries require new evidence.
 
 The `credential-exposed-personal` residual remains: native tools may read the
