@@ -1,13 +1,32 @@
 # Implementation status
 
-Last verified: 2026-09-11 01:46 UTC (offline bundle, empty-source artifact check and inactive identity templates; production/Discord gates remain open)
+Last verified: 2026-09-11 04:30 UTC (offline native identity witness and independent cleanup; host deployment/Discord gates remain open)
+
+The [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
+passed at **04:29 UTC on 2026-09-11**. Distinct kernel UIDs inside one offline
+rootless container exercised the production Unix listener/client: both intended
+edges succeeded, wrong-edge groups were denied, and an outsider with both IPC
+groups was disconnected byte-silently with no HTTP handler entry. Peers could
+not replace sockets or access foreign private data. Each service could read its
+own operator config but could not modify it; foreign config reads were denied.
+All children exited and both listeners removed their sockets. Exact container
+absence and empty product-managed inventory were independently verified at
+**04:30 UTC**.
+
+This increment adds only an opt-in testdata executable and documentation;
+production Go code is unchanged. Focused race checks passed at **04:21 UTC**;
+the final fixture build, vet, static-ELF check and host-invocation refusal passed
+at **04:24 UTC**. No credential access, provider Run, host account provisioning
+or security policy change occurred. This closes the isolated Linux identity
+layout witness, not host service provisioning, runtime ownership, credential
+transition or activation.
 
 The [offline deployment preparation](../deploy/codex/README.md) adds fixed-input
 assembly, a source/artifact manifest and inactive service identity/configuration
 templates. Both daemon startup paths now support pre-provisioned `02710` socket
 parents for a distinct configured peer UID; private storage remains `0700`.
 No host account, service activation, credential transition or new provider Run
-is part of this increment. Live cross-UID isolation and production acceptance
+was part of that assembly increment. Host deployment and production acceptance
 remain open; assembly is not authenticated native artifact provenance.
 
 On **2026-09-11**, the complete default Go suite passed at **01:32 UTC**, race

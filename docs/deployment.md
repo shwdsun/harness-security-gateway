@@ -259,6 +259,11 @@ and creates no account, credential, runtime or service. The corresponding socket
 directory preparation supports the documented `02710` layout without changing
 private data permissions. Repeated assembly, source provenance and live identity
 isolation are distinct claims; see the recipe's evidence and activation gates.
+An [offline native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
+passed on **2026-09-11 at 04:29 UTC** with distinct kernel UIDs, synthetic state
+and the production Unix transport. It establishes the tested Linux permission
+and peer-authentication layout inside one rootless container. It does not
+establish host service accounts, a new runtime owner or credential transition.
 The scoped fake-ingress witness above is complete; production target
 and isolated private-Discord acceptance remain open. A turnkey installer becomes appropriate
 after that exact path has repeatable provisioning, rollback, and adversarial

@@ -129,10 +129,12 @@ retain its recovery obligations and verify exact runtime cleanup.
 1. Review the staged hashes, example IDs, filesystem/identity effects and
    existing state. Provisioning/activation needs an explicit local operation;
    an offline bundle grants none.
-2. First test IPC with distinct synthetic OS identities and empty non-provider
-   state: intended peer succeeds, wrong UID is byte-silent, the peer cannot
-   replace the socket, and Core/Connector cannot read sandbox storage. No real
-   credential or paid Run is necessary to establish this boundary.
+2. Use the [native identity witness](../../internal/localhttp/testdata/identity-witness/README.md)
+   for distinct synthetic OS identities and empty non-provider state: intended
+   peer succeeds, wrong UID is byte-silent, the peer cannot replace the socket,
+   and Core/Connector cannot read sandbox storage. It passed in an offline
+   rootless container on September 11, 2026. Repeat relevant identity/path checks
+   for the actual deployment; no real credential or paid Run is needed for IPC.
 3. Populate private copies of the JSON examples with the exact artifact and
    owner hashes, intended TargetRevision and compiled `hgwctl session scope`.
    They intentionally contain zero-hash/scope placeholders; assembly does not
@@ -152,7 +154,8 @@ retain its recovery obligations and verify exact runtime cleanup.
    adversarial/native acceptance and private Discord remain separate open gates.
 
 The local directory tests establish permission rejection and inherited socket
-GID using one OS user. Real cross-UID reachability, file isolation and service
-activation must be observed separately. Unchanged lifecycle/formal/native
+GID using one OS user. The native witness adds actual cross-UID reachability and
+file isolation within its recorded container. Host provisioning and service
+activation still need separate evidence. Unchanged lifecycle/formal/native
 evidence keeps its original dates and assumptions; do not rerun every protocol
 test or a real provider Run for an unchanged input merely to populate a new log.

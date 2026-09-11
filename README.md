@@ -31,6 +31,9 @@ configuration, scope export, explicit enrollment and the
 The [offline deployment preparation](deploy/codex/README.md) packages pinned
 development inputs and supplies separate service-identity templates for review.
 It does not install or activate services.
+The [native identity witness](internal/localhttp/testdata/identity-witness/README.md)
+passed on September 11 with distinct kernel UIDs in an offline rootless
+container; host service provisioning and activation remain separate gates.
 Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
