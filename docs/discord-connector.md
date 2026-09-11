@@ -154,8 +154,11 @@ author IDs into the binding and this configuration.
 
 - No live channel, token or deployment identity is exercised by the offline
   tests.
-- The adversarial private-Discord cases, the deny audit and the bake-off remain
-  open; a passing send/receive path is not evidence for them.
+- Deterministic adversarial cases and a deny audit run offline against the real
+  compiled policy, admission service and Core store, with only the platform
+  faked. The isolated cases against a live private channel, quota calibration
+  under real traffic and the bake-off remain open; a passing send/receive path
+  is not evidence for them.
 - Attachments, embeds, buttons, slash commands, reactions, edits, deletions,
   threads and multi-channel operation are deliberately unimplemented.
 - Message edits after admission are not tracked: an admitted event is frozen by

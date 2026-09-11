@@ -725,9 +725,16 @@ The first three items are implemented and offline-tested in
 IDs, a bot token held only in its own domain, a private cursor advanced only
 behind Core's durable acknowledgement, bounded catch-up, self/bot/webhook
 filtering, and lease completion including duplicate-send suppression. The
-fourth item remains open, as do a live channel, a provisioned Connector
-identity, the deny audit and calibration of the Core quotas against real
-traffic.
+fourth item is partly covered: a deterministic adversarial suite drives the real
+compiled policy, admission service and Core store with only the platform faked.
+It exercises spoofed channels, unlisted, bot, webhook and self authors,
+malformed and oversize content, hostile text that cannot select authority or
+rewrite its own identity, exact replay, tampered replay under a retained event
+ID, and the one-live-Run fence. Its deny audit asserts that every refusal used a
+closed reason code, that no unauthorized Run was created and that denied message
+text was not retained. The isolated cases against a live private channel remain
+open, as do a provisioned Connector identity and calibration of the Core quotas
+against real traffic.
 
 ## Deliberately deferred
 
