@@ -217,6 +217,33 @@ metadata is a narrower fact. No raw native/provider transcript was archived as
 diagnostics. No new product code, host-policy change, image pull, login, ongoing
 service activation or further Run was needed. The one-Run permission is consumed.
 
+## First Run under separate service identities — 2026-09-11
+
+At **22:46–22:47 UTC**, the same fixed target completed one fake-ingress Run with
+Core, the sandbox owner and the local test Connector as three distinct locked
+system accounts, started from the installed `hgw-sandboxd.service` and
+`hgw-agentd.service` templates. Their pre-provisioned `02710` socket parents and
+connect-time peer UID checks carried the whole path; the sandbox owner used its
+own rootless Docker runtime, private storage and artifact tree.
+
+The retained credential source was relinked, unopened and uncopied, into the
+sandbox identity's slot on the same filesystem, so its physical identity was
+preserved while its root, slot and locator changed. The previous generation was
+retired first, then `-enroll-credential` registered the next generation at the new
+locator with the independently approved scope. A copy would have been a different
+physical source, and a new database would have lost the lineage.
+
+The Run produced the exact expected reply, its exact workspace marker and one
+completed delivery. Independent checks confirmed unchanged earlier Run, delivery
+and credential history, retired predecessors with only the new generation active,
+no cleanup obligations, one container created and destroyed, an empty inventory,
+the same credential object and both services stopped with success.
+
+Neither service is enabled at boot, and the rootless runtime is started manually.
+Boot activation, restart and recovery under these identities, log-redaction
+review, the full native adversarial matrix, real refresh and public Discord remain
+open. This consumes one separately authorized Run.
+
 The next deployment work is prepared in the
 [offline bundle and service-identity templates](../deploy/codex/README.md).
 Assembly reuses the measured native tuple, compiles services and records hashes;

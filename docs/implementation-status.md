@@ -1,6 +1,23 @@
 # Implementation status
 
-Last verified: 2026-09-11 04:30 UTC (offline native identity witness and independent cleanup; host deployment/Discord gates remain open)
+Last verified: 2026-09-11 22:47 UTC (one Run through separate service identities from the installed unit templates; boot activation, restart/recovery under those identities and Discord gates remain open)
+
+At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
+separate locked system identities — a local test Connector, Core and the sandbox
+owner — started from the reviewed `.service` templates instead of a developer
+shell. The sandbox owner used its own rootless Docker runtime and private storage,
+after the retained credential source was relinked into that identity's slot and
+enrolled as a higher generation at its new locator, with the previous generation
+retired. Core admitted one Run; the fixed native Codex target returned the exact
+expected reply and wrote its exact workspace marker; one delivery completed; the
+container was created and destroyed; and both services stopped cleanly. Independent
+checks recorded unchanged earlier Run, delivery and credential history, no cleanup
+obligations, an empty runtime inventory and the same credential object. Earlier
+undelivered results stayed unclaimable by the new Connector, which can only claim
+its own Runs' deliveries. This is one local witness of the documented
+separate-identity path on one host. Boot activation, restart and recovery under
+these identities, log-redaction review, the full adversarial matrix, real refresh
+and Discord acceptance remain open, and nothing is enabled at boot.
 
 The [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
 passed at **04:29 UTC on 2026-09-11**. Distinct kernel UIDs inside one offline
@@ -273,7 +290,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Template/startup guard and opt-in fixed daemon configuration implemented | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No approved production target; controlled canary and ordinary-service witnesses passed | The fifth canary passed on 2026-09-10, then one ordinary-service Run with fake ingress passed on 2026-09-11; native reply/tool marker/local delivery and independent cleanup verified. Four earlier failures retained; production image/auth/network/context and public messaging gates remain open |
+| Real Codex target | No approved production target; controlled canary, ordinary-service and separate-identity witnesses passed | The fifth canary passed on 2026-09-10, one ordinary-service Run with fake ingress on 2026-09-11 at 00:47 UTC, and one Run through three separate service identities from the installed unit templates at 22:46 UTC the same day; native reply/tool marker/local delivery and independent cleanup verified each time. Four earlier failures retained; production image/auth/network/context and public messaging gates remain open |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
@@ -647,6 +664,15 @@ later work; the production target is blocked.
   host; and
 - demonstrate that neither the Connector nor Runner can reach Core data,
   sandbox state, provider session state, or the rootless runtime socket.
+
+The first two items were exercised once on one host on 2026-09-11 at 22:46 UTC:
+three provisioned identities, pre-provisioned `02710` socket parents, connect-time
+peer UID checks, private `0700` storage and one complete Run through the installed
+unit templates, with both services stopping cleanly. Restart and recovery under
+these identities, log-redaction review and the third item's adversarial
+demonstration remain open; the offline
+[native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
+covers only its own synthetic container.
 
 ### Real Codex target
 
