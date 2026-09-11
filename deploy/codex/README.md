@@ -182,12 +182,16 @@ None enrolls a credential, opens a database or starts an HSG service.
    option, cgroup v2 with the systemd driver, the fixed data root, delegated
    `cpu`/`memory`/`pids` controllers, a socket owned by the sandbox UID and an
    empty inventory.
-4. **Image.** Import the exact digest offline, for example `docker save` from an
-   existing store into `docker load` under the sandbox UID, or separately
-   approve a registry pull by digest; never retag. Accept the exact image ID and
-   repository digest. One unlabeled `--pull=never --network none` container must
-   show the target's memory/CPU/PID limits and the container-root mapping to the
-   sandbox UID, and must be removed.
+4. **Image.** sandboxd creates containers from the fixed `golang@sha256:…`
+   reference with `--pull=never`, so that repository digest must resolve in the
+   sandbox store. `docker save`/`docker load` of a digest-only reference does not
+   preserve it: on 2026-09-11, Docker 29.5.2 with the containerd image store
+   loaded the exact image ID without any name. Obtain the name through a
+   separately approved registry pull of the exact digest, which reuses present
+   content; never add a tag. Accept the exact image ID and repository digest.
+   One unlabeled `--pull=never --network none` container must show the target's
+   memory/CPU/PID limits and the container-root mapping to the sandbox UID, and
+   must be removed.
 
 Native-ext4 source proof is captured later by explicit enrollment under the
 actual identity and storage. Cold source/database transition, a new generation,
