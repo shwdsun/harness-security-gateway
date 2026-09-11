@@ -124,6 +124,47 @@ units express identity/ownership and shutdown, not a complete host-hardening
 profile. Force-killing a service is not proof that Docker descendants stopped;
 retain its recovery obligations and verify exact runtime cleanup.
 
+## Host foundation and runtime ownership
+
+Keep the initial host preparation credential-free and inactive. Record the
+actual NSS name/UID/GID collision checks, destination absence, parent ownership,
+filesystem type and existing runtime before applying the example identities.
+Use the native `systemd-sysusers` and `systemd-tmpfiles` tools with the exact
+reviewed files. Both can change host state; tmpfiles can also change existing
+ownership/modes. Recheck the frozen preconditions and stop on drift rather than
+repairing a live tree. A one-shot tmpfiles invocation does not install a boot
+policy; persist that policy only as part of the later activation plan.
+
+The sandbox account also needs its own non-overlapping subordinate UID and GID
+ranges, each at least 65,536 IDs. Check existing assignments and ordinary IDs;
+do not copy another account's range. This is separate from the container's
+fixed internal UID and from the two IPC groups. The requirements are described
+in [Docker's rootless setup](https://docs.docker.com/engine/security/rootless/).
+
+Manage rootless Docker as the sandbox account's **user** service. Docker does
+not support running its rootless daemon as a system-wide service with `User=`;
+this restriction does not concern the separate HSG service templates. Boot
+startup needs an explicit lingering decision. See the
+[Docker service guidance](https://docs.docker.com/engine/security/rootless/tips/).
+The packaged setup helper can start/enable Docker and change that account's
+CLI context, so its `install` operation is not a read-only prerequisite check.
+Review the installed helper and use a minimal fixed environment; do not copy a
+developer's user unit or ambient PATH. Keep the existing developer runtime and
+its storage separate. Do not use `--force` or relax host policy to turn a failed
+runtime prerequisite into a pass. Loading the fixed image, starting the new
+runtime and checking actual cgroup limits belong to a separately recorded step.
+
+When reusing an already enrolled source, the example `personal-codex` slot and
+generation 1 are not a migration recipe. Preserve the source's existing logical
+slot and full database lineage. A copied auth file is a different physical
+source, even if its token bytes match. A new empty database cannot demonstrate
+retirement or preserve previous source ownership. Review the old owner shutdown,
+remaining deliveries, cold file/database transition, explicit higher generation
+and new TargetRevision before enrollment. Neither UID changes nor restoration
+of an old backup may silently revive retired authority. See the
+[source contract](../../docs/credential-source-enrollment.md) and
+[startup/enrollment guide](../../docs/codex-daemon-startup.md).
+
 ## Prepare an exact activation separately
 
 1. Review the staged hashes, example IDs, filesystem/identity effects and
