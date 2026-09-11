@@ -18,7 +18,8 @@ SERVICES = {"agentd": "agentd", "sandboxd-codex": "sandboxd",
             "hgwctl": "hgwctl", "fake-connector": "fake-connector"}
 BUILD_FLAGS = ["-mod=readonly", "-buildvcs=false", "-trimpath"]
 TEMPLATES = ["agentd.example.json", "sandboxd.example.json", "hgw.sysusers",
-             "hgw.tmpfiles", "hgw-agentd.service", "hgw-sandboxd.service"]
+             "hgw.tmpfiles", "hgw-agentd.service", "hgw-sandboxd.service",
+             "hgw-sandboxd-docker.service"]
 
 
 def digest(path):

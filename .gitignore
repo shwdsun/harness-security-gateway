@@ -43,6 +43,7 @@
 !/deploy/codex/hgw.tmpfiles
 !/deploy/codex/hgw-agentd.service
 !/deploy/codex/hgw-sandboxd.service
+!/deploy/codex/hgw-sandboxd-docker.service
 
 # Reviewed opt-in formal pilot sources; do not export tools or run artifacts.
 !/formal/

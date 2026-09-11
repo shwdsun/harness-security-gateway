@@ -143,16 +143,55 @@ in [Docker's rootless setup](https://docs.docker.com/engine/security/rootless/).
 
 Manage rootless Docker as the sandbox account's **user** service. Docker does
 not support running its rootless daemon as a system-wide service with `User=`;
-this restriction does not concern the separate HSG service templates. Boot
-startup needs an explicit lingering decision. See the
+this restriction does not concern the separate HSG service templates. See the
 [Docker service guidance](https://docs.docker.com/engine/security/rootless/tips/).
-The packaged setup helper can start/enable Docker and change that account's
-CLI context, so its `install` operation is not a read-only prerequisite check.
-Review the installed helper and use a minimal fixed environment; do not copy a
-developer's user unit or ambient PATH. Keep the existing developer runtime and
-its storage separate. Do not use `--force` or relax host policy to turn a failed
-runtime prerequisite into a pass. Loading the fixed image, starting the new
-runtime and checking actual cgroup limits belong to a separately recorded step.
+The packaged setup helper's `install` embeds the caller's ambient `PATH` in the
+generated unit, starts and enables the daemon, and creates and selects a
+`rootless` CLI context; `--force` also suppresses a failed RootlessKit check.
+It is therefore not a prerequisite check. The review-only
+`hgw-sandboxd-docker.service` is the equivalent unit with a fixed `PATH` and a
+separate data root, `/var/lib/hgw-sandboxd/docker`, outside every sandboxd
+storage and control path. Install it as that account's
+`~/.config/systemd/user/docker.service`; sandboxd uses the direct socket, never
+a CLI context. Keep the existing developer runtime, unit and storage separate.
+Do not use `--force` or relax host policy to turn a failed runtime prerequisite
+into a pass.
+
+## Install artifacts and the sandbox runtime
+
+Record these as separate effects, in order; each depends on the previous one.
+None enrolls a credential, opens a database or starts an HSG service.
+
+1. **Artifacts.** Verify `BUNDLE.SHA256`, then the archive's `SHA256SUMS` and
+   manifest. Create each destination once, never over an existing name. Service
+   binaries go to `/opt/hgw/codex-dev/bin` as `root:root 0555`. Native files and
+   the six-file package go to `/var/lib/hgw-sandboxd/artifacts/{native,codex-package}`,
+   owned by the sandbox UID with the manifest's `0555`/`0444` modes and `0555`
+   directories. Configs are `/etc/hgw/sandboxd.json` (`0640 root:hgw-sandboxd`)
+   and `/etc/hgw/agentd.json` (`0640 root:hgw-agentd`); their artifact and owner
+   hashes must equal the installed bytes.
+2. **Actual-identity checks.** As UID 21002 with an empty environment, notably
+   without `SSL_CERT_FILE`/`SSL_CERT_DIR`, `sandboxd-codex -check` needs the
+   workspace, credential-slot and `0700` provider directories to exist under
+   that UID, but no auth file, runtime socket or database. As UID 21001,
+   `hgwctl session scope` must reproduce the sandbox configuration's scope.
+3. **Runtime.** Lingering starts the account's user manager now and at boot,
+   including the host's globally enabled user sockets and timers. Enabling
+   `docker.service` for boot autostart is a separate decision; start it without
+   enabling until activation is approved. Accept exactly one `name=rootless`
+   option, cgroup v2 with the systemd driver, the fixed data root, delegated
+   `cpu`/`memory`/`pids` controllers, a socket owned by the sandbox UID and an
+   empty inventory.
+4. **Image.** Import the exact digest offline, for example `docker save` from an
+   existing store into `docker load` under the sandbox UID, or separately
+   approve a registry pull by digest; never retag. Accept the exact image ID and
+   repository digest. One unlabeled `--pull=never --network none` container must
+   show the target's memory/CPU/PID limits and the container-root mapping to the
+   sandbox UID, and must be removed.
+
+Native-ext4 source proof is captured later by explicit enrollment under the
+actual identity and storage. Cold source/database transition, a new generation,
+a bounded Run and service activation remain the separate steps below.
 
 When reusing an already enrolled source, the example `personal-codex` slot and
 generation 1 are not a migration recipe. Preserve the source's existing logical

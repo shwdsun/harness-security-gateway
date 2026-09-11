@@ -31,25 +31,7 @@ func TestDeploymentExamplesKeepMatchingAuthorityAndSeparateIdentities(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile("sandboxd.example.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), `"endpoint": "unix:///run/user/21002/docker.sock"`) {
-		t.Fatal("example runtime does not belong to the sandbox service UID")
-	}
-	// Load enforces the actual process UID. Adapt only this environment detail
-	// in a disposable file; this test cannot establish cross-UID runtime access.
-	data = []byte(strings.Replace(string(data), "unix:///run/user/21002/docker.sock",
-		fmt.Sprintf("unix:///run/user/%d/docker.sock", os.Geteuid()), 1))
-	path := filepath.Join(t.TempDir(), "sandboxd.json")
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	sandbox, err := sandboxconfig.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sandbox := loadSandboxExample(t)
 	if sandbox.PeerUID != 21001 || core.Connectors[0].PeerUID != 21003 || core.SandboxSocket != sandbox.Socket {
 		t.Fatal("example peer identities or socket edges disagree")
 	}
@@ -109,4 +91,79 @@ func TestOfflinePackageLockMatchesCompiledV3Contract(t *testing.T) {
 			t.Fatalf("offline package pin differs: %s", path)
 		}
 	}
+}
+
+func TestSandboxRuntimeUnitHasFixedEnvironmentAndSeparateDataRoot(t *testing.T) {
+	data, err := os.ReadFile("hgw-sandboxd-docker.service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var environment, execStart []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "Environment") {
+			environment = append(environment, line)
+		} else if strings.HasPrefix(line, "ExecStart") {
+			execStart = append(execStart, line)
+		}
+	}
+	// A copied developer unit embeds an ambient PATH; DOCKER_HOST, --host or a
+	// context would move the daemon away from the endpoint sandboxd attests.
+	if len(environment) != 1 || environment[0] != "Environment=PATH=/usr/bin:/usr/sbin" || len(execStart) != 1 {
+		t.Fatal("runtime unit environment is not the fixed minimal one")
+	}
+	fields := strings.Fields(strings.TrimPrefix(execStart[0], "ExecStart="))
+	if len(fields) != 2 || fields[0] != "/usr/bin/dockerd-rootless.sh" || !strings.HasPrefix(fields[1], "--data-root=") {
+		t.Fatal("runtime unit accepts options beyond its fixed data root")
+	}
+	dataRoot := strings.TrimPrefix(fields[1], "--data-root=")
+	users, err := os.ReadFile("hgw.sysusers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := ""
+	for _, line := range strings.Split(string(users), "\n") {
+		if entry := strings.Fields(line); len(entry) > 2 && entry[0] == "u" && entry[1] == "hgw-sandboxd" {
+			home = entry[len(entry)-2]
+		}
+	}
+	if !filepath.IsAbs(dataRoot) || filepath.Clean(dataRoot) != dataRoot || filepath.Dir(dataRoot) != home {
+		t.Fatal("runtime data root is not a direct child of the sandbox account home")
+	}
+	sandbox := loadSandboxExample(t)
+	for _, path := range []string{sandbox.WorkspaceRoot, sandbox.RunnerStateRoot, sandbox.Codex.Credential.Root,
+		sandbox.Codex.ProviderRoot, sandbox.Codex.ToolPackage, filepath.Dir(sandbox.StateDatabase),
+		filepath.Dir(sandbox.Socket), filepath.Dir(sandbox.Codex.UIDSetup.Path)} {
+		if within(dataRoot, path) || within(path, dataRoot) {
+			t.Fatalf("runtime data root overlaps sandboxd storage or control path %s", path)
+		}
+	}
+}
+
+func loadSandboxExample(t *testing.T) sandboxconfig.Config {
+	t.Helper()
+	data, err := os.ReadFile("sandboxd.example.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"endpoint": "unix:///run/user/21002/docker.sock"`) {
+		t.Fatal("example runtime does not belong to the sandbox service UID")
+	}
+	// Load enforces the actual process UID. Adapt only this environment detail
+	// in a disposable file; this test cannot establish cross-UID runtime access.
+	data = []byte(strings.Replace(string(data), "unix:///run/user/21002/docker.sock",
+		fmt.Sprintf("unix:///run/user/%d/docker.sock", os.Geteuid()), 1))
+	path := filepath.Join(t.TempDir(), "sandboxd.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sandbox, err := sandboxconfig.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sandbox
+}
+
+func within(path, root string) bool {
+	relative, err := filepath.Rel(root, path)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, "../")
 }

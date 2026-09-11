@@ -1,0 +1,30 @@
+# Review-only rootless Docker user unit for hgw-sandboxd. Assembly neither
+# installs nor enables it. Install it as that account's
+# ~/.config/systemd/user/docker.service; starting it needs its user manager
+# (lingering), and enabling it is a separate boot-autostart decision.
+# Fixed PATH and data root: never copy a developer's unit or ambient PATH.
+[Unit]
+Description=Docker Application Container Engine (Rootless, HSG sandbox)
+Documentation=https://docs.docker.com/go/rootless/
+Requires=dbus.socket
+
+[Service]
+Environment=PATH=/usr/bin:/usr/sbin
+ExecStart=/usr/bin/dockerd-rootless.sh --data-root=/var/lib/hgw-sandboxd/docker
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutSec=0
+RestartSec=2
+Restart=always
+StartLimitBurst=3
+StartLimitInterval=60s
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+Delegate=yes
+Type=notify
+NotifyAccess=all
+KillMode=mixed
+
+[Install]
+WantedBy=default.target
