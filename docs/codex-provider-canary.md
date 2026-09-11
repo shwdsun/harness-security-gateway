@@ -5,8 +5,10 @@ Implemented **2026-09-10 UTC** as an opt-in local experiment. The
 inference, a tool-written marker and local delivery with joined cleanup.
 The default build remains mock-only. The subsequent opt-in
 [fixed daemon startup wiring](codex-daemon-startup.md) uses the same native
-template with a separate authority pin; its new executable path has no real
-provider Run yet. Neither path is a production deployment or Discord implementation.
+template with a separate authority pin. Its
+[first ordinary-service Run with fake ingress](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+passed on **2026-09-11 at 00:47 UTC**, with independent cleanup at **00:48 UTC**.
+Neither path is a production deployment or Discord implementation.
 
 ## Implemented ownership
 

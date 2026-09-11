@@ -10,13 +10,14 @@ authenticated messaging events into durable Runs against operator-approved,
 immutable harness targets without implementing another agent loop or
 orchestrator.
 
-> **Status as of 2026-09-10: research prototype / pre-alpha.** The control plane,
+> **Status as of 2026-09-11: research prototype / pre-alpha.** The control plane,
 > mock path, credential lifecycle and opt-in V3/native provider canary are
 > implemented within their documented scopes. The fifth controlled real-provider
-> Run passed native completion, a tool-written marker, local delivery and cleanup
-> at 21:52–21:53 UTC; four earlier failed Runs remain retained. Normal daemon
-> configuration now has an explicit opt-in fixed Codex path; default builds
-> remain mock-only. No public Discord Connector, approved production
+> Run passed on 2026-09-10. The first Run through ordinary `agentd`/`sandboxd`
+> with fake ingress then passed at 00:47 UTC on 2026-09-11, including a tool
+> marker, local delivery and independently checked cleanup. Earlier history
+> remains retained. Fixed Codex startup requires an explicit opt-in build;
+> default builds remain mock-only. No public Discord Connector, approved production
 > Codex target or production deployment is available.
 
 Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
@@ -24,9 +25,9 @@ The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race
 results, scoped native experiments and the initial failed real Runs. The
 [fifth Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) records the
 subsequent scoped success and remaining product gates.
-The [fixed Codex startup guide](docs/codex-daemon-startup.md) covers the new
-local configuration, scope export and explicit enrollment; no real Run through
-that daemon has been established.
+The [fixed Codex startup guide](docs/codex-daemon-startup.md) covers local
+configuration, scope export, explicit enrollment and the
+[first ordinary-service Run](docs/codex-daemon-startup.md#first-ordinary-service-run--2026-09-11).
 Those dated observations are separate from the CI badge and release status.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
@@ -85,7 +86,7 @@ Runner; it is not yet a real platform-to-provider integration.
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
 | Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
 | Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
-| Fixed Codex daemon startup | Explicit configuration, read-only scope/artifact checks, enrolled authority and existing recovery integrated with deterministic tests; no real daemon-to-provider Run or deployment acceptance yet |
+| Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
 | Discord Connector | Not implemented |
@@ -123,10 +124,11 @@ above, and the advanced mock flow in the local runbook. The latter runs the
 control services on the host and creates one digest-pinned mock Runner
 container per Run; it is not a Discord or Codex deployment.
 
-The [provider canary](docs/codex-provider-canary.md) is a separate, opt-in
-experiment requiring explicit artifacts, local prerequisites and authorization
-for its external effects. Its entrypoint is omitted from the default build;
-it is not an installer or a supported production target.
+The [provider canary](docs/codex-provider-canary.md) and
+[fixed Codex daemon path](docs/codex-daemon-startup.md) are opt-in experiments
+requiring explicit artifacts, local prerequisites and authorization for their
+external effects. Their native entrypoints are omitted from default builds;
+neither supplies a production installer or approved production target.
 
 The intended real topology keeps long-lived control services separate from
 ephemeral harness execution. A Connector may be packaged as one long-running
@@ -189,8 +191,6 @@ passed:
 - close repository/system skill and customization injection, then test
   credential reach, refresh, revocation, and provider-versus-tool egress;
 - prove cancellation, detached-descendant cleanup, and container quiescence;
-- exercise fake ingress against the real target before adding a platform
-  credential;
 - implement a Discord Connector with stable-ID admission and Connector-owned
   durable cursor, spool, reconnect, and catch-up behavior;
 - complete the deny audit and isolated private-Discord adversarial experiments.

@@ -1,9 +1,10 @@
 # Fixed Codex target in sandboxd
 
-Status, **2026-09-10**: opt-in local startup wiring is implemented. The new
-configuration, explicit enrollment and restart composition have deterministic
-tests. This is a development path; no real provider Run through this daemon,
-production deployment or public Discord path has been established.
+Status, **2026-09-11**: opt-in startup, explicit enrollment and restart
+composition are implemented with deterministic tests. The
+[first ordinary-service Run](#first-ordinary-service-run--2026-09-11) passed
+through fake ingress at **00:47 UTC**, with independent cleanup checks at
+**00:48 UTC**. Production deployment and public Discord remain unestablished.
 
 The [fifth real canary](codex-provider-canary.md#fifth-real-run--2026-09-10)
 already exercised the fixed native Runner and provider channel. This increment
@@ -169,8 +170,57 @@ do not establish runtime availability, source proof or a deployable host.
 
 The existing lifecycle/store and provider tests remain the applicable regression
 suite; no new formal state machine or HTTP protocol is introduced. The native
-canary evidence retains its original dates and limitations. New executable
-wiring is not evidence of a successful daemon-to-provider Run.
+canary and local startup checks retain their original dates and limitations;
+the separate real execution evidence follows.
+
+## First ordinary-service Run — 2026-09-11
+
+Using source `829e0c3`, one separately authorized fake text event traversed
+`fake-connector` → ordinary `agentd` → opt-in `sandboxd` → the existing fixed
+native Codex Runner and provider channel. Core admitted its own new Run ID;
+the canary-owner executable did not dispatch this Run. The controlled operation
+lasted **00:47:04–00:47:38 UTC**, including enrollment and service startup/stop.
+Core's admitted Run completed in **23.391 seconds**, with one dispatch, the
+expected native reply, a tool-written marker and one completed local delivery.
+
+The operation retained the original dedicated device-login source, workspace,
+artifact tuple and both database objects. After an explicitly approved one-way
+retirement of generation 5 under local ownership locks, ordinary
+`sandboxd -enroll-credential` registered generation 6. Independent comparison
+verified the same source/full physical proof and the newly approved exact
+scope before either service started. The retirement was a bounded local
+maintenance operation, not an implicit enrollment feature or new general CLI.
+All five preceding Runs and deliveries remained intact.
+
+The temporary Connector had one Binding and a one-receipt quota. The receipt's
+3,600-second retention exceeded the 660-second main budget and shutdown grace.
+The supervisor launched its fake client once. Existing receipt retention and
+quota checks bound additional distinct events during that activation, assuming
+a stable host clock; this is not a permanent single-use Binding. No additional
+paid Run was submitted to retest the existing denial behavior.
+
+At **00:48:20 UTC**, independent read-only checks confirmed one exact container's
+create/attach/start/die/destroy events and absence, empty managed inventory and
+process groups, six terminal Runs, no runtime reference/pending intent, and zero
+credential occupancy, workspace locks or staged terminals. Both services exited
+normally. The marker and one delivered result matched expectations; all prior
+database history and the original credential metadata were unchanged. Generation
+6 remained idle/enrolled, with 1–5 retired. Source/config/executable pins were
+verified unchanged through execution at **00:49 UTC**.
+
+This establishes a scoped ordinary-service path to a real provider using fake
+ingress. It does not test Discord, separate service identities, production image
+provenance, the full adversarial matrix or real refresh/revocation. The normal
+daemon did not export provider-operation snapshots, so HTTP operation counts,
+response stages and refresh activity are unobserved for this Run; unchanged auth
+metadata is a narrower fact. No raw native/provider transcript was archived as
+diagnostics. No new product code, host-policy change, image pull, login, ongoing
+service activation or further Run was needed. The one-Run permission is consumed.
+
+The next bounded deployment work is reproducible fixed-target packaging and
+separate service-identity configuration, prepared and checked before any host
+activation. Keep the completed fake-ingress witness and existing verification;
+only changed artifacts or unresolved boundaries require new evidence.
 
 The `credential-exposed-personal` residual remains: native tools may read the
 dedicated credential. Per-Run CA files/directories remain private retained

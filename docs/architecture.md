@@ -343,8 +343,10 @@ recreated by a host reboot.
   physical locks before durable publication/release. Failed validation retires
   the Run's generation; uncertain close retains occupancy until restart recovery.
   Synthetic integration and scoped native/real-source canaries are exercised.
-  The new daemon wiring has no real provider Run yet; complete production
-  image, source lifecycle, context and deployment acceptance remain open. See
+  One [ordinary-service Run with fake ingress](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+  passed on 2026-09-11, including enrollment, native completion, tool marker,
+  local delivery and independent cleanup. Complete production image, source
+  lifecycle, context and deployment acceptance remain open. See
   [credential source lifecycle](credential-source-lifecycle.md);
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;

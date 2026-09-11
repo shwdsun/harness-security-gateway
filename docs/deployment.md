@@ -17,6 +17,7 @@ protocol behavior remain authoritative in [architecture.md](architecture.md),
 | --- | --- | --- | --- |
 | Offline witness | production decoders, policy, service, and Core store with synthetic input | none required | five narrow deterministic security properties |
 | Local mock runbook | fake Connector, `agentd`, `sandboxd`, rootless Docker, and one mock Runner container per Run | no platform/model credential; a controlled registry may be needed before execution | protocol, persistence, and local runtime integration under the runbook's stated limits |
+| Opt-in fixed Codex experiment | fake Connector, ordinary `agentd`, opt-in `sandboxd` and fixed native Runner | dedicated provider credential and explicitly approved fixed upstream operations | one controlled local Run passed on 2026-09-11; manual provisioning, not production acceptance |
 | Real Discord to Codex | not shipped | would require both platform and provider credentials | no public deployment or security claim |
 
 Use `make demo-security` for the first path. Use the
@@ -35,8 +36,12 @@ supported production deployment; see the [dated results](codex-provider-canary.m
 The subsequent [fixed Codex startup configuration](codex-daemon-startup.md)
 wires that template into the existing `sandboxd` behind an explicit build
 switch. It supplies scope export, read-only local artifact checks and explicit
-enrollment. Its deterministic startup/recovery tests do not establish a real
-daemon-to-provider Run or change the production placement gates below.
+enrollment. A separately authorized
+[ordinary-service Run with fake ingress](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+passed on **2026-09-11 00:47 UTC**, including a native reply, tool marker and
+local delivery. Independent cleanup/source/history checks passed at **00:48 UTC**.
+Both services then remained stopped. These observations leave the production
+placement gates below open.
 
 The default local mock path retains v1 resumable Runner state. An explicit
 `sandboxd/v3` no-state example and a build-time fixed `new-only` mock artifact
@@ -247,9 +252,10 @@ provider-versus-tool egress, cancellation, descendant cleanup, and a durable
 Discord cursor/spool. Hiding those choices would make the prototype easier to
 start but harder to assess safely.
 
-The next legitimate deployment increment is narrow: satisfy the documented
-Codex target gates, exercise fake ingress against that real target, and only
-then add the private Discord Connector. A turnkey installer becomes appropriate
+The next deployment increment is reproducible fixed-target packaging and
+separate service-identity configuration, prepared and checked before any host
+activation. The scoped fake-ingress witness above is complete; production target
+and isolated private-Discord acceptance remain open. A turnkey installer becomes appropriate
 after that exact path has repeatable provisioning, rollback, and adversarial
-evidence. Until then, use only the two supported paths above and preserve each
-manual precondition as observable evidence.
+evidence. Until then, use the credential-free flows or an explicitly scoped
+fixed-Codex experiment, preserving each manual precondition as observable evidence.

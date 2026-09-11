@@ -1,9 +1,20 @@
 # Implementation status
 
-Last verified: 2026-09-10 22:47 UTC (fixed Codex startup/enrollment/scope export, local test/race/vet/demo checks and read-only binary/artifact check; production/Discord gates remain open)
+Last verified: 2026-09-11 00:49 UTC (first ordinary-service real Run with fake ingress, independent cleanup/source/history checks and unchanged source/artifact pins; production/Discord gates remain open)
+
+The [first ordinary-service Run](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+passed at **00:47 UTC on 2026-09-11**. One fake event traversed ordinary `agentd`
+and opt-in `sandboxd`, completed native Codex execution with a tool marker and
+produced one local delivery. At **00:48 UTC**, independent observation confirmed
+exact container absence, normal service exit, zero durable cleanup fences and
+unchanged previous history and credential metadata. The original device-login
+source and both databases were retained; generation 6 was explicitly enrolled
+for the new scope after approved retirement of 5. This consumes one separately
+authorized Run, not ongoing service activation. Provider HTTP details were not
+exported; no real refresh, Discord or production acceptance is inferred.
 
 The [fifth real canary](codex-provider-canary.md#fifth-real-run--2026-09-10)
-passed at **21:52–21:53 UTC** using the original dedicated device-login source
+passed on **2026-09-10 at 21:52–21:53 UTC** using the original dedicated device-login source
 and the fixed inference media adjustment. This is one scoped real-provider
 completion through the local owner. The four earlier failures below retain
 their original evidence.
@@ -14,10 +25,11 @@ explicit `sandboxd/codex-v1` configuration behind the existing Linux/amd64
 fixed artifact/owner-bound target, supports explicit exact source enrollment,
 and retains the existing idle/interrupted restart rules. `hgwctl session scope`
 exports the compiled configuration scope without Core DB access. Default builds
-remain mock-only. This stage has executed no real enrollment, container,
-provider Run, daemon deployment or Discord action.
+remain mock-only. That implementation stage on **2026-09-10** executed no real
+enrollment, container, provider Run, daemon deployment or Discord action; the
+separately approved ordinary-service result above followed on September 11.
 
-The final ordinary suite passed at **22:47 UTC**. Complete default race and
+The final ordinary suite passed on **2026-09-10 at 22:47 UTC**. Complete default race and
 tagged affected-package race suites, normal/tagged vet and the security demo
 passed on the same product code. The first ordinary suite exposed a pre-existing
 test wait that observed durable staging before asynchronous intent lookup; its
@@ -189,10 +201,10 @@ only represented in code, and what remains work in progress.
 | Sandbox target and runtime lifecycle | Mock path and opt-in fixed Codex startup implemented | Immutable manifests, rootless-runtime attestation logic, create-intent reconciliation, and lifecycle tests; the live rootless-Docker observation is local evidence, not public CI |
 | Post-cleanup terminal publication | Implemented and fault-tested; focused native and adversarial container witnesses | Sandbox schema v8 stages outcomes privately; exact cleanup precedes publication/unlock. On 2026-09-09, a fixed TERM-resistant/`setsid` Runner passed at 19:54 UTC and native deadline at 20:12 UTC; full native-launcher descendant matrix remains open; [scope](codex-control-boundary.md#deadline-and-resistant-descendant-witnesses) |
 | Runner-state v2 local mock path | Implemented and locally tested | Explicit `sandboxd/v3`, immutable version-aware target carrier, sandbox schema v9, conditional state mounts, real mock-process and fake-runtime recovery tests; no live Docker/provider claim |
-| Credential generation and occupancy | Implemented; explicit enrollment wired in the opt-in fixed Codex build | Sandbox schema v10, immutable source/generation/target records, one-way revocation, atomic admission/release, SIGKILL and fake-runtime recovery tests; initial real-source enrollment and same-source generation transitions were observed only through the opt-in canary on 2026-09-10 |
-| Atomic credential proof registration | Implemented and tested; one real-source canary enrollment observed | Sandbox schema v11, immutable atomic proof, exact replay, no backfill/downgrade, migration/rollback/reopen/concurrency tests; the 2026-09-10 opt-in canaries exercised one dedicated source, not production enrollment/rotation acceptance |
-| Enrolled credential target pin | Integrated into sandboxservice; one real-source canary binding observed | Database-derived generation/proof, exact target scope and atomic whole-batch registration; the separate experimental resolver does not establish complete production authority resolution |
-| Trusted target resolution | One frozen resolver per entry; default mocks and explicit fixed Codex factory | Compiled-policy scope export, manifest/scope consistency, unchanged legacy mock pins and distinct owner/artifact-bound daemon authority; configuration/restart tests, no real provider Run through the new daemon |
+| Credential generation and occupancy | Implemented; explicit enrollment exercised through the opt-in fixed Codex executable | Sandbox schema v10, immutable records, one-way revocation, atomic admission/release and recovery tests; real-source canary transitions on 2026-09-10 and one explicitly maintained transition followed by ordinary enrollment/Run on 2026-09-11; no generic rotation CLI |
+| Atomic credential proof registration | Implemented and tested; dedicated-source enrollment observed | Sandbox schema v11, immutable atomic proof, exact replay, no backfill/downgrade and store failure/concurrency tests; canaries on 2026-09-10 and ordinary enrollment/Run on 2026-09-11 used the same dedicated source, not production enrollment/rotation acceptance |
+| Enrolled credential target pin | Integrated into sandboxservice; canary and ordinary-service bindings observed | Database-derived generation/proof, independently approved exact scope and atomic whole-batch registration; the 2026-09-11 daemon witness leaves complete production authority acceptance open |
+| Trusted target resolution | One frozen resolver per entry; default mocks and explicit fixed Codex factory | Compiled-policy scope export, manifest/scope consistency, unchanged legacy mock pins and distinct owner/artifact-bound daemon authority; configuration/restart tests and one scoped ordinary-service real Run on 2026-09-11 |
 | Credential startup recovery | Integrated with synthetic authority; two native owner-restart cases passed on 2026-09-09 at 11:32–11:35 UTC | SIGKILL with bound running runtime or existing unbound Create, retirement before failed inspection, retained occupancy/staged result, exact healthy cleanup and one Core interruption; no execution-source reopen/recreate. Same-boot tagged fixture, not host reboot or delayed absent Create; [scope](codex-control-boundary.md#native-owner-crash-and-recovery-witnesses) |
 | Credential Run re-open/release | Integrated through the opt-in fixed startup and existing controller option | Run-derived proof/scope, acquisition-once and retained authority on failure; tagged native controller fixture observes the physical lock through removal and its release before publication |
 | Local held credential file | Linux primitive with controller and opaque runtime consumers | Descriptor pinning, advisory locks, replacement rejection and one-Create copy-safe handoff; one dedicated real-source handoff observed in the failed 2026-09-10 canary; no generic path/FD accessor |
@@ -216,7 +228,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Template/startup guard and opt-in fixed daemon configuration implemented | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No production target implemented; one controlled canary passed | The fifth opt-in real-provider Run completed with tool marker/local delivery on 2026-09-10; four failures are retained. Approved production image/auth/network/context profile and public messaging remain open |
+| Real Codex target | No approved production target; controlled canary and ordinary-service witnesses passed | The fifth canary passed on 2026-09-10, then one ordinary-service Run with fake ingress passed on 2026-09-11; native reply/tool marker/local delivery and independent cleanup verified. Four earlier failures retained; production image/auth/network/context and public messaging gates remain open |
 | Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
@@ -304,7 +316,8 @@ only represented in code, and what remains work in progress.
   resolver, which rejects unsupported profiles before registration, including v1.
   The opt-in fixed daemon path separately verifies artifact/owner/provider
   authority and binds the configured enrolled scope. The canary has exercised
-  a real-source binding; the new daemon has deterministic startup/recovery tests.
+  a real-source binding; the new daemon has deterministic startup/recovery tests
+  and one scoped real Run with fake ingress on 2026-09-11.
   Complete production acceptance remains open; a composed hash alone cannot
   establish it.
 - Under the daemon's existing exclusive process lock, controller startup revokes
@@ -330,8 +343,9 @@ only represented in code, and what remains work in progress.
   Fault tests use constructed proof and a private handle seam. A separate tagged
   native fixture uses real Hold/proof, service admission, Docker and HRP, and
   observes physical lock ordering. The opt-in fixed daemon now supplies the
-  same bindings; its new wiring has no real provider Run. The earlier
-  real-source observations retain their limited scope.
+  same bindings; one ordinary-service Run with the dedicated real source passed
+  on 2026-09-11. It adds a completion/cleanup witness, not the entire physical
+  fault matrix. Earlier real-source observations retain their limited scope.
 - The [credential enrollment contract](credential-source-enrollment.md) selects
   native-ext4 UUID/export-handle identity, immutable object/locator proof and
   conservative retirement after interrupted credential Runs. The isolated
@@ -572,9 +586,13 @@ deployment isolation remain unresolved.
 Four real Runs failed before the fifth controlled Run completed with its tool
 marker, local delivery and cleanup. The new startup path has deterministic
 configuration/enrollment/restart tests and a read-only binary/artifact check.
-Its next bounded gate is a separately approved fake-ingress Run through the
-ordinary services with the retained dedicated source and explicit activation
-bounds. Discord acceptance remains later work; the production target is blocked.
+A separately approved fake-ingress Run through ordinary services then passed on
+2026-09-11 at 00:47 UTC, with independent cleanup/source/history checks at
+00:48 UTC. The next bounded deployment package is reproducible fixed-target
+artifacts and separate service-identity configuration, checked before host
+activation. Reuse the completed witness and existing tests; changed artifacts
+and unresolved boundaries require their own evidence. Discord acceptance remains
+later work; the production target is blocked.
 
 ### Deployment identities and local IPC
 
@@ -599,10 +617,13 @@ bounds. Discord acceptance remains later work; the production target is blocked.
 - close repository/system customization injection;
 - validate the implemented generic terminal-publication mechanism against the
   exact runtime image's cleanup and descendant-quiescence behavior;
-- run credential reach, refresh, revocation, output-redaction, provider-egress,
-  tool-egress, cancellation, detached-descendant, and quiescence canaries; and
-- exercise fake ingress against the real target before introducing any
-  platform credential.
+- complete the unresolved credential reach, refresh, revocation, output-redaction,
+  provider-egress, tool-egress, cancellation, detached-descendant and quiescence
+  cases for the exact release artifact, preserving existing scoped witnesses.
+
+The first controlled fake-ingress Run through ordinary services passed on
+2026-09-11. It closes that local integration step; it does not authorize adding
+a platform credential before the remaining target/deployment checks.
 
 ### Discord Connector
 
