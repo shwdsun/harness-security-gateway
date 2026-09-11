@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-11 22:47 UTC (one Run through separate service identities from the installed unit templates; boot activation, restart/recovery under those identities and Discord gates remain open)
+Last verified: 2026-09-11 23:26 UTC (private Discord Connector code with offline tests, after one Run through separate service identities; no bot token, live channel or Connector deployment exists, and boot activation, restart/recovery under those identities and the Discord acceptance gates remain open)
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -18,6 +18,21 @@ its own Runs' deliveries. This is one local witness of the documented
 separate-identity path on one host. Boot activation, restart and recovery under
 these identities, log-redaction review, the full adversarial matrix, real refresh
 and Discord acceptance remain open, and nothing is enabled at boot.
+
+The [private Discord Connector](discord-connector.md) is now implemented as
+code: one platform account, one allowlisted channel, no listening port, a
+durable ingress cursor with bounded catch-up, self/bot/webhook filtering and
+closed delivery-failure classification. It polls the platform's REST API rather
+than the Gateway, so the Connector-owned cursor is the durable ingress and no
+WebSocket dependency enters the module. Offline tests cover configuration
+rejection, snowflake identity normalization, the skip matrix, cursor
+monotonicity, advance only behind Core's acknowledgement, duplicate-send
+suppression, mention suppression, token file handling and platform error
+mapping, using a fake platform and Core. The complete default suite, the race
+suite, vet and the security demo passed on **2026-09-11 at 23:20–23:26 UTC**.
+No bot token, live channel, Connector deployment identity or real platform
+request is part of that evidence, and the adversarial private-Discord cases,
+the deny audit and the bake-off remain open.
 
 The [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
 passed at **04:29 UTC on 2026-09-11**. Distinct kernel UIDs inside one offline
@@ -291,7 +306,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v3 tool package | Template/startup guard and opt-in fixed daemon configuration implemented | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
 | Real Codex target | No approved production target; controlled canary, ordinary-service and separate-identity witnesses passed | The fifth canary passed on 2026-09-10, one ordinary-service Run with fake ingress on 2026-09-11 at 00:47 UTC, and one Run through three separate service identities from the installed unit templates at 22:46 UTC the same day; native reply/tool marker/local delivery and independent cleanup verified each time. Four earlier failures retained; production image/auth/network/context and public messaging gates remain open |
-| Discord Connector | Not implemented | Protocol boundary exists; no Discord token, client, cursor, or delivery loop |
+| Discord Connector | Implemented as offline-tested code; never run against Discord | REST-polling ingress with a durable per-channel cursor, stable-ID allowlist, self/bot/webhook filtering, bounded catch-up, mention-suppressed replies, duplicate-send suppression and closed failure classes, with no listening port. No bot token, live channel, deployment identity or platform request is included; adversarial cases and the deny audit remain open |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
 ## Implemented control plane
@@ -704,6 +719,15 @@ a platform credential before the remaining target/deployment checks.
   event rejection, and outbound completion semantics; and
 - pass the isolated private-Discord adversarial cases before expanding to
   another platform.
+
+The first three items are implemented and offline-tested in
+[the Connector](discord-connector.md): snowflake-derived refs with stable event
+IDs, a bot token held only in its own domain, a private cursor advanced only
+behind Core's durable acknowledgement, bounded catch-up, self/bot/webhook
+filtering, and lease completion including duplicate-send suppression. The
+fourth item remains open, as do a live channel, a provisioned Connector
+identity, the deny audit and calibration of the Core quotas against real
+traffic.
 
 ## Deliberately deferred
 

@@ -44,6 +44,8 @@ repository. Human maintainers own scope, security claims, and release decisions.
   profile and its native Codex instruction mapping.
 - `docs/codex-profile-v3.md`: blocked native tool-package template, startup
   checks and component/runtime evidence boundaries.
+- `docs/discord-connector.md`: the private Discord Connector's ingress,
+  identity, delivery and credential contract.
 - `docs/runbook.md`: local mock execution.
 
 Code and deterministic evidence outrank prose if they disagree. Report the
