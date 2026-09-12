@@ -1,0 +1,22 @@
+# Review-only system service template; no install target or automatic restart.
+# The Connector opens no listening port: it polls the platform outbound and
+# reaches Core only through its own dedicated socket.
+[Unit]
+Description=Harness Security Gateway private Discord Connector
+ConditionPathExists=/etc/hgw/discord-connector.json
+After=hgw-agentd.service
+
+[Service]
+Type=exec
+User=hgw-connector-discord
+Group=hgw-connector-discord
+SupplementaryGroups=hgw-discord-ipc
+UMask=0077
+WorkingDirectory=/var/lib/hgw-connector-discord
+Environment=HOME=/var/lib/hgw-connector-discord
+ExecStart=/opt/hgw/codex-dev/bin/discord-connector -config /etc/hgw/discord-connector.json
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+KillMode=control-group
+TimeoutStopSec=30
+Restart=no

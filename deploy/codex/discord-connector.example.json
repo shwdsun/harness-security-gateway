@@ -1,0 +1,17 @@
+{
+  "schema": "discord-connector/v1",
+  "agentd_socket": "/run/hgw/discord/agentd.sock",
+  "state_database": "/var/lib/hgw-connector-discord/state/connector.sqlite3",
+  "token_file": "/var/lib/hgw-connector-discord/credentials/bot-token",
+  "api_base_url": "https://discord.com/api/v10",
+  "self_user_id": "100000000000000001",
+  "channel_id": "100000000000000002",
+  "allowed_author_ids": [
+    "100000000000000003"
+  ],
+  "poll_interval_ms": 3000,
+  "catch_up_limit": 20,
+  "claim_limit": 5,
+  "request_timeout_ms": 10000,
+  "max_reply_chunks": 4
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/shwdsun/harness-security-gateway/internal/agentconfig"
 	"github.com/shwdsun/harness-security-gateway/internal/agentpolicy"
 	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
+	"github.com/shwdsun/harness-security-gateway/internal/discordconnector"
 	"github.com/shwdsun/harness-security-gateway/internal/sandboxconfig"
 )
 
@@ -166,4 +167,85 @@ func loadSandboxExample(t *testing.T) sandboxconfig.Config {
 func within(path, root string) bool {
 	relative, err := filepath.Rel(root, path)
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, "../")
+}
+
+func TestDiscordConnectorTemplatesKeepASeparateIdentityAndSocket(t *testing.T) {
+	config, err := discordconnector.Load("discord-connector.example.json")
+	if err != nil {
+		t.Fatalf("example connector configuration rejected: %v", err)
+	}
+	// A second Connector instance must not share the local test Connector's
+	// socket directory, or one identity could reach the other's socket.
+	core, err := os.ReadFile("agentd.example.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(core), config.AgentdSocket) {
+		t.Fatal("the Discord instance reuses the local test Connector's socket")
+	}
+	if filepath.Dir(config.TokenFile) == filepath.Dir(config.StateDatabase) {
+		t.Fatal("the bot token shares a directory with mutable connector state")
+	}
+
+	tmpfiles, err := os.ReadFile("hgw-discord.tmpfiles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared := map[string]string{}
+	for _, line := range strings.Split(string(tmpfiles), "\n") {
+		if fields := strings.Fields(line); len(fields) >= 5 && fields[0] == "d" {
+			declared[fields[1]] = strings.Join(fields[2:5], " ")
+		}
+	}
+	if declared[filepath.Dir(config.AgentdSocket)] != "02710 hgw-agentd hgw-discord-ipc" {
+		t.Fatalf("socket parent is not an agentd-owned setgid directory: %q",
+			declared[filepath.Dir(config.AgentdSocket)])
+	}
+	for _, private := range []string{filepath.Dir(config.StateDatabase), filepath.Dir(config.TokenFile)} {
+		if declared[private] != "0700 hgw-connector-discord hgw-connector-discord" {
+			t.Fatalf("%s is not private to the Connector identity: %q", private, declared[private])
+		}
+	}
+
+	users, err := os.ReadFile("hgw-discord.sysusers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	existing, err := os.ReadFile("hgw.sysusers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"21004", "21103"} {
+		if strings.Contains(string(existing), id) {
+			t.Fatalf("the Discord identity reuses an existing service ID %s", id)
+		}
+	}
+	// It joins only its own IPC edge: not Core's local edge and not the sandbox edge.
+	for _, foreign := range []string{"hgw-local-ipc", "hgw-sandbox-ipc"} {
+		if strings.Contains(string(users), foreign) {
+			t.Fatalf("the Discord identity joins the foreign group %s", foreign)
+		}
+	}
+	if !strings.Contains(string(users), "m hgw-connector-discord hgw-discord-ipc") ||
+		!strings.Contains(string(users), "m hgw-agentd hgw-discord-ipc") {
+		t.Fatal("the Discord IPC edge does not connect exactly agentd and the Connector")
+	}
+
+	unit, err := os.ReadFile("hgw-connector-discord.service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"User=hgw-connector-discord", "Group=hgw-connector-discord",
+		"SupplementaryGroups=hgw-discord-ipc", "NoNewPrivileges=yes",
+		"CapabilityBoundingSet=", "Restart=no",
+		"ExecStart=/opt/hgw/codex-dev/bin/discord-connector -config /etc/hgw/discord-connector.json",
+	} {
+		if !strings.Contains(string(unit), required) {
+			t.Fatalf("the Connector unit is missing %q", required)
+		}
+	}
+	if strings.Contains(string(unit), "[Install]") {
+		t.Fatal("the Connector unit can be enabled at boot without a separate decision")
+	}
 }

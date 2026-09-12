@@ -1,0 +1,7 @@
+# Preparation template for the private Discord Connector identity only. Check
+# NSS name/ID collisions before applying; applying creates accounts and groups.
+# The existing hgw.sysusers entries are unchanged and applied separately.
+u hgw-connector-discord 21004 "HSG Discord Connector" /var/lib/hgw-connector-discord /usr/sbin/nologin
+g hgw-discord-ipc 21103
+m hgw-agentd hgw-discord-ipc
+m hgw-connector-discord hgw-discord-ipc

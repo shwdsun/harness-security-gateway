@@ -1,0 +1,7 @@
+# Preparation template only; applying tmpfiles can change existing ownership
+# and modes. This Connector instance gets its own socket directory, so one
+# Connector identity can never reach another instance's socket.
+d /run/hgw/discord 02710 hgw-agentd hgw-discord-ipc -
+d /var/lib/hgw-connector-discord 0700 hgw-connector-discord hgw-connector-discord -
+d /var/lib/hgw-connector-discord/state 0700 hgw-connector-discord hgw-connector-discord -
+d /var/lib/hgw-connector-discord/credentials 0700 hgw-connector-discord hgw-connector-discord -

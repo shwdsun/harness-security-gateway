@@ -208,6 +208,35 @@ of an old backup may silently revive retired authority. See the
 [source contract](../../docs/credential-source-enrollment.md) and
 [startup/enrollment guide](../../docs/codex-daemon-startup.md).
 
+## Private Discord Connector instance
+
+The Connector runs as its own locked identity, separate from Core and the
+sandbox owner, using the review-only `hgw-discord.sysusers`,
+`hgw-discord.tmpfiles`, `hgw-connector-discord.service` and
+`discord-connector.example.json` templates.
+
+| Service | Example UID | Extra IPC group | Private storage |
+| --- | --- | --- | --- |
+| Discord Connector | 21004 | `hgw-discord-ipc` (21103) | `/var/lib/hgw-connector-discord`, its cursor database and bot token |
+
+It gets its own socket directory, `/run/hgw/discord`, again agentd-owned and
+exactly setgid `02710`. A second Connector instance must never share the first
+one's directory: the group edge is what lets an identity traverse to a socket,
+so one shared directory would let either Connector reach the other's endpoint.
+The Connector joins only that edge, never Core's local edge or the sandbox edge.
+
+The bot token is an operator-provisioned `0600` file owned by that identity,
+under `credentials/`, deliberately outside the mutable `state/` directory. The
+Connector opens no listening port, so the unit needs no socket activation, no
+inbound rule and no runtime access.
+
+A Discord binding is a **different authorization scope**, not a new route to the
+existing one. Its Connector, actor and conversation produce a different binding
+fingerprint, so reaching an existing Codex target requires a new immutable
+TargetRevision, and therefore an explicitly enrolled higher credential
+generation after retiring the current one. Pointing an existing revision at a
+new binding is not possible and must not be attempted by editing configuration.
+
 ## Prepare an exact activation separately
 
 1. Review the staged hashes, example IDs, filesystem/identity effects and

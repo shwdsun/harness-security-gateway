@@ -15,11 +15,14 @@ import tarfile
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 SERVICES = {"agentd": "agentd", "sandboxd-codex": "sandboxd",
-            "hgwctl": "hgwctl", "fake-connector": "fake-connector"}
+            "hgwctl": "hgwctl", "fake-connector": "fake-connector",
+            "discord-connector": "discord-connector"}
 BUILD_FLAGS = ["-mod=readonly", "-buildvcs=false", "-trimpath"]
 TEMPLATES = ["agentd.example.json", "sandboxd.example.json", "hgw.sysusers",
              "hgw.tmpfiles", "hgw-agentd.service", "hgw-sandboxd.service",
-             "hgw-sandboxd-docker.service"]
+             "hgw-sandboxd-docker.service", "hgw-connector-discord.service",
+             "hgw-discord.sysusers", "hgw-discord.tmpfiles",
+             "discord-connector.example.json"]
 
 
 def digest(path):
