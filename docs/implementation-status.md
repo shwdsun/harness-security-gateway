@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-11 23:26 UTC (private Discord Connector code with offline tests, after one Run through separate service identities; no bot token, live channel or Connector deployment exists, and boot activation, restart/recovery under those identities and the Discord acceptance gates remain open)
+Last verified: 2026-09-12 21:09 UTC (restart, crash and reboot recovery under the separate service identities, after the private Discord Connector code and one Run through those identities; no bot token, live channel or Connector deployment exists, and boot activation, log-redaction review and the Discord acceptance gates remain open)
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -15,9 +15,24 @@ checks recorded unchanged earlier Run, delivery and credential history, no clean
 obligations, an empty runtime inventory and the same credential object. Earlier
 undelivered results stayed unclaimable by the new Connector, which can only claim
 its own Runs' deliveries. This is one local witness of the documented
-separate-identity path on one host. Boot activation, restart and recovery under
-these identities, log-redaction review, the full adversarial matrix, real refresh
-and Discord acceptance remain open, and nothing is enabled at boot.
+separate-identity path on one host. At that point boot activation, restart and
+recovery under these identities, log-redaction review, the full adversarial
+matrix, real refresh and Discord acceptance were all open; the recovery evidence
+below followed on 2026-09-12, and nothing is enabled at boot.
+
+On **2026-09-12**, a host reboot exercised recovery under those identities. The
+tmpfiles entry recreated the setgid IPC directories and lingering restored the
+sandbox user manager, while the rootless runtime stayed stopped because it is
+deliberately not enabled; its pinned image survived. Both services then started
+and stopped cleanly, an idle `SIGKILL` of the sandbox owner was recorded as a
+signal failure whose next start retired no credential generation, and with the
+runtime stopped the owner refused to serve: it exited non-zero at rootless
+attestation and left no socket behind. Each check ran with no Run admitted, so
+the enrolled generation, Run history and delivery history were unchanged
+throughout. An earlier attempt at the last case restored the runtime about a
+second after stopping it, so the owner raced past the gap; that attempt is
+retained as an invalid test rather than a pass. Boot activation remains a
+deliberate non-goal for now, and log-redaction review stays open.
 
 The [private Discord Connector](discord-connector.md) is now implemented as
 code: one platform account, one allowlisted channel, no listening port, a
@@ -683,9 +698,16 @@ later work; the production target is blocked.
 The first two items were exercised once on one host on 2026-09-11 at 22:46 UTC:
 three provisioned identities, pre-provisioned `02710` socket parents, connect-time
 peer UID checks, private `0700` storage and one complete Run through the installed
-unit templates, with both services stopping cleanly. Restart and recovery under
-these identities, log-redaction review and the third item's adversarial
-demonstration remain open; the offline
+unit templates, with both services stopping cleanly. A host reboot on
+**2026-09-12** then exercised restart and recovery under those identities: the
+tmpfiles entry recreated the setgid IPC directories, lingering restored the
+sandbox user manager, the rootless runtime stayed stopped because it is not
+enabled, and its pinned image survived. Both services restarted and stopped
+cleanly; an idle `SIGKILL` of the sandbox owner was recorded as a signal failure
+and the next start retired no credential generation; and with the runtime
+stopped the owner refused to serve, exiting non-zero at rootless attestation
+without leaving a socket behind. Log-redaction review and the third item's
+adversarial demonstration remain open; the offline
 [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
 covers only its own synthetic container.
 

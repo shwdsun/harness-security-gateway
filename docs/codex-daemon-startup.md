@@ -240,9 +240,14 @@ no cleanup obligations, one container created and destroyed, an empty inventory,
 the same credential object and both services stopped with success.
 
 Neither service is enabled at boot, and the rootless runtime is started manually.
-Boot activation, restart and recovery under these identities, log-redaction
-review, the full native adversarial matrix, real refresh and public Discord remain
-open. This consumes one separately authorized Run.
+A reboot on 2026-09-12 confirmed that arrangement: the setgid IPC directories and
+the sandbox user manager returned, the runtime stayed stopped, its pinned image
+survived, and both services restarted and stopped cleanly. An idle `SIGKILL` of
+the owner retired no credential generation, and with the runtime stopped the
+owner refused to serve, exiting non-zero at rootless attestation without leaving
+a socket. Boot activation, log-redaction review, the full native adversarial
+matrix, real refresh and public Discord remain open. This consumes one separately
+authorized Run.
 
 The next deployment work is prepared in the
 [offline bundle and service-identity templates](../deploy/codex/README.md).
