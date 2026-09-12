@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-12 21:36 UTC (log-redaction audit over the deployed services, after restart, crash and reboot recovery under the separate service identities; no bot token, live channel or Connector deployment exists, and boot activation and the Discord acceptance gates remain open)
+Last verified: 2026-09-12 21:52 UTC (review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; no bot token, live channel or installed Connector exists, and boot activation and the Discord acceptance gates remain open)
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -766,9 +766,13 @@ malformed and oversize content, hostile text that cannot select authority or
 rewrite its own identity, exact replay, tampered replay under a retained event
 ID, and the one-live-Run fence. Its deny audit asserts that every refusal used a
 closed reason code, that no unauthorized Run was created and that denied message
-text was not retained. The isolated cases against a live private channel remain
-open, as do a provisioned Connector identity and calibration of the Core quotas
-against real traffic.
+text was not retained. Review-only templates now describe a separate Connector
+identity with its own IPC group, its own agentd socket directory, `0700` private
+storage, a bot token file outside that mutable state and no install target, and
+tests pin those properties; nothing is provisioned or installed from them. The
+isolated cases against a live private channel remain open, as do the provisioned
+identity itself, a new TargetRevision and enrolled credential generation for the
+Discord scope, and calibration of the Core quotas against real traffic.
 
 ## Deliberately deferred
 
