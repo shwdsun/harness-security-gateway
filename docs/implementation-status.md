@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-12 21:09 UTC (restart, crash and reboot recovery under the separate service identities, after the private Discord Connector code and one Run through those identities; no bot token, live channel or Connector deployment exists, and boot activation, log-redaction review and the Discord acceptance gates remain open)
+Last verified: 2026-09-12 21:36 UTC (log-redaction audit over the deployed services, after restart, crash and reboot recovery under the separate service identities; no bot token, live channel or Connector deployment exists, and boot activation and the Discord acceptance gates remain open)
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -32,7 +32,19 @@ the enrolled generation, Run history and delivery history were unchanged
 throughout. An earlier attempt at the last case restored the runtime about a
 second after stopping it, so the owner raced past the gap; that attempt is
 retained as an invalid test rather than a pass. Boot activation remains a
-deliberate non-goal for now, and log-redaction review stays open.
+deliberate non-goal for now.
+
+A recurring [log audit](../internal/logaudit/doc.go) then pinned what those
+services may write. The deployed commands' entire diagnostic surface is six
+reviewed strings; denied message text reaches neither an error, nor the line a
+Connector would log, nor Core's retained input; and the Connector's bot token
+and the platform's own error prose stay inside it, including when a token file
+is rejected. Mutation checks confirm the audit fails when a new log line
+appears or when both redaction layers are broken, and that
+`connectorhttp.ServiceError` never serializing its cause is the load-bearing
+boundary. Operator-facing fatal errors still name configuration paths and
+internal failure points by design, and journald retention and permissions
+remain host policy.
 
 The [private Discord Connector](discord-connector.md) is now implemented as
 code: one platform account, one allowlisted channel, no listening port, a
@@ -706,8 +718,8 @@ enabled, and its pinned image survived. Both services restarted and stopped
 cleanly; an idle `SIGKILL` of the sandbox owner was recorded as a signal failure
 and the next start retired no credential generation; and with the runtime
 stopped the owner refused to serve, exiting non-zero at rootless attestation
-without leaving a socket behind. Log-redaction review and the third item's
-adversarial demonstration remain open; the offline
+without leaving a socket behind. The third item's adversarial demonstration
+remains open; the log-redaction audit is recorded above. The offline
 [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
 covers only its own synthetic container.
 
