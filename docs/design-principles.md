@@ -8,6 +8,11 @@ current pre-alpha proves only the implemented control-plane properties and mock
 path described in [implementation-status.md](implementation-status.md); it is
 not yet a production containment boundary or an agent platform.
 
+The axioms this design rests on, and the consequences those axioms force, are
+separated out in [first-principles.md](first-principles.md). This document
+states the laws; that one states why they are not optional and where the
+derivation stops.
+
 Its central rule is:
 
 > Messages may invoke an operator-preauthorized execution envelope; they may

@@ -234,6 +234,7 @@ matrix are deliberately deferred.
 - [2026-09-10 checkpoint and reflection](docs/checkpoint-2026-09-10.md)
 - [Content evolution and verification scope](docs/content-evolution-and-verification.md)
 - [Controlled provider canary and evidence limits](docs/codex-provider-canary.md)
+- [First principles: axioms and what they force](docs/first-principles.md)
 - [Design principles](docs/design-principles.md)
 - [Architecture](docs/architecture.md)
 - [Access-control model](docs/access-control.md)
