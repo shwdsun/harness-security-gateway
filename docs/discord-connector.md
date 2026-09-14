@@ -146,6 +146,12 @@ application without the message-content intent returns empty text for every
 message, so the Connector skips everything and otherwise looks perfectly
 healthy. `skipped=empty_content=N` with `admitted=0` is that condition.
 
+`discord-connector -check` loads the configuration and the token file and then
+stops. It opens no state database, contacts no local peer and makes no platform
+request, so an installation can be rejected for a malformed configuration, an
+out-of-range bound or a token file another identity could read before anything
+runs as the Connector.
+
 ## Token handling
 
 The bot token is read once from an operator-provisioned file that must be a

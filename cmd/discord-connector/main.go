@@ -32,6 +32,7 @@ func run(ctx context.Context, arguments []string, logOutput io.Writer) error {
 	flags := flag.NewFlagSet("discord-connector", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", "", "path to connector JSON configuration")
+	check := flags.Bool("check", false, "check configuration and the bot token file only")
 	if err := flags.Parse(arguments); err != nil {
 		return err
 	}
@@ -47,6 +48,13 @@ func run(ctx context.Context, arguments []string, logOutput io.Writer) error {
 	}
 	token, err := discordconnector.ReadToken(config.TokenFile)
 	if err != nil {
+		return err
+	}
+	// Installation needs to fail on a malformed configuration or an unsafe
+	// token file before anything runs, so this path opens no state database,
+	// makes no platform request and contacts no local peer.
+	if *check {
+		_, err := fmt.Fprintln(logOutput, "configuration and bot token checked; no platform request, state or delivery performed")
 		return err
 	}
 	timeout := time.Duration(config.RequestTimeoutMS) * time.Millisecond
