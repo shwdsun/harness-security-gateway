@@ -69,6 +69,12 @@ func run(ctx context.Context, arguments []string, logOutput io.Writer) error {
 	}
 	logger := log.New(logOutput, "discord-connector: ", log.LstdFlags|log.LUTC)
 	// Failures are logged as bounded classifications; platform diagnostics and
-	// message content never enter this log.
-	return service.Run(ctx, func(err error) { logger.Printf("cycle error: %v", err) })
+	// message content never enter this log. The counters are reported on change
+	// so that a Connector admitting nothing is visible without them.
+	return service.Run(ctx,
+		func(err error) { logger.Printf("cycle error: %v", err) },
+		func(cycle discordconnector.Cycle) {
+			logger.Printf("cycle counters: admitted=%d delivered=%d skipped=%s",
+				cycle.Admitted, cycle.Delivered, cycle.SkipSummary())
+		})
 }

@@ -39,6 +39,7 @@ var reviewed = map[string]map[string]bool{
 	},
 	"cmd/discord-connector/main.go": {
 		"discord-connector: %v\n": true, "discord-connector: ": true, "cycle error: %v": true,
+		"cycle counters: admitted=%d delivered=%d skipped=%s": true,
 	},
 }
 

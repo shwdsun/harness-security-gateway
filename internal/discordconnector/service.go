@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/shwdsun/harness-security-gateway/internal/connectorwire"
@@ -28,6 +31,99 @@ type Platform interface {
 // with its parent Run's receipt long before this.
 const sentRetention = 7 * 24 * time.Hour
 
+const (
+	// maxCooldown bounds how long one platform response may pause the cycle.
+	// Retry-After is untrusted platform data: it may delay our own requests,
+	// but it must never be able to park an unattended Connector indefinitely.
+	maxCooldown = 15 * time.Minute
+	// maxBackoffSteps bounds the geometric growth of the failure backoff.
+	maxBackoffSteps = 6
+	// cycleReportInterval bounds how often the local counters are reported, so
+	// the report cannot grow with traffic.
+	cycleReportInterval = 5 * time.Minute
+)
+
+// Cycle is one bounded report of a completed ingress and delivery pass. It
+// carries counters and closed skip labels only: never message content, author,
+// identifier or platform text.
+type Cycle struct {
+	Admitted  int
+	Delivered int
+	Skips     map[SkipReason]int
+}
+
+// SkipSummary renders the counters in a fixed order for one log line.
+func (c Cycle) SkipSummary() string {
+	labels := make([]string, 0, len(c.Skips))
+	for reason := range c.Skips {
+		labels = append(labels, string(reason))
+	}
+	sort.Strings(labels)
+	parts := make([]string, 0, len(labels))
+	for _, label := range labels {
+		parts = append(parts, label+"="+strconv.Itoa(c.Skips[SkipReason(label)]))
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ",")
+}
+
+// cooldownAfter returns how long the cycle pauses after the given number of
+// consecutive failed passes. An unattended Connector must not hammer an
+// unavailable or rate-limiting platform, so repeated failures back off
+// geometrically from the configured interval, and a rate-limit response may
+// extend but never shorten that wait.
+func cooldownAfter(interval time.Duration, failures int, err error) time.Duration {
+	if failures <= 0 {
+		return 0
+	}
+	steps := failures - 1
+	if steps > maxBackoffSteps {
+		steps = maxBackoffSteps
+	}
+	wait := interval << steps
+	if wait > maxCooldown {
+		wait = maxCooldown
+	}
+	var api *APIError
+	if errors.As(err, &api) && api.RetryAfterMS > 0 {
+		requested := time.Duration(api.RetryAfterMS) * time.Millisecond
+		if requested > maxCooldown {
+			requested = maxCooldown
+		}
+		if requested > wait {
+			wait = requested
+		}
+	}
+	return wait
+}
+
+// sameCounts reports whether two bounded counter sets are equal.
+func sameCounts(previous, current map[SkipReason]int) bool {
+	if len(previous) != len(current) {
+		return false
+	}
+	for reason, count := range current {
+		if previous[reason] != count {
+			return false
+		}
+	}
+	return true
+}
+
+// waitTimer is the production pause between cycles.
+func waitTimer(ctx context.Context, pause time.Duration) bool {
+	timer := time.NewTimer(pause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
 // Service owns one channel's ingress cursor and its outbound lease handling.
 type Service struct {
 	config   Config
@@ -36,6 +132,7 @@ type Service struct {
 	store    *Store
 	now      func() time.Time
 	skips    map[SkipReason]int
+	wait     func(context.Context, time.Duration) bool
 }
 
 func NewService(config Config, core CoreClient, platform Platform, store *Store) (*Service, error) {
@@ -46,7 +143,7 @@ func NewService(config Config, core CoreClient, platform Platform, store *Store)
 		return nil, errors.New("discordconnector: service requires core, platform and state")
 	}
 	return &Service{config: config, core: core, platform: platform, store: store,
-		now: time.Now, skips: make(map[SkipReason]int)}, nil
+		now: time.Now, skips: make(map[SkipReason]int), wait: waitTimer}, nil
 }
 
 // Skips exposes bounded local counters for operational logging. They carry no
@@ -187,32 +284,63 @@ func (s *Service) complete(ctx context.Context, completion connectorwire.Deliver
 }
 
 // Run alternates bounded ingress and delivery passes until the context ends.
-// Platform and Core failures pause this cycle; they never drop the cursor.
-func (s *Service) Run(ctx context.Context, onError func(error)) error {
+// Platform and Core failures pause this cycle; they never drop the cursor. The
+// next pass is scheduled after the current one finishes rather than on a fixed
+// tick, so a slow or failing platform cannot make passes overlap.
+func (s *Service) Run(ctx context.Context, onError func(error), onCycle func(Cycle)) error {
 	if ctx == nil {
 		return errors.New("discordconnector: nil context")
 	}
 	interval := time.Duration(s.config.PollIntervalMS) * time.Millisecond
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	pruned := time.Time{}
+	pruned, reported := time.Time{}, time.Time{}
+	var lastReport map[SkipReason]int
+	failures := 0
 	for {
-		if _, err := s.PollOnce(ctx); err != nil && onError != nil && ctx.Err() == nil {
-			onError(err)
+		var failure error
+		fail := func(err error) {
+			failure = err
+			if onError != nil && ctx.Err() == nil {
+				onError(err)
+			}
 		}
-		if _, err := s.DeliverOnce(ctx); err != nil && onError != nil && ctx.Err() == nil {
-			onError(err)
+		cycle := Cycle{}
+		if admitted, err := s.PollOnce(ctx); err != nil {
+			fail(err)
+		} else {
+			cycle.Admitted = admitted
 		}
-		if now := s.now().UTC(); now.Sub(pruned) > time.Hour {
+		if delivered, err := s.DeliverOnce(ctx); err != nil {
+			fail(err)
+		} else {
+			cycle.Delivered = delivered
+		}
+		if failure != nil {
+			failures++
+		} else {
+			failures = 0
+		}
+		now := s.now().UTC()
+		if now.Sub(pruned) > time.Hour {
 			if err := s.store.PruneSent(ctx, now.Add(-sentRetention).UnixMilli()); err != nil && onError != nil && ctx.Err() == nil {
 				onError(err)
 			}
 			pruned = now
 		}
-		select {
-		case <-ctx.Done():
+		// A Connector that looks healthy while admitting nothing is the shape
+		// of a misconfigured platform application, so the closed counters must
+		// reach the operator. Reporting only on change keeps that bounded.
+		if onCycle != nil && ctx.Err() == nil && now.Sub(reported) >= cycleReportInterval {
+			if cycle.Skips = s.Skips(); !sameCounts(lastReport, cycle.Skips) {
+				lastReport, reported = cycle.Skips, now
+				onCycle(cycle)
+			}
+		}
+		pause := interval
+		if cooldown := cooldownAfter(interval, failures, failure); cooldown > pause {
+			pause = cooldown
+		}
+		if !s.wait(ctx, pause) {
 			return nil
-		case <-ticker.C:
 		}
 	}
 }

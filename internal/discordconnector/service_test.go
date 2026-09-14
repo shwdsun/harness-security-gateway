@@ -52,10 +52,14 @@ type fakePlatform struct {
 	latest   string
 	sent     []sentMessage
 	sendErr  error
+	fetchErr error
 	nextID   int
 }
 
 func (f *fakePlatform) FetchMessages(_ context.Context, channelID, afterID string, limit int) ([]Message, error) {
+	if f.fetchErr != nil {
+		return nil, f.fetchErr
+	}
 	after := uint64(0)
 	if afterID != "" {
 		after, _ = strconv.ParseUint(afterID, 10, 64)
@@ -295,7 +299,7 @@ func TestRunStopsWithItsContext(t *testing.T) {
 	platform.latest = "175928847299117063"
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := service.Run(ctx, nil); err != nil {
+	if err := service.Run(ctx, nil, nil); err != nil {
 		t.Fatalf("run did not stop cleanly: %v", err)
 	}
 }

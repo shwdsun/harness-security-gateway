@@ -118,7 +118,33 @@ crosses the boundary:
 | anything else | `permanent_failure` | `connector_internal` |
 
 `agentd` owns backoff; the Connector never supplies a retry time, and it honours
-Discord's own `Retry-After` only for its own pacing.
+Discord's own `Retry-After` only for its own pacing, described next.
+
+## Pacing and unattended operation
+
+The Connector runs with no operator present, so it must not hammer a platform
+that is refusing it. Each cycle is scheduled after the previous one finishes
+rather than on a fixed tick, and a failed pass pauses the next one:
+
+- consecutive failures back off geometrically from the configured poll
+  interval, over a bounded number of steps;
+- a `429` extends that pause to the `Retry-After` the platform asked for;
+- `Retry-After` is untrusted platform data, so it can lengthen the pause but
+  never shorten it, and it is clamped — a hostile or faulty header cannot park
+  the Connector indefinitely;
+- a healthy pass resets the backoff.
+
+This applies to ingress as well as delivery. Rate limiting the outbound path
+alone would be insufficient, because polling is the request the Connector makes
+most often.
+
+The Connector also reports bounded counters whenever they change, no more often
+than once every five minutes. The counters are the closed skip labels and the
+admitted and delivered counts; they carry no message content, author,
+identifier or platform text. Their operational purpose is specific: a platform
+application without the message-content intent returns empty text for every
+message, so the Connector skips everything and otherwise looks perfectly
+healthy. `skipped=empty_content=N` with `admitted=0` is that condition.
 
 ## Token handling
 

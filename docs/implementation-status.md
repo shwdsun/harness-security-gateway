@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-12 21:52 UTC (review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; no bot token, live channel or installed Connector exists, and boot activation and the Discord acceptance gates remain open)
+Last verified: 2026-09-14 20:12 UTC (unattended pacing and bounded counters on the Connector's ingress path, after review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; no bot token, live channel or installed Connector exists, and boot activation and the Discord acceptance gates remain open)
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -55,7 +55,12 @@ WebSocket dependency enters the module. Offline tests cover configuration
 rejection, snowflake identity normalization, the skip matrix, cursor
 monotonicity, advance only behind Core's acknowledgement, duplicate-send
 suppression, mention suppression, token file handling and platform error
-mapping, using a fake platform and Core. The complete default suite, the race
+mapping, using a fake platform and Core. Its cycle also paces itself for
+unattended operation: failures back off geometrically, a `429` extends the
+pause to the platform's own `Retry-After` under a clamp that keeps an untrusted
+header from parking the Connector, and bounded closed-label counters are
+reported on change so that a Connector admitting nothing — the shape of a
+platform application without the message-content intent — is visible. The complete default suite, the race
 suite, vet and the security demo passed on **2026-09-11 at 23:20–23:26 UTC**.
 No bot token, live channel, Connector deployment identity or real platform
 request is part of that evidence, and the adversarial private-Discord cases,
