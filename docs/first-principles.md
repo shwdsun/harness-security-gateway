@@ -166,6 +166,8 @@ mechanism that does not:
 - **missing** — a consequence with no mechanism. This is drift in the other
   direction and is easy to miss, because nothing fails.
 
+The current output of this test is [drift-ledger.md](drift-ledger.md).
+
 A currently known example of the last category is F5. Enrollment, generation
 identity, retirement, restart and recovery have mechanisms and recorded
 evidence; credential rotation under real provider conditions does not, and F5

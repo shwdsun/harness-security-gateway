@@ -235,6 +235,7 @@ matrix are deliberately deferred.
 - [Content evolution and verification scope](docs/content-evolution-and-verification.md)
 - [Controlled provider canary and evidence limits](docs/codex-provider-canary.md)
 - [First principles: axioms and what they force](docs/first-principles.md)
+- [Drift ledger: what traces and what does not](docs/drift-ledger.md)
 - [Design principles](docs/design-principles.md)
 - [Architecture](docs/architecture.md)
 - [Access-control model](docs/access-control.md)
