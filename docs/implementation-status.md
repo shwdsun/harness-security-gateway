@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-15 04:04 UTC (one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host, once; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
+Last verified: 2026-09-15 19:25 UTC (live-channel cases: two refusal classes witnessed with real platform payloads and the one-live-Run fence witnessed under real timing, after one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
 
 At **03:57–04:04 UTC on 2026-09-15**, one real message posted by the operator's
 own Discord account in one private allowlisted channel produced one Run on the
@@ -18,6 +18,25 @@ host, once.** It does not establish repeatability, resistance on a live channel,
 quota behaviour under real traffic, credential rotation, concurrent or
 multi-message behaviour, or production readiness, and nothing is enabled at
 boot.
+
+At **19:25 UTC on 2026-09-15**, live cases followed. Two messages were posted
+seconds apart; Core refused the second with `run_in_progress` while the first
+Run was live, three times at the Connector's configured backoff, and admitted it
+once the first Run finished. The cursor never advanced past the refused message,
+so it was re-presented rather than lost. The two containers were strictly
+sequential — no second create before the first destroy — and both deliveries
+succeeded on their first attempt, with both replies posted to the channel
+40 seconds after the first message. Separately, a sticker and a pin system
+message were each refused under their own closed label with the platform's real
+payloads, admitting nothing and creating no container.
+
+The conversation is a direct message between the operator's account and the bot.
+Discord provides webhooks only on guild channels and a direct message is closed
+to two accounts, so a foreign automated author and an unlisted author of any
+kind are **structurally unreachable in this deployment** and keep offline
+evidence only; oversize content is likewise unreachable because the platform's
+own 2000-character limit binds before the protocol's 32 KiB. Multi-member
+channel author filtering therefore has no live witness.
 
 Reaching that target from Discord required its own authorization: a Discord
 binding is a different six-field session scope, so the target's revision
@@ -366,7 +385,7 @@ only represented in code, and what remains work in progress.
 | Codex Profile v3 tool package | Template/startup guard and opt-in fixed daemon configuration implemented | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
 | Real Codex target | No approved production target; canary, ordinary-service, separate-identity and one live-message witness passed | The fifth canary passed on 2026-09-10, one ordinary-service Run with fake ingress on 2026-09-11 at 00:47 UTC, one Run through three separate service identities at 22:46 UTC the same day, and one Run from a real Discord message on 2026-09-15 at 03:57–04:04 UTC; native reply/tool marker/delivery and independent cleanup verified each time. Four earlier failures retained; repeatability, production image/auth/network/context gates remain open |
-| Discord Connector | Deployed under its own identity; one real message delivered end to end | REST-polling ingress with a durable per-channel cursor, stable-ID allowlist, self/bot/webhook filtering, bounded catch-up, mention-suppressed replies, duplicate-send suppression, closed failure classes and rate-limit-aware pacing, with no listening port. One live Run on one host on 2026-09-15; live-channel adversarial cases, real-traffic quota calibration and rotation remain open |
+| Discord Connector | Deployed under its own identity; one real message delivered end to end | REST-polling ingress with a durable per-channel cursor, stable-ID allowlist, self/bot/webhook filtering, bounded catch-up, mention-suppressed replies, duplicate-send suppression, closed failure classes and rate-limit-aware pacing, with no listening port. Four live Runs on one host on 2026-09-15, including the one-live-Run fence and two refusal classes under real platform payloads; multi-member channel filtering has no live witness, and real-traffic quota calibration and credential rotation remain open |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
 ## Implemented control plane

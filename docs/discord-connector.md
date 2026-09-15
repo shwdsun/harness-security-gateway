@@ -185,9 +185,12 @@ author IDs into the binding and this configuration.
 ## What this does not establish
 
 - No live channel, token or deployment identity is exercised by the offline
-  tests. One real Run has since passed on one host — see
-  [implementation status](implementation-status.md) — which is a single witness,
-  not repeatability.
+  tests. Four real Runs and the one-live-Run fence have since passed on one
+  host — see [implementation status](implementation-status.md).
+- The deployed conversation is a direct message, which Discord closes to two
+  accounts and gives no webhooks. Every foreign-author case is therefore
+  structurally absent there and keeps offline evidence only; multi-member
+  channel filtering has no live witness.
 - Deterministic adversarial cases and a deny audit run offline against the real
   compiled policy, admission service and Core store, with only the platform
   faked. The isolated cases against a live private channel, quota calibration
