@@ -1,6 +1,9 @@
 # Product position and scope
 
-Status as of **2026-09-10**: research prototype / pre-alpha.
+Status as of **2026-09-15**: research prototype / pre-alpha. The intended path
+has run end to end once, on one host: a real Discord message reached the fixed
+Codex target and its reply returned to the same conversation. One witness is not
+a product.
 
 The goal is a usable personal gateway for requesting coding work from private
 messaging, executing it within a pre-approved environment and receiving the
@@ -44,12 +47,15 @@ security witness are implemented. V1/V2 Codex contracts are retained, while
 opt-in V3 fixtures and the runtime-owned provider canary exercise native tool,
 credential handoff and cleanup boundaries. Two real-provider Runs on 2026-09-10
 failed without the completion marker; cleanup was independently observed.
-Authenticated-provider acceptance remains open. Normal daemon configuration
-remains mock-only, and no approved production Codex image/target or public
-Discord Connector is shipped. See the [checkpoint](checkpoint-2026-09-10.md)
-for the completed scope, failed experiments and next work package.
+On **2026-09-15** the private Discord Connector ran under its own locked system
+identity and one real message completed the whole path; see
+[implementation status](implementation-status.md) for what that single Run does
+and does not establish. Normal daemon configuration outside that opt-in path
+remains mock-only, no approved production Codex image/target is shipped, and no
+Connector is enabled at boot. See the [checkpoint](checkpoint-2026-09-10.md)
+for the earlier completed scope, failed experiments and work packages.
 
-The intended first product path remains:
+The first product path, now exercised once end to end:
 
 ```text
 private Discord -> Discord Connector -> gateway control plane
@@ -75,9 +81,11 @@ The repository demonstrates strict local protocols, exact admission, durable
 message and Run state, a digest-pinned mock Runner, rootless-runtime
 attestation, fail-closed crash reconciliation, and a credential-free security
 witness. The opt-in Codex experiments add scoped native/transport and cleanup
-evidence, with failed real-provider attempts explicitly retained. They do not
-establish a secure Discord-to-Codex deployment, production service-identity
-isolation or authenticated model completion. V3 remains
+evidence, with failed real-provider attempts explicitly retained. One live
+Discord-to-Codex Run under three separate system identities has now passed with
+recorded end state; that is a single witness on a single host and does not
+establish repeatability, live-channel adversarial resistance, real-traffic quota
+behaviour, credential rotation or production readiness. V3 remains
 `credential-exposed-personal`; its operation endpoint does not hide the
 dedicated credential from native tools. The formal recovery pilot proves only
 its stated abstract invariant and does not replace native or provider evidence.

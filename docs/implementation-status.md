@@ -1,6 +1,34 @@
 # Implementation status
 
-Last verified: 2026-09-14 20:12 UTC (unattended pacing and bounded counters on the Connector's ingress path, after review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; no bot token, live channel or installed Connector exists, and boot activation and the Discord acceptance gates remain open)
+Last verified: 2026-09-15 04:04 UTC (one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host, once; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
+
+At **03:57–04:04 UTC on 2026-09-15**, one real message posted by the operator's
+own Discord account in one private allowlisted channel produced one Run on the
+fixed native Codex target and returned its reply to that same channel. The
+Connector, Core and the sandbox owner ran as three separate locked system
+identities from the reviewed unit templates. Core admitted exactly one Run
+against the Discord binding's own immutable TargetRevision; the target wrote the
+exact requested workspace marker and returned the exact expected reply; the
+Connector posted one platform message, recorded its message ID and advanced its
+cursor for the allowlisted channel only; the container was created and
+destroyed; the credential generation was neither retired nor replaced and its
+occupancy was released; earlier Run, delivery and credential history was
+unchanged; and all three services stopped cleanly. This is **one message, on one
+host, once.** It does not establish repeatability, resistance on a live channel,
+quota behaviour under real traffic, credential rotation, concurrent or
+multi-message behaviour, or production readiness, and nothing is enabled at
+boot.
+
+Reaching that target from Discord required its own authorization: a Discord
+binding is a different six-field session scope, so the target's revision
+advanced and a higher credential generation was enrolled under the new scope
+from the same physical source, with the previous generation retired first. An
+earlier attempt at that change failed because two configuration entries shared
+one target ID: a target ID identifies one target and its revision is that
+target's current immutable content, so revisions do not coexist. The local test
+Connector's binding still expects the previous revision and therefore now fails
+closed at revision resolution; it is a development fixture, not a standing
+channel.
 
 At **22:46–22:47 UTC on 2026-09-11**, one fake ingress event completed through three
 separate locked system identities — a local test Connector, Core and the sandbox
@@ -337,8 +365,8 @@ only represented in code, and what remains work in progress.
 | Codex Profile v2 contract | Sealed but blocked; not accepted by the runtime | Fixed content-hashed private-messaging behavior at the developer layer; distinct adapter identity; no additional authority |
 | Codex Profile v3 tool package | Template/startup guard and opt-in fixed daemon configuration implemented | Exact six-file package, host/one-agent capacity evidence, offline-guest file-write/command-exec, native IP network pair and running-tool cancellation passes; earlier failures retained, production image/ownership gates open; see [V3 scope](codex-profile-v3.md) |
 | Offline Codex candidate check | Implemented, always execution-blocked | Total profile/target matching, closed local binding, non-authorizing digest, explicit model/tool compatibility blocker, opt-in metadata inspection and subprocess tests; no secret reads, leases or resolved runtime policy |
-| Real Codex target | No approved production target; controlled canary, ordinary-service and separate-identity witnesses passed | The fifth canary passed on 2026-09-10, one ordinary-service Run with fake ingress on 2026-09-11 at 00:47 UTC, and one Run through three separate service identities from the installed unit templates at 22:46 UTC the same day; native reply/tool marker/local delivery and independent cleanup verified each time. Four earlier failures retained; production image/auth/network/context and public messaging gates remain open |
-| Discord Connector | Implemented as offline-tested code; never run against Discord | REST-polling ingress with a durable per-channel cursor, stable-ID allowlist, self/bot/webhook filtering, bounded catch-up, mention-suppressed replies, duplicate-send suppression and closed failure classes, with no listening port. No bot token, live channel, deployment identity or platform request is included; adversarial cases and the deny audit remain open |
+| Real Codex target | No approved production target; canary, ordinary-service, separate-identity and one live-message witness passed | The fifth canary passed on 2026-09-10, one ordinary-service Run with fake ingress on 2026-09-11 at 00:47 UTC, one Run through three separate service identities at 22:46 UTC the same day, and one Run from a real Discord message on 2026-09-15 at 03:57–04:04 UTC; native reply/tool marker/delivery and independent cleanup verified each time. Four earlier failures retained; repeatability, production image/auth/network/context gates remain open |
+| Discord Connector | Deployed under its own identity; one real message delivered end to end | REST-polling ingress with a durable per-channel cursor, stable-ID allowlist, self/bot/webhook filtering, bounded catch-up, mention-suppressed replies, duplicate-send suppression, closed failure classes and rate-limit-aware pacing, with no listening port. One live Run on one host on 2026-09-15; live-channel adversarial cases, real-traffic quota calibration and rotation remain open |
 | Production security | Not claimed | Deployment identities, credentials, egress, cancellation, and live-path evidence remain open |
 
 ## Implemented control plane

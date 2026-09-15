@@ -185,7 +185,9 @@ author IDs into the binding and this configuration.
 ## What this does not establish
 
 - No live channel, token or deployment identity is exercised by the offline
-  tests.
+  tests. One real Run has since passed on one host — see
+  [implementation status](implementation-status.md) — which is a single witness,
+  not repeatability.
 - Deterministic adversarial cases and a deny audit run offline against the real
   compiled policy, admission service and Core store, with only the platform
   faked. The isolated cases against a live private channel, quota calibration
