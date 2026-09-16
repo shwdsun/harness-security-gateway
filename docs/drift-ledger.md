@@ -113,7 +113,7 @@ explicit operator enrollment on a new TargetRevision. A revision is permanently
 bound to one generation, so rotating the object requires advancing the revision
 too.
 
-### `missing` — F5 unattended recovery from a permanently refused event
+### resolved — F5 unattended recovery from a permanently refused event
 
 The Connector holds its ingress cursor still when Core refuses an event, so the
 message is presented again. That is correct for a transient refusal — the live
@@ -126,10 +126,13 @@ Connector permanently unable to admit anything until an operator steps over the
 message by hand. F5 makes that a boundary gap: holding authority unattended is
 part of the boundary, and this path cannot recover on its own.
 
-*Resolution:* `PollOnce` must distinguish Core's transient refusals from its
-permanent ones and treat a permanent refusal like a normalization skip — a
-closed counter label and an advanced cursor. `connectorhttp` already carries the
-closed error codes the classification needs.
+Closed in code on 2026-09-16. `PollOnce` now distinguishes the two refusals that
+are about the event itself, `event_expired` and `event_conflict`, from every
+other code. Those two advance the cursor under their own closed skip label; a
+configuration refusal still holds it, because skipping past one would discard
+every message rather than one. The transient case keeps its previous behaviour
+and has its own regression test, since that is what the live fence witness
+depends on. Awaiting installation on the host.
 
 ## What this pass did not do
 

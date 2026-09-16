@@ -139,7 +139,9 @@ alone would be insufficient, because polling is the request the Connector makes
 most often.
 
 The Connector also reports bounded counters whenever they change, no more often
-than once every five minutes. The counters are the closed skip labels and the
+than once every five minutes. Every reported field is a running total since
+start, so one line cannot be read as a per-pass figure in one place and a
+cumulative one in another. The counters are the closed skip labels and the
 admitted and delivered counts; they carry no message content, author,
 identifier or platform text. Their operational purpose is specific: a platform
 application without the message-content intent returns empty text for every
@@ -200,10 +202,9 @@ author IDs into the binding and this configuration.
   threads and multi-channel operation are deliberately unimplemented.
 - Message edits after admission are not tracked: an admitted event is frozen by
   its Run, and a later edit is not a new event.
-- **Known defect.** An ingest refusal leaves the cursor where it is so the
-  message is presented again. That is right for a transient refusal and wrong
-  for a permanent one: `event_expired` can never succeed, so one message older
-  than Core's accept window wedges the cursor and everything behind it. An
-  outage longer than that window leaves an unattended Connector unable to admit
-  anything until an operator moves the cursor by hand. `PollOnce` must classify
-  Core's permanent refusals and treat them like a normalization skip.
+- An ingest refusal normally leaves the cursor where it is, so the message is
+  presented again. That is what keeps a fenced message from being lost. Two of
+  Core's closed codes are refusals about the event itself and can never
+  succeed — `event_expired` and `event_conflict` — and those advance the cursor
+  under their own closed skip label instead. A configuration refusal never
+  advances it: skipping past one would discard every message rather than one.

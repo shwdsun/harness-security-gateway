@@ -40,6 +40,9 @@ const (
 	SkipEmptyContent    SkipReason = "empty_content"
 	SkipOversizeContent SkipReason = "oversize_content"
 	SkipMalformed       SkipReason = "malformed"
+	// Core refused this exact event in a way that can never succeed.
+	SkipExpiredEvent     SkipReason = "expired_event"
+	SkipConflictingEvent SkipReason = "conflicting_event"
 )
 
 // Discord message types this Connector admits: a plain message and a reply.

@@ -22,13 +22,15 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, os.Args[1:], os.Stderr); err != nil {
+	if err := run(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "discord-connector: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, arguments []string, logOutput io.Writer) error {
+// The check receipt is a command result and goes to stdout, like sandboxd's.
+// The cycle log is diagnostics and stays on stderr.
+func run(ctx context.Context, arguments []string, output, logOutput io.Writer) error {
 	flags := flag.NewFlagSet("discord-connector", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", "", "path to connector JSON configuration")
@@ -54,7 +56,7 @@ func run(ctx context.Context, arguments []string, logOutput io.Writer) error {
 	// token file before anything runs, so this path opens no state database,
 	// makes no platform request and contacts no local peer.
 	if *check {
-		_, err := fmt.Fprintln(logOutput, "configuration and bot token checked; no platform request, state or delivery performed")
+		_, err := fmt.Fprintln(output, "configuration and bot token checked; no platform request, state or delivery performed")
 		return err
 	}
 	timeout := time.Duration(config.RequestTimeoutMS) * time.Millisecond

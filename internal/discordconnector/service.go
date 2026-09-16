@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/connectorhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/connectorwire"
 )
 
@@ -43,13 +44,34 @@ const (
 	cycleReportInterval = 5 * time.Minute
 )
 
-// Cycle is one bounded report of a completed ingress and delivery pass. It
-// carries counters and closed skip labels only: never message content, author,
-// identifier or platform text.
+// Cycle is one bounded report of the Connector's running counters. Every field
+// is cumulative since start, so one line cannot be read as a per-pass figure in
+// one place and a total in another. It carries counters and closed skip labels
+// only: never message content, author, identifier or platform text.
 type Cycle struct {
 	Admitted  int
 	Delivered int
 	Skips     map[SkipReason]int
+}
+
+// refusedForGood maps Core's event-specific refusals onto closed skip labels.
+// Holding the cursor for a refusal that can never succeed wedges every later
+// message behind it; holding it for a transient one is exactly what keeps a
+// fenced message from being lost. Only refusals about this event qualify: a
+// configuration refusal would otherwise silently discard every message.
+func refusedForGood(err error) (SkipReason, bool) {
+	var remote *connectorhttp.RemoteError
+	if !errors.As(err, &remote) || remote == nil {
+		return SkipNone, false
+	}
+	switch connectorhttp.ErrorCode(remote.Code) {
+	case connectorhttp.ErrorEventExpired:
+		return SkipExpiredEvent, true
+	case connectorhttp.ErrorEventConflict:
+		return SkipConflictingEvent, true
+	default:
+		return SkipNone, false
+	}
 }
 
 // SkipSummary renders the counters in a fixed order for one log line.
@@ -126,13 +148,15 @@ func waitTimer(ctx context.Context, pause time.Duration) bool {
 
 // Service owns one channel's ingress cursor and its outbound lease handling.
 type Service struct {
-	config   Config
-	core     CoreClient
-	platform Platform
-	store    *Store
-	now      func() time.Time
-	skips    map[SkipReason]int
-	wait     func(context.Context, time.Duration) bool
+	config    Config
+	core      CoreClient
+	platform  Platform
+	store     *Store
+	now       func() time.Time
+	skips     map[SkipReason]int
+	admitted  int
+	delivered int
+	wait      func(context.Context, time.Duration) bool
 }
 
 func NewService(config Config, core CoreClient, platform Platform, store *Store) (*Service, error) {
@@ -175,12 +199,18 @@ func (s *Service) PollOnce(ctx context.Context) (int, error) {
 		event, skip := s.config.Normalize(message)
 		if skip != SkipNone {
 			s.skips[skip]++
-		} else {
-			if _, err := s.core.Ingest(ctx, event); err != nil {
+		} else if _, err := s.core.Ingest(ctx, event); err != nil {
+			reason, permanent := refusedForGood(err)
+			if !permanent {
 				// Stop before advancing: this message is presented again.
 				return admitted, fmt.Errorf("ingest event: %w", err)
 			}
+			// Refused for good, so count it like any other closed skip and move
+			// past it. Retrying forever would stall every later message.
+			s.skips[reason]++
+		} else {
 			admitted++
+			s.admitted++
 		}
 		if err := s.store.SetCursor(ctx, s.config.ChannelID, message.ID); err != nil {
 			return admitted, err
@@ -215,6 +245,7 @@ func (s *Service) DeliverOnce(ctx context.Context) (int, error) {
 			return completed, err
 		}
 		completed++
+		s.delivered++
 	}
 	return completed, nil
 }
@@ -294,6 +325,7 @@ func (s *Service) Run(ctx context.Context, onError func(error), onCycle func(Cyc
 	interval := time.Duration(s.config.PollIntervalMS) * time.Millisecond
 	pruned, reported := time.Time{}, time.Time{}
 	var lastReport map[SkipReason]int
+	lastTotals := [2]int{}
 	failures := 0
 	for {
 		var failure error
@@ -303,17 +335,13 @@ func (s *Service) Run(ctx context.Context, onError func(error), onCycle func(Cyc
 				onError(err)
 			}
 		}
-		cycle := Cycle{}
-		if admitted, err := s.PollOnce(ctx); err != nil {
+		if _, err := s.PollOnce(ctx); err != nil {
 			fail(err)
-		} else {
-			cycle.Admitted = admitted
 		}
-		if delivered, err := s.DeliverOnce(ctx); err != nil {
+		if _, err := s.DeliverOnce(ctx); err != nil {
 			fail(err)
-		} else {
-			cycle.Delivered = delivered
 		}
+		cycle := Cycle{Admitted: s.admitted, Delivered: s.delivered}
 		if failure != nil {
 			failures++
 		} else {
@@ -328,10 +356,12 @@ func (s *Service) Run(ctx context.Context, onError func(error), onCycle func(Cyc
 		}
 		// A Connector that looks healthy while admitting nothing is the shape
 		// of a misconfigured platform application, so the closed counters must
-		// reach the operator. Reporting only on change keeps that bounded.
+		// reach the operator. Reporting only on change keeps that bounded, and
+		// every reported field is a running total.
 		if onCycle != nil && ctx.Err() == nil && now.Sub(reported) >= cycleReportInterval {
-			if cycle.Skips = s.Skips(); !sameCounts(lastReport, cycle.Skips) {
-				lastReport, reported = cycle.Skips, now
+			cycle.Skips = s.Skips()
+			if !sameCounts(lastReport, cycle.Skips) || lastTotals != [2]int{cycle.Admitted, cycle.Delivered} {
+				lastReport, lastTotals, reported = cycle.Skips, [2]int{cycle.Admitted, cycle.Delivered}, now
 				onCycle(cycle)
 			}
 		}

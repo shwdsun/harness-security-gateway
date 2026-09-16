@@ -16,11 +16,15 @@ import (
 type fakeCore struct {
 	ingested    []connectorwire.InboundEventV1
 	ingestFails int
+	ingestErr   error
 	batches     [][]connectorwire.OutboundTextV1
 	completed   []connectorwire.DeliveryCompleteV1
 }
 
 func (f *fakeCore) Ingest(_ context.Context, event connectorwire.InboundEventV1) (connectorwire.InboundReceiptV1, error) {
+	if f.ingestErr != nil {
+		return connectorwire.InboundReceiptV1{}, f.ingestErr
+	}
 	if f.ingestFails > 0 && len(f.ingested) >= f.ingestFails {
 		return connectorwire.InboundReceiptV1{}, errors.New("agentd unavailable")
 	}

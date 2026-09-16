@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +61,7 @@ func checkFixture(t *testing.T) (string, string) {
 func TestCheckValidatesWithoutCreatingStateOrContactingAnything(t *testing.T) {
 	configPath, root := checkFixture(t)
 	var out strings.Builder
-	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out); err != nil {
+	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out, io.Discard); err != nil {
 		t.Fatalf("check rejected a valid installation: %v", err)
 	}
 	if !strings.Contains(out.String(), "no platform request, state or delivery performed") {
@@ -82,7 +83,7 @@ func TestCheckRejectsATokenFileAnotherIdentityCouldRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out strings.Builder
-	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out); err == nil {
+	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out, io.Discard); err == nil {
 		t.Fatal("check accepted a world-readable bot token")
 	}
 	if out.Len() != 0 {
@@ -105,7 +106,23 @@ func TestCheckRejectsAnUnusableConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out strings.Builder
-	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out); err == nil {
+	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out, io.Discard); err == nil {
 		t.Fatal("check accepted a non-snowflake channel")
+	}
+}
+
+// sandboxd writes its check receipt to stdout; the Connector wrote its own to
+// the cycle log's stream, so a script capturing stdout saw nothing.
+func TestTheCheckReceiptIsACommandResultNotALogLine(t *testing.T) {
+	configPath, _ := checkFixture(t)
+	var out, logged strings.Builder
+	if err := run(context.Background(), []string{"-config", configPath, "-check"}, &out, &logged); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "no platform request, state or delivery performed") {
+		t.Fatalf("the receipt is not on stdout: %q", out.String())
+	}
+	if logged.Len() != 0 {
+		t.Fatalf("the check wrote to the diagnostic stream: %q", logged.String())
 	}
 }
