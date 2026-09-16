@@ -124,6 +124,26 @@ reconciles to that same record instead of producing a second.
 *Falsifier:* any recovery path that produces a second external execution or a
 replacement authorization.
 
+**F10 — The harness's reach outward is bounded like its reach inward.** *(A1 + A2)*
+A2's capability is directed by A1 data, so every outbound channel the harness
+holds is an outbound channel an untrusted message controls. Reading the
+workspace is legitimate work; sending it wherever a message asks is not, and a
+reply, a log line and an evidence file are outbound channels too. Egress and
+disclosure are therefore pre-approved capabilities with named destinations and
+named contents, not defaults.
+*Falsifier:* any path where a message causes workspace content, a credential, a
+vendor session reference or host detail to leave for a destination or into a
+record the operator did not approve.
+
+**F11 — Every execution is bounded before it starts.** *(A2 + A3 + A4)*
+A2 consumes whatever it is given, and by A3 nobody is watching to stop it. A
+bound set after the fact, or enforced by the harness's own cooperation, is not a
+bound. Processor time, memory, process count, wall time, output bytes, event
+count and persistent growth are therefore fixed before admission and enforced
+below the harness.
+*Falsifier:* any resource a Run can consume without a pre-set bound enforced
+outside it.
+
 **F9 — Claims carry their scope.** *(A5)*
 A property is stated together with the conditions under which it was checked.
 One host, one Run or one profile is evidence about that host, Run or profile;

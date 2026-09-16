@@ -12,6 +12,35 @@ The canonical cases are in [`bakeoff/cases.json`](../bakeoff/cases.json). Copy
 [`bakeoff/result-template.md`](../bakeoff/result-template.md) for each candidate
 and deployment profile.
 
+## What each case is for
+
+A case earns its place by testing a consequence that
+[first-principles.md](first-principles.md) forces, not by naming a feature. The
+mapping is part of the protocol: a case that traces to nothing is measuring a
+preference, and a consequence with no case is a comparison that cannot
+distinguish two candidates where it matters most.
+
+| Case | Consequence |
+| --- | --- |
+| FUNC-01 | A0, the axiom that makes the rest non-trivial: the system must cause real work |
+| ID-01, ID-02 | F1, authority is pre-bound and exact, on immutable transport facts |
+| AUTH-01, REPO-01 | F2, authority-bearing values are inexpressible rather than filtered |
+| AUTH-02 | F4, every question is pre-decided or fails closed |
+| SESS-01 | F1 and F3, resume is scoped to the exact binding and frozen revision |
+| ISO-01, ISO-02 | F6, isolation is kernel identity |
+| ISO-03, CRED-01 | F7, the harness reaches nothing convertible into authority |
+| REL-01, LIFE-01, LIFE-02 | F8, the authorization decision is durable and precedes execution |
+| LIFE-03 | F5, holding authority unattended is part of the boundary |
+| NET-01, DATA-01 | F10, the harness's reach outward is bounded like its reach inward |
+| LIMIT-01 | F11, every execution is bounded before it starts |
+
+Two of those consequences were derived *from* this case set rather than the
+other way round. F10 and F11 were missing from the first-principles pass while
+NET-01, DATA-01 and LIMIT-01 had tested them all along; the derivation was
+corrected rather than the cases. Two cases, AUTH-02 and LIFE-03, were added
+because F4 and F5 had no case at all — a candidate that cannot survive a restart
+or a replaced credential would otherwise have scored the same as one that can.
+
 ## Candidates and profiles
 
 Each candidate is tested twice where supported: first with the documented
