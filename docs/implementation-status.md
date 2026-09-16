@@ -39,8 +39,12 @@ lost — and wrong for a permanent one. A message older than Core's accept windo
 is refused with `event_expired` forever, so it wedges the cursor and every later
 message behind it. An outage longer than the accept window therefore leaves an
 unattended Connector unable to admit anything until an operator intervenes. The
-operator step exists and is recorded; the Connector fix does not, and is
-tracked in the [drift ledger](drift-ledger.md).
+operator step exists and is recorded. The Connector fix now exists in code: the
+two refusals that are about the event itself advance the cursor under their own
+closed skip label, every other code still holds it, and the transient case keeps
+a regression test because the fence witness depends on it. The same change makes
+every reported counter a running total and moves the check receipt to stdout. It
+is not installed on the host yet.
 
 At **19:25 UTC on 2026-09-15**, live cases followed. Two messages were posted
 seconds apart; Core refused the second with `run_in_progress` while the first
