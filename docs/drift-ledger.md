@@ -58,8 +58,14 @@ all `codexintegration`-tagged test files in `codexadapter`. The package
 documentation states that "trusted runtime code must bind one instance to one
 admitted Run"; no trusted runtime code does.
 
-*Resolution:* either a shipped path binds it, or it moves to test support, or it
-is removed. Production code reachable from nothing is not a boundary.
+*Resolution determined 2026-09-16:* it is test support and always was. Its own
+package comment says it is "not a provider proxy", and `Gate` mints a fresh
+synthetic bearer of its own to check that a client used it — it is a fake
+upstream, not a mediator. The sentence claiming that "trusted runtime code must
+bind one instance to one admitted Run" oversells a fixture and is what made it
+look like an unwired production component. It belongs under test support, and
+the confusion it caused is the reason `codexprovider`'s mediation was briefly
+mistaken for credential isolation.
 
 ### `orphan` — `codexadapter` (1,004 prod, 5,422 test)
 
@@ -135,6 +141,32 @@ and has its own regression test, since that is what the live fence witness
 depends on. Installed and witnessed on the live channel on 2026-09-16: an event
 left to age past the accept window was refused under its closed label, the cursor
 advanced past it, no retry was logged and nothing was admitted.
+
+### `missing` — F7 credential isolation from the harness
+
+`CRED-01` in the bake-off asserts that model-controlled tools cannot recover a
+reusable provider credential. The deployed profile is classified
+`credential-exposed-personal` and mounts the real `auth.json` into the
+container at `/tmp/hgw-codex-home/auth.json`, so native tools can read it.
+
+What exists is *operation* mediation, not credential isolation:
+`codexprovider`'s policy fixes which upstream operations and headers are
+allowed, and `Authorization` is on the allowed list because the container sends
+its own. The owner enforces where traffic may go; it never holds the credential.
+
+F7 is explicit that the harness must not reach anything convertible into
+authority, and a reusable provider credential is the clearest such thing. This
+is a deliberate, documented weaker claim rather than an oversight — but it is a
+P0 hard gate in the bake-off, which means the comparison cannot currently reach
+`CONTINUE` on the credential axis.
+
+*Resolution:* the owner holds `auth.json`, the container receives something that
+is not reusable outside its own per-Run channel, and the owner substitutes the
+real credential upstream and absorbs refresh. The unknown is whether the CLI
+accepts a substitute: it parses the access token — `Chatgpt-Account-Id` is an
+allowed header — so a random placeholder may not survive. A custom-provider
+overlay was measured on 2026-09-09 but an API-key result cannot stand in for a
+subscription-login credential. This is research, not wiring.
 
 ## What this pass did not do
 
