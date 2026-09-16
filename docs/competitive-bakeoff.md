@@ -41,6 +41,31 @@ corrected rather than the cases. Two cases, AUTH-02 and LIFE-03, were added
 because F4 and F5 had no case at all — a candidate that cannot survive a restart
 or a replaced credential would otherwise have scored the same as one that can.
 
+## Evidence that exists before the lab
+
+Some cases assert properties of the container this project builds, and those
+are settled in the repository so the lab confirms them rather than discovering
+them. `internal/dockerruntime/bakeoff_evidence_test.go` pins the created
+container against the real argument builder: no network stack at all, no mount
+the manifest did not name, no bare volume flag, no capability, no privilege
+escalation, a read-only root, a `nosuid,nodev,noexec` scratch filesystem, and
+every resource bound taken from the immutable manifest rather than a default.
+`internal/codexprofile/bakeoff_evidence_test.go` pins the profile's own claims:
+no project instructions, no user-managed customization, no dynamic extensions,
+`builtin.none` skills, tool egress and private network denied separately from
+the mediated control path.
+
+The same file pins the claim this profile does **not** meet. `CRED-01` requires
+that model-controlled tools cannot recover a reusable provider credential, and
+the profile is classified `credential-exposed-personal` because it bind-mounts
+the real credential file into the container. The test fails if the
+classification and the mechanism ever drift apart in either direction: a mount
+quietly weakened, or isolation claimed without changing the mount.
+
+None of this substitutes for the live cases. A structural property is what the
+lab should not have to rediscover; it is not evidence that a native tool failed
+to reach a collector.
+
 ## Candidates and profiles
 
 Each candidate is tested twice where supported: first with the documented
