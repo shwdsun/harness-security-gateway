@@ -132,7 +132,9 @@ other code. Those two advance the cursor under their own closed skip label; a
 configuration refusal still holds it, because skipping past one would discard
 every message rather than one. The transient case keeps its previous behaviour
 and has its own regression test, since that is what the live fence witness
-depends on. Awaiting installation on the host.
+depends on. Installed and witnessed on the live channel on 2026-09-16: an event
+left to age past the accept window was refused under its closed label, the cursor
+advanced past it, no retry was logged and nothing was admitted.
 
 ## What this pass did not do
 

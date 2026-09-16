@@ -1,6 +1,6 @@
 # Implementation status
 
-Last verified: 2026-09-16 (credential rotation witnessed live: a byte-identical replacement of the enrolled object was refused and retired, and authority returned only through an explicit enrollment on a new TargetRevision; live-channel cases: two refusal classes witnessed with real platform payloads and the one-live-Run fence witnessed under real timing, after one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
+Last verified: 2026-09-16 (the ingress wedge fixed, installed and witnessed on the live channel; credential rotation witnessed live: a byte-identical replacement of the enrolled object was refused and retired, and authority returned only through an explicit enrollment on a new TargetRevision; live-channel cases: two refusal classes witnessed with real platform payloads and the one-live-Run fence witnessed under real timing, after one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
 
 At **03:57–04:04 UTC on 2026-09-15**, one real message posted by the operator's
 own Discord account in one private allowlisted channel produced one Run on the
@@ -43,8 +43,17 @@ operator step exists and is recorded. The Connector fix now exists in code: the
 two refusals that are about the event itself advance the cursor under their own
 closed skip label, every other code still holds it, and the transient case keeps
 a regression test because the fence witness depends on it. The same change makes
-every reported counter a running total and moves the check receipt to stdout. It
-is not installed on the host yet.
+every reported counter a running total and moves the check receipt to stdout.
+
+It was installed and witnessed on **2026-09-16**. A message was posted and left
+to age past the accept window with the services stopped; on start the Connector
+refused it under its own closed label, advanced past it, logged no retry at all,
+created no container and admitted nothing. That witness read the Connector's own
+cumulative `admitted=0`, which the previous binary could not have shown, and
+which a stored Run count cannot answer either: Core compacts a terminal Run once
+its inbound receipt ages past the receipt window, so the count is bounded by that
+window rather than monotonic and fell from two to zero during a stage that
+admitted nothing.
 
 At **19:25 UTC on 2026-09-15**, live cases followed. Two messages were posted
 seconds apart; Core refused the second with `run_in_progress` while the first
