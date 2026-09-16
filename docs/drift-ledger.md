@@ -10,7 +10,8 @@ mechanism — `missing`.
 history belongs in [implementation-status.md](implementation-status.md); a
 ledger that grows chronologically has stopped being a ledger.
 
-Measured 2026-09-14 against the repository at that time.
+Measured 2026-09-14 against the repository at that time; the F5 entries were
+revised on 2026-09-16 after the credential rotation witness ran.
 
 ## Method and its limit
 
@@ -102,11 +103,33 @@ and without `codexintegration`. The tag selects files inside packages; it does
 not keep experimental packages out of the production binary. "Opt-in" therefore
 describes behavior, not linkage.
 
-### `missing` — F5 credential rotation
+### resolved — F5 credential rotation
 
-Enrollment, generation identity, retirement, restart and recovery have
-mechanisms and recorded evidence. Rotation under real provider conditions does
-not. F5 makes this a boundary gap rather than an unfinished chore.
+Closed on 2026-09-16 with a live witness. The enrolled auth object was replaced
+by a byte-identical copy: the next Run was refused at credential acquisition and
+its generation retired, the next enrollment produced a different source digest
+while generations 1-8 all shared one, and authority returned only after an
+explicit operator enrollment on a new TargetRevision. A revision is permanently
+bound to one generation, so rotating the object requires advancing the revision
+too.
+
+### `missing` — F5 unattended recovery from a permanently refused event
+
+The Connector holds its ingress cursor still when Core refuses an event, so the
+message is presented again. That is correct for a transient refusal — the live
+fence witness showed a refused message is retried and not lost — and wrong for a
+permanent one. `event_expired` can never succeed, so a single message older than
+Core's accept window wedges the cursor and every later message with it.
+
+Any outage longer than the accept window therefore leaves an unattended
+Connector permanently unable to admit anything until an operator steps over the
+message by hand. F5 makes that a boundary gap: holding authority unattended is
+part of the boundary, and this path cannot recover on its own.
+
+*Resolution:* `PollOnce` must distinguish Core's transient refusals from its
+permanent ones and treat a permanent refusal like a normalization skip — a
+closed counter label and an advanced cursor. `connectorhttp` already carries the
+closed error codes the classification needs.
 
 ## What this pass did not do
 

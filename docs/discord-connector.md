@@ -200,3 +200,10 @@ author IDs into the binding and this configuration.
   threads and multi-channel operation are deliberately unimplemented.
 - Message edits after admission are not tracked: an admitted event is frozen by
   its Run, and a later edit is not a new event.
+- **Known defect.** An ingest refusal leaves the cursor where it is so the
+  message is presented again. That is right for a transient refusal and wrong
+  for a permanent one: `event_expired` can never succeed, so one message older
+  than Core's accept window wedges the cursor and everything behind it. An
+  outage longer than that window leaves an unattended Connector unable to admit
+  anything until an operator moves the cursor by hand. `PollOnce` must classify
+  Core's permanent refusals and treat them like a normalization skip.

@@ -168,7 +168,8 @@ mechanism that does not:
 
 The current output of this test is [drift-ledger.md](drift-ledger.md).
 
-A currently known example of the last category is F5. Enrollment, generation
-identity, retirement, restart and recovery have mechanisms and recorded
-evidence; credential rotation under real provider conditions does not, and F5
-says that is a boundary gap rather than an unfinished chore.
+F5 supplied the first worked example. Rotation had no evidence, so it was
+`missing`; it now has a live witness, and running that witness surfaced a second
+`missing` in the same consequence — an unattended Connector cannot recover by
+itself from a permanently refused event. Closing one gap exposed the next,
+which is what a consequence with a falsifier is for.
