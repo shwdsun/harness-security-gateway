@@ -22,7 +22,7 @@ or security claims. The earlier failed repeat is retained.
 | Separate service identities and runtime ownership | Deployed and exercised in dated witnesses; not a portable installation guarantee |
 | Rotation and permanently refused ingress | Refusal/re-enrollment and cursor recovery observed; credential secrecy is a separate property |
 | Repository and egress resistance | Structural tests and limited live cases exist; the small hostile-repository and reported-egress witnesses do not cover the complete adversarial matrix |
-| CRED-01 | Known unmet requirement in the existing deployment: reusable auth is readable inside its Runner. The separate V4 owner-only runtime has accepted scoped synthetic containment/native fault witnesses; real-provider/private-Discord acceptance and main integration remain |
+| CRED-01 | Known unmet requirement in the historical profile: reusable auth is readable inside its Runner. The separate V4 owner-only runtime has accepted scoped synthetic containment/native fault witnesses and pushed-commit CI. Its October7 real campaign stopped after enrollment, before a task; real-provider/refresh/private-Discord acceptance and main integration remain |
 | Operations and release | Reproducible acquisition, full accepted-profile coverage, long-running usability and activation policy still need closure |
 | Comparative bake-off | Protocol and laboratory preparation exist; no completed comparison verdict |
 
@@ -118,6 +118,15 @@ Acceptance and consolidation in steps 3–4 remain; M1 has not reached its merge
 gate. Existing compatibility witnesses are reused rather than repeated.
 
 ## Engineering and operator workload
+
+**October7 real-campaign outcome:** exact development-commit CI passed, but the
+real campaign stopped at the private service-completion witness after successful
+credential enrollment. Serving and the Discord task were not reached. Cleanup
+was independently verified; enrollment migration persists. The campaign's
+uncertain action is closed and cannot be replayed through its installed
+authority. Record the operations coverage failure and preserve M1/main as
+incomplete, rather than replacing real-provider/required-refresh acceptance with
+offline tests or CI. Historical notes below retain their original scope.
 
 **October7 consolidation:** the accumulated V4 code was independently reviewed
 and passed local normal/tagged tests, race, vet, builds and deterministic

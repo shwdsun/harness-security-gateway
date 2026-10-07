@@ -4,7 +4,10 @@ Status, **2026-10-07**: implemented opt-in wiring; synthetic native inference401
 Catalog401 recovery, authenticated refresh cancellation and first-helper-loss
 safe failure and original same-DB Owner crash/restart accepted in separate
 synthetic scopes. Consolidated local tests/race/vet and code review passed;
-real-path acceptance and pushed-commit CI/main integration remain open.
+[pushed-commit CI passed](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
+The bounded real campaign stopped at its private enrollment-completion witness
+before a task; cleanup was verified. Real-provider/refresh/Discord acceptance
+and main integration remain open.
 This is the next CRED-01 candidate,
 with classification `credential-isolated-candidate`; older revisions remain
 `credential-exposed-personal`. See [current evidence](implementation-status.md).
@@ -98,6 +101,14 @@ resource-map deletion cannot erase credential taint. Owner loss requires startup
 helper absence and the existing durable retirement/recovery, never auth replay.
 
 ## Remaining acceptance
+
+**October7 real campaign:** credential enrollment succeeded according to the
+service journal, but the private driver's completion condition timed out and
+the campaign closed with that action uncertain. No task, serving startup,
+provider compatibility or natural refresh was observed. Cleanup passed without
+undoing credential migration. Current CI passed for the exact pushed development
+candidate; it does not replace this missing real-path acceptance. CRED-01/M1
+remain open. See the [current outcome](implementation-status.md).
 
 **October6 09:53 actual acceptance:** authenticated Owner SIGKILL and a new
 process's original serve on the same DB passed with no credential/provider/native

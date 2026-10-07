@@ -1,5 +1,35 @@
 # Implementation status
 
+## Real campaign stopped at enrollment witness; M1 remains open — 2026-10-07
+
+The development candidate `a168ee306ad839634e4143334209ff21f178068f` was
+pushed and [GitHub CI completed successfully](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049)
+at20:51 UTC. All three jobs and their steps passed, including normal and opt-in
+tests/race/vet, both mock images and reachable vulnerability checking. This
+establishes the pushed-commit CI result, not real-provider or release acceptance.
+
+The bounded real campaign completed credential retirement and enrollment, but
+the private driver timed out on its service-completion witness. Independent
+service-journal evidence records successful enrollment; the retained campaign
+still has an uncertain enrollment action and is closed after cleanup. Per-poll
+values were not retained, so the cause of the missed completion witness remains
+unresolved. No task was
+posted, and Owner serving, Core and Connector starts were not reached. This
+is an operations witness failure, not an observed failed model Run.
+
+Cleanup and subsequent independent observation verified stopped HSG services,
+removed temporary overrides, idle durable obligations and zero containers.
+Credential migration persists; cleanup did not restore the retired enrollment.
+Original local configurations were preserved, not activated with stale authority.
+
+The accepted synthetic fault scopes and local/code-review results retain their
+original limits. Approved-device real-provider compatibility, required natural
+refresh and private Discord task/reply completion remain unobserved for V4.
+CRED-01/M1 and main integration are incomplete; no production activation follows.
+Retain the failure without reopening its closed authority, replaying enrollment
+or reducing the
+[M1 acceptance boundary](milestones.md#m1-what-completion-means).
+
 ## V4 consolidation reviewed; real acceptance remains open — 2026-10-07
 
 The accumulated owner-only V4 implementation has received an independent,

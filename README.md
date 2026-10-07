@@ -12,14 +12,18 @@ orchestrator.
 
 > **Status as of 2026-10-07: pre-alpha.** The control plane and private Discord
 > Connector are implemented. A dated September 16 deployment witness completed
-> two Discord-to-Codex text Runs, replies and sequential cleanup. Its existing
-> Runner can read reusable provider auth; CRED-01 is still unmet. The separate
-> opt-in V4 candidate has bounded synthetic native execution evidence, with
+> two Discord-to-Codex text Runs, replies and sequential cleanup. That historical
+> profile lets the Runner read reusable provider auth; CRED-01 is still unmet.
+> The separate opt-in V4 candidate has bounded synthetic native execution evidence, with
 > synthetic inference401/Catalog401 recovery and refresh cancellation accepted.
 > First-helper-loss safe failure and original same-DB Owner crash/restart are
-> accepted within their separate synthetic scopes. Real-path acceptance and
-> final integration remain open. The accumulated V4 candidate passed local
-> normal/tagged tests, race checks and vet; CI is configured to cover its opt-in components.
+> accepted within their separate synthetic scopes. The accumulated V4 candidate
+> passed local normal/tagged tests, race checks, vet and
+> [CI on the pushed development commit](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
+> The October 7 real campaign stopped after credential enrollment when its
+> private service-completion witness failed; no task was posted and cleanup was
+> verified. Real-provider/refresh/Discord acceptance and M1/main integration
+> remain open.
 > Fixed Codex startup requires an
 > explicit opt-in build; default builds remain mock-only. No production release
 > or approved V4 deployment follows from these observations. See the
@@ -97,7 +101,7 @@ workflow remains the next integration milestone.
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
-| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance and final consolidation remain open. No approved production V4 image is shipped |
+| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance and main integration remain open. No approved production V4 image is shipped |
 | Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
 | Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
