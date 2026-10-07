@@ -89,9 +89,12 @@ func (c *Controller) reconcileDesired(
 	spec terminalSpec,
 	certainNoRuntime bool,
 ) error {
+	if proof, exists := c.predispatchProofFor(run.RunID); exists {
+		return c.reconcilePredispatch(ctx, proof, spec)
+	}
 	if certainNoRuntime {
-		// The memo can outlive the control context that proved Create was never
-		// called. Re-read after acquiring reconciliation ownership; if runtime
+		// The memo can outlive the control context proving no external Create
+		// was dispatched. Re-read after acquiring reconciliation ownership; if runtime
 		// authority or a different lifecycle state appeared, discard the shortcut
 		// and use the ordinary cleanup path.
 		latest, err := c.store.GetRun(ctx, run.RunID)

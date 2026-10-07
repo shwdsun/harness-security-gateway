@@ -102,6 +102,14 @@ func MessagingToolsConfig(model string) Config {
 	return c
 }
 
+// IsolatedToolsConfig preserves the fixed native tool behavior while selecting
+// the separate local-auth profile and HRP adapter identity.
+func IsolatedToolsConfig(model string) Config {
+	c := MessagingToolsConfig(model)
+	c.ProfileID = codexprofile.IDV4
+	return c
+}
+
 // Invocation is the complete child-process request assembled by the adapter.
 // Stdin contains the untrusted user prompt; Args never do. A V2 Args value
 // contains only the fixed, non-secret developer instruction profile.
@@ -134,7 +142,11 @@ func Run(ctx context.Context, input io.Reader, output io.Writer, config Config, 
 	if err != nil {
 		return err
 	}
-	if profile.ID == codexprofile.IDV3 {
+	if profile.ID == codexprofile.IDV4 {
+		if err := verifyIsolatedToolsPackage(config.Binary); err != nil {
+			return err
+		}
+	} else if profile.ID == codexprofile.IDV3 {
 		if err := verifyToolsPackage(config.Binary); err != nil {
 			return err
 		}
@@ -269,7 +281,7 @@ func (c Config) resolve() (codexprofile.Contract, string, error) {
 	if pathsOverlap(c.Binary, c.Workspace) || pathsOverlap(c.Binary, c.CodexHome) || pathsOverlap(c.Binary, c.OutputDirectory) {
 		return codexprofile.Contract{}, "", fmt.Errorf("%w: binary overlaps a writable trust domain", errInvalidConfig)
 	}
-	if profile.ID == codexprofile.IDV3 {
+	if profile.ID == codexprofile.IDV3 || profile.ID == codexprofile.IDV4 {
 		root := filepath.Dir(filepath.Dir(c.Binary))
 		if filepath.Base(c.Binary) != "codex" || filepath.Base(filepath.Dir(c.Binary)) != "bin" || root == "/" ||
 			pathsOverlap(root, c.Workspace) || pathsOverlap(root, c.CodexHome) || pathsOverlap(root, c.OutputDirectory) {
@@ -371,7 +383,7 @@ func (c Config) invocation(prompt, developerInstructions, finalPath string, stdo
 		"--config", `history.persistence="none"`,
 		"-",
 	)
-	if c.ProfileID == codexprofile.IDV3 {
+	if c.ProfileID == codexprofile.IDV3 || c.ProfileID == codexprofile.IDV4 {
 		// The model's bundled metadata already requires Code Mode. Leave the
 		// experimental forcing switch off; enable only its local native host.
 		for i, arg := range args {

@@ -30,6 +30,10 @@ builds: `agentd`, `sandboxd`, `hgwctl`, `fake-connector`, `discord-connector`.
 
 ## Size
 
+**2026-09-17 correction:** this historical classification omitted copied native
+Runner inputs. See the corrected adapter/relay entries below. The table cannot
+be used as current whole-product reachability or orphan percentages.
+
 Production Go, `internal/` only (27,754 lines across 39 packages):
 
 | Class | Packages | Prod lines | Share | Test lines |
@@ -67,32 +71,39 @@ look like an unwired production component. It belongs under test support, and
 the confusion it caused is the reason `codexprovider`'s mediation was briefly
 mistaken for credential isolation.
 
-### `orphan` — `codexadapter` (1,004 prod, 5,422 test)
+### Corrected 2026-09-17 — `codexadapter` is in the fixed native Runner
 
-Not reachable from any of the five shipped binaries. It is linked only by
-`cmd/codex-runner`, `cmd/codex-tools-runner` and `cmd/codex-provider-canary-runner`,
-none of which the bundle builds, and the pinned tool package contains no such
-binary.
+The earlier off-path conclusion counted only the five host binaries compiled
+by the bundle builder. It omitted copied native artifacts. The pinned native
+input `codex-provider-runner` is copied by `deploy/codex/build.py` and mounted by
+`internal/dockerruntime/synthetic_v3_linux_amd64.go` as `/codex-tools-runner`.
+`cmd/credential-bootstrap` executes that path; its source entrypoint,
+`cmd/codex-provider-canary-runner`, calls `codexadapter.Run` with
+`MessagingToolsConfig` and `ProviderCanaryLauncher`. The adapter is part of the
+fixed native path, not a competing unused packaging design.
 
-This is the concrete form of the status page's own heading, *"Codex adapter and
-profile: present but not wired into a target"*. Two packaging designs coexist:
-the documented `runner-codex image → thin HRP adapter → Codex CLI` layering,
-and the fixed native startup path that actually runs. Only the second ships.
-Its 5.4:1 test-to-code ratio is the highest in the repository, so the unshipped
-design is also the most heavily verified one.
+A 2026-09-17 read-only cross-check of the retained native artifact matched the
+locked SHA256 `f260ca92f157c2f24836b35b43149f7bd88ca77f9dc541bf21cc367766873e45`,
+its Go build info named that entrypoint, and its historical successful build
+receipt matched the artifact and the four inspected current adapter/launcher
+source files. This is not a fresh reproducible build or a new deployment witness.
 
-*Resolution:* decide which packaging is the product. Keeping both is a
-maintenance obligation that no consequence requires.
+*Resolution:* document the copied artifact and its provenance in the supported
+launch chain. Reuse its real adapter/launcher in the credential-isolation probe;
+do not remove it or require an architecture rewrite based on host-only reachability.
 
 ### `orphan` — experiment scaffolding (1,129 prod)
 
-`codexcanary` (817), `providerrelay` (255) and `providerfixture` (57) are
-reachable only from tagged canary binaries. They produced retained evidence,
-which is legitimate under A5, but A5 governs claims rather than shipped
-mechanism. Their continued presence is a choice and should be recorded as one.
+The earlier host-only pass grouped `codexcanary` (817), `providerrelay` (255)
+and `providerfixture` (57) here. The 2026-09-17 correction above also affects
+`providerrelay`: `ProviderCanaryLauncher` invokes it in the copied Runner.
+Canary drivers and synthetic fixtures retain their separate evidence-support
+roles, but a package must be classified against all delivered executables.
 
-Off-path code totals 2,602 production and 7,014 test lines — 9.4% of production
-and 16.6% of test code that no shipped binary reaches.
+The earlier 2,602 production / 7,014 test-line off-path total and the aggregate
+table above are historical host-root statistics, not valid whole-bundle orphan
+measurements. No corrected whole-bundle percentages are claimed by this bounded
+audit. Do not use the old totals to justify deleting code.
 
 ### Tension — `codexprovider` ships in the default build
 
@@ -167,6 +178,31 @@ accepts a substitute: it parses the access token — `Chatgpt-Account-Id` is an
 allowed header — so a random placeholder may not survive. A custom-provider
 overlay was measured on 2026-09-09 but an API-key result cannot stand in for a
 subscription-login credential. This is research, not wiring.
+
+The [2026-09-17 bounded work package](credential-isolation-plan.md) narrows this
+direction to an offline compatibility gate, owner-only credential/refresh
+obligations and focused acceptance. It is a design candidate, not a resolved gap.
+
+**2026-09-19 update:** the fixed client's substitution and trusted native-refresh
+compatibility now have offline synthetic evidence. Owner-only storage and strict
+auth parsing are implemented locally, still unwired. This resolves the earlier
+client-compatibility question only for the tested fixed version; helper recovery,
+verified refresh results, provider/profile integration and real acceptance remain.
+F7/CRED-01 stays open and the deployed profile keeps its exposed classification.
+
+**2026-09-27 update:** the private native consumer and per-Run provider adapter
+are now implemented, with fixed-native evidence for owner-only recovery and
+client-local refresh. The old exposed executable still uses the mounted source.
+Remaining work is isolated profile/runtime/startup/artifact wiring plus combined
+and real acceptance; [current scope](credential-isolation-plan.md#per-run-provider-authentication--2026-09-27).
+This component result neither closes F7/CRED-01 nor reclassifies the old profile.
+
+**2026-10-01 update:** [V4](codex-profile-v4.md) adds opt-in owner-only runtime
+wiring with a separate profile/schema/pin, disposable local seed verification,
+pre-Create readiness and helper-absence startup gate. It remains a blocked
+candidate: complete native runtime/receiver, Runner secrecy and real acceptance
+are still required. Older exposed revisions and dated deployment observations
+remain unchanged; F7/CRED-01 stays open.
 
 ## What this pass did not do
 

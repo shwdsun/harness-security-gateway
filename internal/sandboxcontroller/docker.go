@@ -45,6 +45,11 @@ func (r *DockerRuntime) CreateWithCredential(ctx context.Context, runID string, 
 	return ref.String(), err
 }
 
+func (r *DockerRuntime) CreateWithOwner(ctx context.Context, runID string, manifest targetmanifest.Definition, owner *credentialsource.OwnerAccess) (string, error) {
+	ref, err := r.runtime.CreateWithOwner(ctx, runID, manifest, owner)
+	return ref.String(), err
+}
+
 func (r *DockerRuntime) LookupIntent(
 	ctx context.Context,
 	runID string,

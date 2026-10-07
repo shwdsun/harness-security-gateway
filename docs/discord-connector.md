@@ -56,12 +56,19 @@ A message is dropped, without an event and without advancing past it silently,
 unless all hold:
 
 - its channel equals the single configured channel;
-- its author ID is in the configured allowlist of stable user IDs;
-- the author is not the Connector's own account, and is not a bot or webhook;
+- its author ID is in the configured human allowlist, or it is a bot whose
+  exact ID is in the separate optional `allowed_bot_author_ids` startup list;
+- the author is not the Connector's own account, a system author or a webhook;
 - the message type is a normal message or reply;
 - the content is non-empty after trimming and within the wire text bound.
 
-Bot, webhook and self filtering is the Connector's half of self-loop protection;
+Bots are refused by default. Automated testing may explicitly authorize a
+separate tester bot by stable ID; human and bot lists must be disjoint. This
+does not authorize a Core Run: the tester also needs its own exact Binding and
+credential scope for its immutable target revision. Evidence from that actor is
+automated-actor acceptance, not a human-account witness. No platform message can
+modify either list. All other bot, webhook and self filtering remains the
+Connector's half of self-loop protection;
 `agentd` independently rejects its configured `self_actor_ref`. Empty content is
 also what an unprivileged bot sees when the Message Content intent is missing,
 so it is treated as nothing to admit rather than an empty prompt.

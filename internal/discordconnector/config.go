@@ -42,11 +42,14 @@ type Config struct {
 	SelfUserID       string   `json:"self_user_id"`
 	ChannelID        string   `json:"channel_id"`
 	AllowedAuthorIDs []string `json:"allowed_author_ids"`
-	PollIntervalMS   int64    `json:"poll_interval_ms"`
-	CatchUpLimit     int      `json:"catch_up_limit"`
-	ClaimLimit       int      `json:"claim_limit"`
-	RequestTimeoutMS int64    `json:"request_timeout_ms"`
-	MaxReplyChunks   int      `json:"max_reply_chunks"`
+	// Bot admission is an explicit startup capability, separate from humans.
+	// An empty list preserves the original human-only ingress policy.
+	AllowedBotAuthorIDs []string `json:"allowed_bot_author_ids,omitempty"`
+	PollIntervalMS      int64    `json:"poll_interval_ms"`
+	CatchUpLimit        int      `json:"catch_up_limit"`
+	ClaimLimit          int      `json:"claim_limit"`
+	RequestTimeoutMS    int64    `json:"request_timeout_ms"`
+	MaxReplyChunks      int      `json:"max_reply_chunks"`
 }
 
 func Load(path string) (Config, error) {
@@ -126,6 +129,18 @@ func (c Config) Validate() error {
 		}
 		if _, exists := seen[id]; exists {
 			return invalid("allowed_author_ids", "must not repeat an ID")
+		}
+		seen[id] = struct{}{}
+	}
+	for index, id := range c.AllowedBotAuthorIDs {
+		if err := validateSnowflake(fmt.Sprintf("allowed_bot_author_ids[%d]", index), id); err != nil {
+			return err
+		}
+		if id == c.SelfUserID {
+			return invalid("allowed_bot_author_ids", "must not contain the connector's own account")
+		}
+		if _, exists := seen[id]; exists {
+			return invalid("allowed_bot_author_ids", "must be unique and disjoint from human authors")
 		}
 		seen[id] = struct{}{}
 	}

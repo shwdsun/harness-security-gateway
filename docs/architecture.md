@@ -371,6 +371,14 @@ recreated by a host reboot.
   persistence, `interrupted` is the only legal class regardless of the
   secondary cancellation/deadline trigger, and the intent/workspace lock remain
   until reconciliation proves cleanup;
+- if the current worker has not dispatched external Create, a failed Begin/read/clear keeps
+  a process-local proof tied to the original accepted Run and host boot.
+  Serialized recovery re-reads immutable identity, rejects a runtime reference
+  or foreign/unknown intent boot, and clears intent before publishing the
+  terminal result. A repeated offer first completes that retained terminal
+  plan; it cannot dispatch Create using the same Run. The proof is not restored
+  after process death, and never applies to an already-existing uncertain
+  intent. Startup continues to use the conservative durable recovery rules;
 - after an uncertain create, reconciliation is read-only: it calls
   `LookupIntent` and never issues a second create. On the same host boot, an
   absent lookup is not proof and cannot release the workspace;

@@ -23,8 +23,9 @@ var (
 )
 
 // HeldSource pins one local source and holds advisory locks on its slot and
-// file. It must not be copied. It exposes neither credential bytes nor a mount
-// path/FD. It is not a durable credential identity, enrollment or Run lease.
+// file. It must not be copied. Its metadata API exposes neither credential bytes
+// nor a mount path/FD; BorrowForOwner explicitly selects owner-only content I/O.
+// It is not a durable credential identity, enrollment or Run lease.
 // Losing this handle never authorizes releasing the store's Run occupancy.
 type HeldSource struct {
 	mu        sync.Mutex
@@ -38,6 +39,7 @@ type HeldSource struct {
 	invalid   bool
 	closed    bool
 	closeErr  error
+	use       sourceUse
 }
 
 // objectID is only a comparison key while objects are held in this process and

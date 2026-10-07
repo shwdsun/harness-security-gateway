@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
 	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/sandboxstore"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
@@ -37,6 +38,7 @@ func makeCredentialHandoff(held credentialHandle, runID, fingerprint string, bin
 type runCredential struct {
 	held        credentialHandle
 	handoff     *credentialsource.Handoff
+	owner       *credentialsource.OwnerAccess
 	invalid     bool
 	retired     bool
 	closeFailed bool
@@ -118,9 +120,22 @@ func (c *Controller) prepareCredential(run sandboxstore.Run, manifest targetmani
 	if err != nil {
 		return c.invalidateCredential(ctx, run.RunID, state)
 	}
-	state.handoff, err = makeCredentialHandoff(held, run.RunID, fingerprint, binding, generation.SourceDigest, proof)
-	if err != nil || state.handoff == nil {
-		return c.invalidateCredential(ctx, run.RunID, state)
+	if common.AuthProfileRef == codexprofile.AuthProfileRefV4 {
+		provider, ok := held.(interface {
+			BorrowForOwner(string, string, credentialsource.Binding, string, credentialsource.Proof) (*credentialsource.OwnerAccess, error)
+		})
+		if !ok || codexprofile.V4().MatchTarget(manifest) != nil {
+			return c.invalidateCredential(ctx, run.RunID, state)
+		}
+		state.owner, err = provider.BorrowForOwner(run.RunID, fingerprint, binding, generation.SourceDigest, proof)
+		if err != nil || state.owner == nil {
+			return c.invalidateCredential(ctx, run.RunID, state)
+		}
+	} else {
+		state.handoff, err = makeCredentialHandoff(held, run.RunID, fingerprint, binding, generation.SourceDigest, proof)
+		if err != nil || state.handoff == nil {
+			return c.invalidateCredential(ctx, run.RunID, state)
+		}
 	}
 	return nil
 }
@@ -138,6 +153,7 @@ func (c *Controller) retireCredential(ctx context.Context, runID string, state *
 func (c *Controller) invalidateCredential(ctx context.Context, runID string, state *runCredential) error {
 	state.invalid = true
 	state.handoff.Close()
+	state.owner.Close()
 	_ = c.retireCredential(ctx, runID, state)
 	return ErrCredentialUnavailable
 }
@@ -173,6 +189,7 @@ func (c *Controller) closeCredential(ctx context.Context, runID string) error {
 		return ErrCredentialUnavailable
 	}
 	state.handoff.Close()
+	state.owner.Close()
 	if state.held != nil && state.held.Close() != nil {
 		state.closeFailed = true
 		return c.invalidateCredential(ctx, runID, state)

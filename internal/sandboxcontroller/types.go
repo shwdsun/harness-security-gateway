@@ -79,6 +79,9 @@ type Process interface {
 // Runtime contains no caller-selected Docker flags, paths, or options.
 type Runtime interface {
 	ListManaged(ctx context.Context) ([]string, error)
+	// A failure without dockerruntime.ErrCreateUncertain certifies no external
+	// Create dispatch. Every possibly dispatched failure must wrap that sentinel;
+	// allocated local resources still require CloseRunResources before release.
 	Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error)
 	LookupIntent(ctx context.Context, runID string, manifest targetmanifest.Definition) (ref string, found bool, err error)
 	AttachStart(ctx context.Context, ref string) (Process, error)
@@ -97,8 +100,15 @@ type Runtime interface {
 // independent receiver verification, then consume the private launch phase
 // before returning ordinary HRP pipes. A Runtime without this surface cannot
 // execute a credential-bearing Run through the credential-free Create method.
+// Its failure certainty contract is the same as Runtime.Create.
 type CredentialRuntime interface {
 	CreateWithCredential(context.Context, string, targetmanifest.Definition, *credentialsource.Handoff) (string, error)
+}
+
+// OwnerCredentialRuntime consumes the same held source through its separate
+// owner-only capability. There is no fallback to a Runner mount handoff.
+type OwnerCredentialRuntime interface {
+	CreateWithOwner(context.Context, string, targetmanifest.Definition, *credentialsource.OwnerAccess) (string, error)
 }
 
 type BridgeFunc func(

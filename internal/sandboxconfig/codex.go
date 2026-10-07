@@ -13,6 +13,9 @@ import (
 )
 
 const SchemaCodexV1 = "sandboxd/codex-v1"
+const SchemaCodexV2 = "sandboxd/codex-isolated-v2"
+
+func (c Config) isCodex() bool { return c.Schema == SchemaCodexV1 || c.Schema == SchemaCodexV2 }
 
 // FixedCodexImage is the measured cached template, not an acquisition request
 // or production image approval. A different image requires another profile.
@@ -45,20 +48,25 @@ func (s ApprovedScope) SessionScope() sessionauth.Scope {
 // Codex is the one fixed daemon profile. Its presence cannot enable native
 // execution in a default build. No URL, argv, environment or tool options exist.
 type Codex struct {
-	Credential   credentialsource.Binding `json:"credential"`
-	Scope        ApprovedScope            `json:"scope"`
-	ProviderRoot string                   `json:"provider_root"`
-	ToolPackage  string                   `json:"tool_package"`
-	OwnerSHA256  string                   `json:"owner_sha256"`
-	UIDSetup     Artifact                 `json:"uid_setup"`
-	Bootstrap    Artifact                 `json:"bootstrap"`
-	Runner       Artifact                 `json:"runner"`
-	Canary       Artifact                 `json:"canary"`
-	Seccomp      Artifact                 `json:"seccomp"`
+	Credential    credentialsource.Binding `json:"credential"`
+	Scope         ApprovedScope            `json:"scope"`
+	ProviderRoot  string                   `json:"provider_root"`
+	ToolPackage   string                   `json:"tool_package"`
+	OwnerSHA256   string                   `json:"owner_sha256"`
+	UIDSetup      Artifact                 `json:"uid_setup"`
+	Bootstrap     Artifact                 `json:"bootstrap"`
+	Runner        Artifact                 `json:"runner"`
+	Canary        Artifact                 `json:"canary"`
+	Seccomp       Artifact                 `json:"seccomp"`
+	OwnerLauncher *Artifact                `json:"owner_launcher,omitempty"`
 }
 
-func matchCodex(target targetmanifest.Definition) error {
-	if codexprofile.V3().MatchTarget(target) != nil || target.Common().Runner.Image != FixedCodexImage {
+func matchCodex(target targetmanifest.Definition, schema string) error {
+	profile := codexprofile.V3()
+	if schema == SchemaCodexV2 {
+		profile = codexprofile.V4()
+	}
+	if profile.MatchTarget(target) != nil || target.Common().Runner.Image != FixedCodexImage {
 		return invalid("targets", "requires the fixed Codex V3 template")
 	}
 	return nil
@@ -69,6 +77,9 @@ func (c Config) validateCodex() error {
 		return invalid("codex", "requires one target, workspace and credential; no persistent Runner state")
 	}
 	p := *c.Codex
+	if (c.Schema == SchemaCodexV1 && p.OwnerLauncher != nil) || (c.Schema == SchemaCodexV2 && (p.OwnerLauncher == nil || p.OwnerLauncher.SHA256 != codexprofile.OwnerLauncherSHA256V4)) {
+		return invalid("codex.owner_launcher", "requires the exact isolated schema and sealed launcher")
+	}
 	target := c.Targets[0]
 	b := p.Credential
 	if b.WorkspaceRef != target.Common().WorkspaceRef || b.AuthProfileRef != target.Common().AuthProfileRef ||
@@ -104,7 +115,11 @@ func (c Config) validateCodex() error {
 		}
 	}
 	seen := make(map[string]bool)
-	for _, a := range []Artifact{p.UIDSetup, p.Bootstrap, p.Runner, p.Canary, p.Seccomp} {
+	artifacts := []Artifact{p.UIDSetup, p.Bootstrap, p.Runner, p.Canary, p.Seccomp}
+	if p.OwnerLauncher != nil {
+		artifacts = append(artifacts, *p.OwnerLauncher)
+	}
+	for _, a := range artifacts {
 		if !codexPath(a.Path) || sessionauth.ValidateDigest(a.SHA256) != nil || seen[a.Path] {
 			return invalid("codex.artifacts", "requires distinct canonical paths and SHA-256 hashes")
 		}
@@ -135,7 +150,15 @@ func exactCodexFields(data []byte) error {
 	if err != nil {
 		return err
 	}
-	p, err := codexObject(root["codex"], "credential", "scope", "provider_root", "tool_package", "owner_sha256", "uid_setup", "bootstrap", "runner", "canary", "seccomp")
+	names := []string{"credential", "scope", "provider_root", "tool_package", "owner_sha256", "uid_setup", "bootstrap", "runner", "canary", "seccomp"}
+	var schema string
+	if json.Unmarshal(root["schema"], &schema) != nil {
+		return invalid("schema", "invalid schema")
+	}
+	if schema == SchemaCodexV2 {
+		names = append(names, "owner_launcher")
+	}
+	p, err := codexObject(root["codex"], names...)
 	if err != nil {
 		return err
 	}
@@ -148,7 +171,11 @@ func exactCodexFields(data []byte) error {
 	if _, err = codexObject(root["runtime"], "kind", "endpoint", "cli"); err != nil {
 		return err
 	}
-	for _, name := range []string{"uid_setup", "bootstrap", "runner", "canary", "seccomp"} {
+	artifactNames := []string{"uid_setup", "bootstrap", "runner", "canary", "seccomp"}
+	if schema == SchemaCodexV2 {
+		artifactNames = append(artifactNames, "owner_launcher")
+	}
+	for _, name := range artifactNames {
 		if _, err = codexObject(p[name], "path", "sha256"); err != nil {
 			return err
 		}

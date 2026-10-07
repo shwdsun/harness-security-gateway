@@ -37,7 +37,11 @@ type SyntheticV3Config struct {
 // Inventory is scoped to this pin, so an integration fixture cannot sweep or
 // clean other configured/production runtime inventories on the same daemon.
 func NewSyntheticV3(config SyntheticV3Config) (*Runtime, string, error) {
-	if os.Geteuid() == 0 || codexprofile.V3().MatchTarget(config.Manifest) != nil ||
+	return newToolRuntime(config, codexprofile.V3(), "harness-security-gateway.synthetic-v3-runtime/uid-bootstrap-v1")
+}
+
+func newToolRuntime(config SyntheticV3Config, profile codexprofile.Contract, domain string) (*Runtime, string, error) {
+	if os.Geteuid() == 0 || profile.MatchTarget(config.Manifest) != nil ||
 		config.WorkspaceDirectory == "" || filepath.Base(config.WorkspaceDirectory) != config.WorkspaceDirectory ||
 		config.WorkspaceDirectory == "." || config.WorkspaceDirectory == ".." ||
 		config.Credential.WorkspaceRef != config.Manifest.Common().WorkspaceRef ||
@@ -48,10 +52,17 @@ func NewSyntheticV3(config SyntheticV3Config) (*Runtime, string, error) {
 		return nil, "", ErrInvalidConfig
 	}
 	workspace := filepath.Join(config.WorkspaceRoot, config.WorkspaceDirectory)
-	for _, directory := range []string{config.WorkspaceRoot, workspace, config.Credential.Root, filepath.Join(config.Credential.Root, config.Credential.Directory), config.ToolPackage} {
+	for _, directory := range []string{config.WorkspaceRoot, workspace, config.Credential.Root, filepath.Join(config.Credential.Root, config.Credential.Directory)} {
 		if validateDirectory(directory, directory) != nil {
 			return nil, "", ErrInvalidStorage
 		}
+	}
+	if profile.ID == codexprofile.IDV4 {
+		if validateInstalledArtifact(config.ToolPackage, true) != nil {
+			return nil, "", ErrInvalidStorage
+		}
+	} else if validateDirectory(config.ToolPackage, config.ToolPackage) != nil {
+		return nil, "", ErrInvalidStorage
 	}
 	for _, a := range []string{config.WorkspaceRoot, config.Credential.Root, config.ToolPackage} {
 		for _, b := range []string{config.WorkspaceRoot, config.Credential.Root, config.ToolPackage} {
@@ -94,6 +105,13 @@ func NewSyntheticV3(config SyntheticV3Config) (*Runtime, string, error) {
 		c.files = append(c.files, credentialArtifact{filepath.Join(config.ToolPackage, item.path), item.digest})
 	}
 	c.binds = append(c.binds, credentialBind{config.ToolPackage, "/opt/hsg/codex"})
+	if profile.ID == codexprofile.IDV4 {
+		for _, item := range append(append([]credentialArtifact(nil), c.files...), credentialArtifact{c.seccompPath, c.seccompDigest}) {
+			if validateInstalledArtifact(item.path, false) != nil {
+				return nil, "", ErrCredentialUnavailable
+			}
+		}
+	}
 	if c.checkArtifacts() != nil {
 		return nil, "", ErrCredentialUnavailable
 	}
@@ -117,7 +135,7 @@ func NewSyntheticV3(config SyntheticV3Config) (*Runtime, string, error) {
 	if err != nil {
 		return nil, "", ErrInvalidConfig
 	}
-	digest := sha256.Sum256(append([]byte("harness-security-gateway.synthetic-v3-runtime/uid-bootstrap-v1\x00"), data...))
+	digest := sha256.Sum256(append([]byte(domain+"\x00"), data...))
 	c.pin = hex.EncodeToString(digest[:])
 	spec := targetSpec{fingerprint: fingerprint, image: config.Manifest.Common().Runner.Image,
 		workspacePath: workspace, workspaceRoot: config.WorkspaceRoot, stateKind: targetmanifest.RunnerStateNone,
@@ -144,4 +162,32 @@ func safeSyntheticArtifact(a SyntheticArtifact) bool {
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
 	return ok && (st.Uid == 0 || st.Uid == uint32(os.Geteuid())) && st.Nlink == 1
+}
+
+// Static V4 artifacts are immutable to sandboxd; mutable storage remains
+// sandboxd-owned under validateDirectory. Do not merge these ownership rules.
+func validateInstalledArtifact(path string, directory bool) error {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return ErrInvalidStorage
+	}
+	for current := path; ; current = filepath.Dir(current) {
+		info, err := os.Lstat(current)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0022 != 0 || info.Mode()&(os.ModeSetuid|os.ModeSetgid) != 0 {
+			return ErrInvalidStorage
+		}
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || stat.Uid != 0 {
+			return ErrInvalidStorage
+		}
+		if current == path && !directory {
+			if !info.Mode().IsRegular() || stat.Nlink != 1 {
+				return ErrInvalidStorage
+			}
+		} else if !info.IsDir() {
+			return ErrInvalidStorage
+		}
+		if current == "/" {
+			return nil
+		}
+	}
 }

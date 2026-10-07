@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/codexprofile"
 	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
@@ -30,9 +31,25 @@ type credentialExecutionFixture struct {
 }
 
 func newCredentialExecutionFixture(t *testing.T, withProof bool) credentialExecutionFixture {
+	return newCredentialExecutionFixtureFor(t, withProof, false)
+}
+
+func newCredentialExecutionFixtureFor(t *testing.T, withProof, owner bool) credentialExecutionFixture {
 	t.Helper()
 	free := controllerManifest("free", "free-r1", "free-workspace", targetmanifest.WorkspaceReadOnly, targetmanifest.SessionNewOnly)
 	bound := controllerManifest("bound", "bound-r1", "bound-workspace", targetmanifest.WorkspaceReadOnly, targetmanifest.SessionNewOnly)
+	boundDef, _ := targetmanifest.FromV1(bound)
+	if owner {
+		profile := codexprofile.V4()
+		bound.Runner.Family, bound.Runner.AdapterVersion = profile.Runner.Family, profile.Runner.AdapterVersion
+		bound.Runner.RequiredFeatures = bound.Runner.RequiredFeatures[:0]
+		bound.PolicyRef, bound.AuthProfileRef, bound.SkillBundleRef, bound.NetworkProfileRef = profile.Profiles.Policy, profile.Profiles.Auth, profile.Profiles.Skill, profile.Profiles.Network
+		bound.WorkspaceMode = targetmanifest.WorkspaceReadWrite
+		bound.Limits.TimeoutSeconds, bound.Limits.MaxOutputBytes = 300, 2000
+		boundDef, _ = targetmanifest.FromV2(targetmanifest.ManifestV2{Schema: targetmanifest.SchemaV2, ID: bound.ID, Revision: bound.Revision, Runner: bound.Runner,
+			WorkspaceRef: bound.WorkspaceRef, WorkspaceMode: bound.WorkspaceMode, RunnerState: targetmanifest.NoRunnerState(), PolicyRef: bound.PolicyRef, AuthProfileRef: bound.AuthProfileRef,
+			SkillBundleRef: bound.SkillBundleRef, NetworkProfileRef: bound.NetworkProfileRef, SessionMode: bound.SessionMode, Limits: bound.Limits})
+	}
 	f := credentialExecutionFixture{deps: newTestDependencies(t, free), request: controllerRequest("credential-run", bound, "synthetic input")}
 	f.request.Deadline = time.Now().UTC().Add(30 * time.Second).Truncate(time.Millisecond)
 	f.gen = sandboxstore.CredentialGeneration{SlotRef: "synthetic", Generation: 1,
@@ -51,7 +68,8 @@ func newCredentialExecutionFixture(t *testing.T, withProof bool) credentialExecu
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.deps.registry, err = targetregistry.New([]targetmanifest.Manifest{free, bound})
+	freeDef, _ := targetmanifest.FromV1(free)
+	f.deps.registry, err = targetregistry.NewDefinitions([]targetmanifest.Definition{freeDef, boundDef})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,6 +78,12 @@ func newCredentialExecutionFixture(t *testing.T, withProof bool) credentialExecu
 		RunnerStateKind: targetmanifest.RunnerStatePersistent, RunnerStateRef: bound.StateRef,
 		RunnerStatePathDigest: strings.Repeat("1", 64), StatePathAbsent: true,
 		Credential: &sandboxstore.CredentialRef{SlotRef: f.gen.SlotRef, Generation: f.gen.Generation},
+	}
+	if owner {
+		authority.RunnerStateKind = targetmanifest.RunnerStateNone
+		authority.RunnerStateRef = ""
+		authority.RunnerStatePathDigest = ""
+		authority.StatePathAbsent = false
 	}
 	if withProof {
 		err = f.deps.store.RegisterEnrolledTargetAuthorities(context.Background(), []sandboxstore.EnrolledTargetAuthority{{

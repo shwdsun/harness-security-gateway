@@ -35,7 +35,7 @@ func (r *Runtime) RemoveStopped(ctx context.Context, ref ContainerRef) error {
 	}
 	// The endpoint may otherwise outlive a removed container. Join it before
 	// removal, and again through the controller's absence/publication boundary.
-	if err := r.CloseRunResources(ctx, record.Labels[labelRunID]); err != nil {
+	if err := r.stopRunProvider(ctx, record.Labels[labelRunID]); err != nil {
 		return err
 	}
 	_, err = r.run(ctx, "remove", "container", "rm", "--volumes", string(ref))
@@ -46,6 +46,9 @@ func (r *Runtime) RemoveStopped(ctx context.Context, ref ContainerRef) error {
 		}
 		if present {
 			return ErrInvalidState
+		}
+		if err := r.CloseRunResources(ctx, record.Labels[labelRunID]); err != nil {
+			return err
 		}
 		r.forgetCredential(ref)
 	}

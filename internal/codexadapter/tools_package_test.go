@@ -165,3 +165,57 @@ func TestPackageArtifactsRejectMissingSubstitutedAndUnsafeFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestReadOnlyPackageMountIsNotFilePermissionBits(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "bin")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte("fixed package fixture")
+	path := filepath.Join(dir, "helper")
+	if err := os.WriteFile(path, data, 0500); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(data)
+	artifacts := []packageArtifact{{"bin/helper", hex.EncodeToString(digest[:]), int64(len(data)), true}}
+	if err := verifyPackageArtifacts(root, artifacts); err != nil {
+		t.Fatal("legacy valid package rejected:", err)
+	}
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(dir, 0700); err != nil {
+			t.Error("fixture directory cleanup:", err)
+		}
+	})
+	if err := verifyPackageArtifactsMode(root, artifacts, true); !errors.Is(err, errInvalidConfig) {
+		t.Fatal("permission bits substituted for a kernel read-only mount")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if packageReadOnlyFD(f.Fd()) || packageReadOnlyFD(^uintptr(0)) {
+		t.Fatal("writable or unknown file descriptor reported as read-only")
+	}
+}
+
+func TestIsolatedPackageFailurePrecedesReadinessAndLaunch(t *testing.T) {
+	c := testConfig(t)
+	c.ProfileID = codexprofile.IDV4
+	c.Binary = filepath.Join(t.TempDir(), "package", "bin", "codex")
+	var output bytes.Buffer
+	err := Run(context.Background(), strings.NewReader(""), &output, c, launcherFunc(func(context.Context, Invocation) (Process, error) {
+		t.Fatal("invalid isolated package reached launcher")
+		return nil, nil
+	}))
+	if !errors.Is(err, errInvalidConfig) || output.Len() != 0 || strings.Contains(err.Error(), c.Binary) {
+		t.Fatal("isolated fixed package path failure was not private and pre-Ready")
+	}
+}

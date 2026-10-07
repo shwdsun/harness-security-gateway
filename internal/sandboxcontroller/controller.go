@@ -57,6 +57,7 @@ type Controller struct {
 	offered          map[string]*offeredRun
 	desired          map[string]terminalSpec
 	certainNoRuntime map[string]bool
+	predispatch      map[string]predispatchProof
 	startsInFlight   int
 	startsDrained    chan struct{}
 	startsClosed     bool

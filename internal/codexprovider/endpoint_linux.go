@@ -258,6 +258,14 @@ func (e *Endpoint) rejectOperation(operation Operation, reason responseRejection
 	}
 }
 
+// The isolated adapter must use this admission budget, not infer it from
+// successful local-token issuance: a rejected refresh already spends its slot.
+func (e *Endpoint) hasRefreshBudget() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.counts[Refresh] == 0
+}
+
 func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	diagnostic.Operation, diagnostic.Stage = "unknown", "connect"
 	defer func() {
@@ -364,6 +372,11 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	diagnostic.Stage = "upstream"
 	response, err := e.respond(callCtx, request)
 	diagnostic.UpstreamStatus = diagnosticStatus(response.Status)
+	local, isLocal := response.Body.(interface{ localAuthResult() string })
+	if isLocal {
+		diagnostic.LocalAuth = local.localAuthResult()
+		diagnostic.UpstreamAuthorized, diagnostic.UpstreamStatus = false, 0
+	}
 	var failure upstreamFailure
 	if errors.As(err, &failure) {
 		diagnostic.Stage = failure.stage
@@ -401,8 +414,11 @@ func (e *Endpoint) exchange(conn net.Conn) (diagnostic ExchangeDiagnostic) {
 	}
 	if response.Status != 200 {
 		diagnostic.Stage = "upstream_status"
+		if isLocal {
+			diagnostic.Stage = "local_auth"
+		}
 		status := 502
-		if response.Status == 400 || response.Status == 401 || response.Status == 403 || response.Status == 429 {
+		if response.Status == 400 || response.Status == 401 || response.Status == 403 || response.Status == 429 || (isLocal && response.Status == 503) {
 			status = response.Status
 		}
 		writeDenied(secure, status)

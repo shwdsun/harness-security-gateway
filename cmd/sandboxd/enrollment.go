@@ -19,7 +19,7 @@ var errEnrollment = errors.New("credential enrollment incomplete; preserve the c
 // This mode owns the same user-global lock as serve. It never starts a
 // listener/controller, retires history, chooses a generation, or logs in.
 func enrollCredential(ctx context.Context, config sandboxconfig.Config) (returned error) {
-	if ctx == nil || ctx.Err() != nil || config.Schema != sandboxconfig.SchemaCodexV1 {
+	if ctx == nil || ctx.Err() != nil || (config.Schema != sandboxconfig.SchemaCodexV1 && config.Schema != sandboxconfig.SchemaCodexV2) {
 		return errEnrollment
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -27,6 +27,9 @@ func enrollCredential(ctx context.Context, config sandboxconfig.Config) (returne
 	setup, err := prepareExecution(config)
 	if err != nil {
 		return err
+	}
+	if setup.close != nil {
+		defer setup.close()
 	}
 	if err := privatefs.EnsureParent(config.ProcessLockPath(), 0o700); err != nil {
 		return err
@@ -40,6 +43,9 @@ func enrollCredential(ctx context.Context, config sandboxconfig.Config) (returne
 			returned = errEnrollment
 		}
 	}()
+	if setup.startup != nil && setup.startup() != nil {
+		return errEnrollment
+	}
 	if err := prepareFilesystem(config); err != nil {
 		return err
 	}

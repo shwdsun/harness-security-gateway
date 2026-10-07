@@ -10,15 +10,21 @@ authenticated messaging events into durable Runs against operator-approved,
 immutable harness targets without implementing another agent loop or
 orchestrator.
 
-> **Status as of 2026-09-11: research prototype / pre-alpha.** The control plane,
-> mock path, credential lifecycle and opt-in V3/native provider canary are
-> implemented within their documented scopes. The fifth controlled real-provider
-> Run passed on 2026-09-10. The first Run through ordinary `agentd`/`sandboxd`
-> with fake ingress then passed at 00:47 UTC on 2026-09-11, including a tool
-> marker, local delivery and independently checked cleanup. Earlier history
-> remains retained. Fixed Codex startup requires an explicit opt-in build;
-> default builds remain mock-only. No public Discord Connector, approved production
-> Codex target or production deployment is available.
+> **Status as of 2026-10-07: pre-alpha.** The control plane and private Discord
+> Connector are implemented. A dated September 16 deployment witness completed
+> two Discord-to-Codex text Runs, replies and sequential cleanup. Its existing
+> Runner can read reusable provider auth; CRED-01 is still unmet. The separate
+> opt-in V4 candidate has bounded synthetic native execution evidence, with
+> synthetic inference401/Catalog401 recovery and refresh cancellation accepted.
+> First-helper-loss safe failure and original same-DB Owner crash/restart are
+> accepted within their separate synthetic scopes. Real-path acceptance and
+> final integration remain open. The accumulated V4 candidate passed local
+> normal/tagged tests, race checks and vet; CI is configured to cover its opt-in components.
+> Fixed Codex startup requires an
+> explicit opt-in build; default builds remain mock-only. No production release
+> or approved V4 deployment follows from these observations. See the
+> [current implementation status](docs/implementation-status.md) and
+> [M1 acceptance boundary](docs/milestones.md).
 
 Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
 The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race/vet
@@ -80,8 +86,9 @@ have separate, sandbox-owned lifetimes.
 
 ## Current implementation
 
-This is a real control plane exercised end to end with a deterministic mock
-Runner; it is not yet a real platform-to-provider integration.
+The control plane is exercised with a deterministic mock Runner and a dated
+private Discord-to-Codex text deployment. Credential isolation for that useful
+workflow remains the next integration milestone.
 
 | Area | Status |
 | --- | --- |
@@ -90,12 +97,12 @@ Runner; it is not yet a real platform-to-provider integration.
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
-| Codex adapter and V3 package | V1/V2 contracts retained; opt-in V3 adds a pinned native tool package, bootstrap and scoped native witnesses. No approved production Runner image is shipped |
+| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance and final consolidation remain open. No approved production V4 image is shipped |
 | Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
 | Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
 | Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
-| Discord Connector | Not implemented |
+| Private Discord Connector | Implemented with exact identity/Binding admission, durable cursor and reply delivery; dated two-message deployment evidence exists |
 | Production deployment | Not ready |
 
 The detailed and authoritative status is in

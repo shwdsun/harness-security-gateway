@@ -1,6 +1,9 @@
 # Offline Codex development bundle
 
-This recipe prepares the existing measured fixed-target template for review.
+This recipe prepares the measured **V3 credential-exposed development template**
+for review. It does not assemble the separately versioned
+[V4 owner-only candidate](../../docs/codex-profile-v4.md), whose isolated Runner,
+trusted refresh launcher and immutable artifact ownership differ.
 It compiles the service binaries and assembles pinned, non-secret native inputs
 without Docker, network acquisition, credentials, enrollment or service startup.
 It is not a production image, installer or authorization to activate a target.

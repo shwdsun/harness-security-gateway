@@ -61,6 +61,9 @@ func (h *HeldSource) OpenContainerMount(pid int, ref, bootstrapDigest, sourceDig
 	if h == nil || pid <= 1 || !digestText(ref) || !digestText(bootstrapDigest) || !digestText(sourceDigest) || proof.Validate() != nil {
 		return nil, mountFailure("expectation", nil)
 	}
+	if err := h.selectUse(sourceMount); err != nil {
+		return nil, mountFailure("source_mode", err)
+	}
 	g := &ContainerMount{held: h, pid: pid, ref: ref, bootstrapDigest: bootstrapDigest, sourceDigest: sourceDigest, proof: proof}
 	fd, err := unix.PidfdOpen(pid, 0)
 	if err != nil {

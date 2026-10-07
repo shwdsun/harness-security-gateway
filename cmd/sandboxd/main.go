@@ -61,7 +61,10 @@ func run(ctx context.Context, arguments []string) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 	if parsed.check {
-		_, err := prepareExecution(config)
+		setup, err := prepareExecution(config)
+		if err == nil && setup.close != nil {
+			err = setup.close()
+		}
 		if err == nil {
 			_, err = fmt.Fprintln(os.Stdout, "configuration and fixed artifacts checked; no enrollment, runtime or provider operation performed")
 		}
@@ -106,6 +109,9 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 	if err != nil {
 		return err
 	}
+	if execution.close != nil {
+		defer execution.close()
+	}
 	if err := privatefs.EnsureParent(config.ProcessLockPath(), 0o700); err != nil {
 		return fmt.Errorf("prepare global sandboxd ownership directory: %w", err)
 	}
@@ -114,6 +120,13 @@ func serve(parent context.Context, config sandboxconfig.Config) error {
 		return fmt.Errorf("acquire sandboxd ownership: %w", err)
 	}
 	defer owner.Close()
+	// Observe helper absence with user-global ownership, before any store or
+	// startup retirement can release an old generation's durable occupancy.
+	if execution.startup != nil {
+		if err := execution.startup(); err != nil {
+			return fmt.Errorf("owner startup gate: %w", err)
+		}
+	}
 	if err := prepareFilesystem(config); err != nil {
 		return err
 	}

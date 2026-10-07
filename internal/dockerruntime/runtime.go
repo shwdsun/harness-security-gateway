@@ -46,13 +46,15 @@ func (r ContainerRef) String() string {
 }
 
 type Runtime struct {
-	cli          string
-	endpoint     string
-	targets      map[targetKey]targetSpec
-	credentialMu sync.Mutex
-	credentials  map[ContainerRef]*credentialLaunch
-	providers    map[string]runProvider // Same process as runtime ownership.
-	inventoryPin string
+	cli                 string
+	endpoint            string
+	targets             map[targetKey]targetSpec
+	credentialMu        sync.Mutex
+	credentials         map[ContainerRef]*credentialLaunch
+	providers           map[string]runProvider // Same process as runtime ownership.
+	inventoryPin        string
+	ownerStartup        func() error
+	ownerArtifactsClose func() error
 }
 
 type targetKey struct {
@@ -157,6 +159,10 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 }
 
 func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff) (ContainerRef, error) {
+	return r.createAuthorized(ctx, runID, manifest, handoff, nil)
+}
+
+func (r *Runtime) createAuthorized(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff, owner *credentialsource.OwnerAccess) (ContainerRef, error) {
 	if err := r.ready(ctx); err != nil {
 		return "", err
 	}
@@ -166,7 +172,7 @@ func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanif
 	if err := manifest.Validate(); err != nil {
 		return "", fmt.Errorf("%w: target manifest", ErrInvalidArgument)
 	}
-	if handoff == nil {
+	if handoff == nil && owner == nil {
 		if err := validateProfile(manifest); err != nil {
 			return "", err
 		}
@@ -183,9 +189,15 @@ func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanif
 		if err := validateProfile(manifest); err != nil {
 			return "", err
 		}
-		if handoff != nil {
+		if handoff != nil || owner != nil {
 			return "", ErrCredentialUnavailable
 		}
+	} else if spec.credential.ownerOnly {
+		if handoff != nil || owner == nil || spec.credential.checkArtifacts() != nil || owner.Claim(runID, fingerprint, spec.credential.binding) != nil {
+			return "", ErrCredentialUnavailable
+		}
+	} else if owner != nil {
+		return "", ErrCredentialUnavailable
 	} else if err := spec.credential.prepare(handoff, runID, fingerprint); err != nil {
 		return "", err
 	}
@@ -199,7 +211,7 @@ func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanif
 	}
 	// Allocate only after the one-use handoff is claimed, before an external
 	// Create could be accepted. Failure retains any allocated owner for cleanup.
-	if spec, err = r.prepareProvider(ctx, runID, spec); err != nil {
+	if spec, err = r.prepareProviderOwner(ctx, runID, spec, owner); err != nil {
 		return "", err
 	}
 

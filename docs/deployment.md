@@ -106,8 +106,8 @@ boundary itself. The following placement rules are normative:
   a relay inside a network-none container. Its V3 `credential-exposed-personal`
   contract still binds the dedicated credential file into that container;
   native tools can read it. Operation mediation does not establish credential
-  hiding. A stronger credential-hiding design would require a separately
-  versioned contract. Merely allowing a hostname is not operation mediation.
+  hiding. The separately versioned V4 candidate below implements the stronger
+  credential boundary. Merely allowing a hostname is not operation mediation.
 
 Production placement requires distinct service identities and private path and
 socket permissions. Running every process under one UID, using a broad shared
@@ -134,6 +134,16 @@ image or target. Package composition and native settings belong to this
 versioned artifact, while local credential/workspace mappings remain separate
 operator inputs. System sandbox prerequisites require environment evidence;
 the package recipe never changes host security settings.
+
+The [Codex V4 candidate](codex-profile-v4.md) uses a distinct isolated Runner
+artifact. Reusable provider auth and the fixed trusted refresh helper stay in
+the Owner domain; the Runner receives a Run-scoped channel and non-secret local
+auth representation. Native CLI, launcher, companion host and helper artifacts
+require immutable installation, separate from service-owned mutable storage.
+Bounded synthetic native and failure scopes have evidence; required real
+provider compatibility, refresh and private Discord acceptance remain open.
+The existing `deploy/codex` bundle describes V3 and does not package or approve
+this V4 candidate. M1 integration does not itself activate a production target.
 
 Platform-specific behavior belongs in a Connector artifact. A Discord
 Connector image or binary contains the reviewed Connector implementation and

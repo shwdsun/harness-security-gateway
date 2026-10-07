@@ -20,6 +20,9 @@ import (
 // running owner and artifact bytes. Each admitted Run gets its own endpoint;
 // no single-canary diagnostic capture or filtered inventory is retained.
 func NewConfiguredCodex(config sandboxconfig.Config) (*Runtime, string, error) {
+	if config.Schema == sandboxconfig.SchemaCodexV2 {
+		return newConfiguredIsolated(config)
+	}
 	return configuredCodex(config, func(c ProviderCanaryConfig) (*Runtime, string, error) {
 		if err := validateLiveProvider(c); err != nil {
 			return nil, "", err
@@ -33,7 +36,7 @@ func NewConfiguredCodex(config sandboxconfig.Config) (*Runtime, string, error) {
 // The private constructor seam permits deterministic wiring tests without
 // weakening any production artifact or provider check.
 func configuredCodex(config sandboxconfig.Config, build func(ProviderCanaryConfig) (*Runtime, string, error)) (*Runtime, string, error) {
-	if config.Schema != sandboxconfig.SchemaCodexV1 || config.Validate() != nil || build == nil {
+	if (config.Schema != sandboxconfig.SchemaCodexV1 && config.Schema != sandboxconfig.SchemaCodexV2) || config.Validate() != nil || build == nil {
 		return nil, "", ErrInvalidConfig
 	}
 	p := *config.Codex
@@ -63,7 +66,11 @@ func configuredCodex(config sandboxconfig.Config, build func(ProviderCanaryConfi
 	if err != nil {
 		return nil, "", ErrInvalidConfig
 	}
-	digest := sha256.Sum256(append([]byte("harness-security-gateway.codex-daemon/v1\x00"), data...))
+	domain := "harness-security-gateway.codex-daemon/v1\x00"
+	if config.Schema == sandboxconfig.SchemaCodexV2 {
+		domain = "harness-security-gateway.codex-isolated-daemon/v2\x00"
+	}
+	digest := sha256.Sum256(append([]byte(domain), data...))
 	pin := hex.EncodeToString(digest[:])
 	for key, spec := range r.targets {
 		if spec.credential == nil {

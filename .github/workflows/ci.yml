@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'checkpoint/**']
   pull_request:
   workflow_dispatch:
 
@@ -42,11 +42,22 @@ jobs:
       - name: Run tests
         run: .github/scripts/run-go-tests.sh
 
+      - name: Test V4 integration components and evidence predicates
+        # The legacy exec experiment requires a pinned native CLI and fresh
+        # namespaces. Explicit VM campaigns cover it; ordinary CI excludes it.
+        run: go test -count=1 -p=1 -tags=codexintegration -skip='^TestCodexExecIntegration$' ./...
+
       - name: Run race detector
         run: go test -race -count=1 -p=1 ./...
 
+      - name: Race-check opt-in V4 runtime and provider
+        run: go test -race -count=1 -p=1 -tags=codexintegration ./internal/dockerruntime ./internal/codexprovider
+
       - name: Run vet
         run: go vet ./...
+
+      - name: Vet opt-in Codex integration
+        run: go vet -tags=codexintegration ./...
 
       - name: Run security witness
         run: make demo-security

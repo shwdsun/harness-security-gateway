@@ -1,5 +1,16 @@
 # Credential source lifecycle
 
+**Current reading guide, 2026-10-07:** the September 9 stage below predates the
+later configured enrollment and live witnesses recorded in
+[implementation status](implementation-status.md). Do not repeat enrollment work
+because that historical stage says it was unwired. The deployed path still
+exposes its auth file to the Runner. The separately versioned
+[V4 candidate](codex-profile-v4.md) selects owner-only storage and trusted native
+refresh in the opt-in runtime. Its bounded synthetic execution, recovery and
+fault scopes are accepted; real provider/refresh/Discord acceptance and final
+integration remain open. Later dated sections describe that implementation;
+the September 9 statements below retain their original historical scope.
+
 Status, 2026-09-09: **durable occupancy, held-file/proof primitives, atomic
 registration, Run re-open/release and startup retirement implemented with
 synthetic tests and two local native owner-restart witnesses; real source
@@ -172,6 +183,53 @@ Run occupancy. The descriptor identities are only live comparison keys: inode
 and mount-ID reuse prevents treating their hash as a permanent SourceDigest.
 No cross-restart enrollment, mount handoff or token-persistence attestation is
 implemented by this primitive.
+
+### Owner-only content access — 2026-09-19
+
+The metadata operations above keep their no-content contract. The explicit
+`HeldSource.BorrowForOwner` API now creates a separate, non-serializable content
+capability for trusted runtime-owner code after matching the local binding and
+enrolled proof. Its exact Run/manifest/binding can be revalidated. It is neither
+an enrollment nor a durable occupancy grant. No controller, executable or
+runtime profile currently selects it.
+
+The held object permanently selects either mount use or owner content use until
+`HeldSource.Close`. Both `Handoff` and the direct `OpenContainerMount` observation
+entrypoint participate. Borrow revocation cannot switch modes; copied owner
+capabilities share revocation, and only one owner borrow can be constructed.
+This prevents a future owner-only consumer from coexisting with an already issued
+real-credential mount capability on the same held source.
+
+`OwnerAccess.Read` returns at most 64 KiB from the pinned file, with metadata/path
+validation before and after. `Commit(expected, candidate)` compares current bytes
+against the supplied baseline and reopens the pinned FD through trusted procfs
+for write access, validating the opened identity. It writes, truncates, fsyncs,
+reads back the entire candidate and revalidates the source. It creates no entry,
+renames no file and preserves the enrolled inode. Content I/O and Close share
+the held-source mutex. Byte limits do not make local filesystem calls time-bounded.
+
+A failed content comparison, write, truncate, sync, readback or descriptor close
+latches source invalidity while retaining the original locks. Partial writes are
+never rolled back. A trusted parser can also explicitly invalidate the borrow.
+The controller's existing Validate/retirement flow can consume that failure when
+the new path is wired; the storage API itself cannot revoke a durable generation
+or release occupancy. Closing the borrow revokes access only; closing HeldSource
+is still the controller's responsibility after all Run resources have stopped.
+
+`codexprovider.ParseOwnerAuth` and `ValidateOwnerAuthUpdate` validate the fixed
+managed-ChatGPT storage shape, account/subject consistency and nondecreasing
+refresh time. They permit unchanged token strings and expose only access/account
+data to the future owner transport. Secret-bearing types reject JSON and use a
+redacting formatter instead of exposing private fields. Returned explicit byte/string
+copies remain secrets owned by the caller. JWT inspection checks storage
+consistency only; it is not signature verification or authorization of Runner data.
+
+These are concrete storage/parse guarantees, not evidence of OAuth completion,
+freshness, power-loss atomicity or external-process cleanup. A native consumer
+must separately prove its refresh result and stop every writer before Commit.
+Its owner-loss recovery must account for helpers absent from a replacement
+owner's memory before releasing occupancy. Those integrations remain open under
+the [CRED-01 work package](credential-isolation-plan.md).
 
 ## What is still required
 

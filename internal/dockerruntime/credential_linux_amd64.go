@@ -110,7 +110,7 @@ func (r *Runtime) releaseCredentialBootstrap(ctx context.Context, ref ContainerR
 	}()
 	err := bootstrapgate.Release(ctx, process.Stdin, process.Stdout, func(ctx context.Context) error {
 		stage = "source"
-		if err := launch.source.Validate(launch.runID, spec.fingerprint, spec.credential.binding); err != nil {
+		if err := launch.validate(spec); err != nil {
 			return err
 		}
 		stage = "observer"
@@ -139,6 +139,12 @@ func (r *Runtime) releaseCredentialBootstrap(ctx context.Context, ref ContainerR
 			}
 		}
 		stage = "receiver"
+		if spec.credential.ownerOnly {
+			client, ok := endpoint.(clientAuthProvider)
+			if !ok || client.VerifyInitial() != nil {
+				return ErrCredentialUnavailable
+			}
+		}
 		receiver, err = launch.source.OpenReceiver(first.PID, string(ref), spec.credential.bootstrap, credentialRunnerUID)
 		if err != nil {
 			return err
@@ -151,8 +157,14 @@ func (r *Runtime) releaseCredentialBootstrap(ctx context.Context, ref ContainerR
 		if err := receiver.Validate(); err != nil {
 			return err
 		}
-		if err := launch.source.Validate(launch.runID, spec.fingerprint, spec.credential.binding); err != nil {
+		if err := launch.validate(spec); err != nil {
 			return err
+		}
+		if spec.credential.ownerOnly {
+			client, ok := endpoint.(clientAuthProvider)
+			if !ok || client.VerifyInitial() != nil {
+				return ErrCredentialUnavailable
+			}
 		}
 		// No receiver descriptors survive the private phase. A close error denies
 		// permit; only the controller can later close the original held source.

@@ -11,6 +11,8 @@ type executionSetup struct {
 	authority sandboxservice.AuthorityResolverFunc
 	bindings  []credentialsource.Binding
 	runtime   func() (*dockerruntime.Runtime, error)
+	startup   func() error
+	close     func() error
 }
 
 // Resolve native authority before any startup mutation. Mock runtime creation
@@ -19,7 +21,7 @@ func prepareExecution(config sandboxconfig.Config) (executionSetup, error) {
 	if err := config.Validate(); err != nil {
 		return executionSetup{}, err
 	}
-	if config.Schema == sandboxconfig.SchemaCodexV1 {
+	if config.Schema == sandboxconfig.SchemaCodexV1 || config.Schema == sandboxconfig.SchemaCodexV2 {
 		return prepareCodex(config)
 	}
 	return executionSetup{authority: config.ResolveTargetAuthority,

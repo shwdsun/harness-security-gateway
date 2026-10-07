@@ -44,7 +44,7 @@ func (r *Runtime) AttachStart(ctx context.Context, ref ContainerRef) (*Process, 
 		if err != nil {
 			return nil, err
 		}
-		if launch.source.Validate(launch.runID, spec.fingerprint, spec.credential.binding) != nil || spec.credential.checkArtifacts() != nil {
+		if launch.validate(spec) != nil || spec.credential.checkArtifacts() != nil {
 			return nil, ErrCredentialUnavailable
 		}
 	}

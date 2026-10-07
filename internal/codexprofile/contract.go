@@ -83,19 +83,20 @@ var ErrInvalid = errors.New("invalid Codex profile contract")
 // paths supplied by an operator, or credential bytes. V1 accepts exactly the
 // value returned by V1; a semantic change requires a new versioned contract.
 type Contract struct {
-	Schema         string              `json:"schema"`
-	ID             string              `json:"id"`
-	Classification string              `json:"classification"`
-	Runner         RunnerContract      `json:"runner"`
-	Profiles       ProfileRefs         `json:"profiles"`
-	CLI            CLIArtifact         `json:"cli"`
-	Model          ModelSelection      `json:"model"`
-	Credential     CredentialContract  `json:"credential"`
-	State          StateContract       `json:"state"`
-	Network        NetworkContract     `json:"network"`
-	Context        ContextContract     `json:"context"`
-	Teardown       TeardownContract    `json:"teardown"`
-	ToolRuntime    ToolRuntimeContract `json:"tool_runtime,omitzero"`
+	Schema         string               `json:"schema"`
+	ID             string               `json:"id"`
+	Classification string               `json:"classification"`
+	Runner         RunnerContract       `json:"runner"`
+	Profiles       ProfileRefs          `json:"profiles"`
+	CLI            CLIArtifact          `json:"cli"`
+	Model          ModelSelection       `json:"model"`
+	Credential     CredentialContract   `json:"credential"`
+	State          StateContract        `json:"state"`
+	Network        NetworkContract      `json:"network"`
+	Context        ContextContract      `json:"context"`
+	Teardown       TeardownContract     `json:"teardown"`
+	ToolRuntime    ToolRuntimeContract  `json:"tool_runtime,omitzero"`
+	OwnerRuntime   OwnerRuntimeContract `json:"owner_runtime,omitzero"`
 }
 
 type RunnerContract struct {
@@ -249,7 +250,7 @@ func V2() Contract {
 // profile parser and deliberately offers no extension map.
 func (c Contract) Validate() error {
 	switch c {
-	case V1(), V2(), V3():
+	case V1(), V2(), V3(), V4():
 		return nil
 	default:
 		return fmt.Errorf("%w: contract does not exactly match a sealed profile", ErrInvalid)
@@ -266,6 +267,8 @@ func Resolve(id string) (Contract, error) {
 		return V2(), nil
 	case IDV3:
 		return V3(), nil
+	case IDV4:
+		return V4(), nil
 	default:
 		return Contract{}, fmt.Errorf("%w: unknown profile ID", ErrInvalid)
 	}
@@ -294,6 +297,8 @@ func fingerprint(c Contract) (string, error) {
 		domain = fingerprintDomainV2
 	} else if c.Schema == SchemaV3 {
 		domain = fingerprintDomainV3
+	} else if c.Schema == SchemaV4 {
+		domain = fingerprintDomainV4
 	}
 	digest := sha256.New()
 	_, _ = digest.Write([]byte(domain))

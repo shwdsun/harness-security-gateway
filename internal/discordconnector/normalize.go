@@ -65,10 +65,14 @@ func (c Config) Normalize(message Message) (connectorwire.InboundEventV1, SkipRe
 	if message.Author.ID == c.SelfUserID {
 		return connectorwire.InboundEventV1{}, SkipSelfAuthor
 	}
-	if message.Author.Bot || message.Author.System || message.WebhookID != "" {
+	if message.Author.System || message.WebhookID != "" {
 		return connectorwire.InboundEventV1{}, SkipAutomatedAuthor
 	}
-	if !c.allowsAuthor(message.Author.ID) {
+	if message.Author.Bot {
+		if !c.allowsBotAuthor(message.Author.ID) {
+			return connectorwire.InboundEventV1{}, SkipAutomatedAuthor
+		}
+	} else if !c.allowsAuthor(message.Author.ID) {
 		return connectorwire.InboundEventV1{}, SkipUnlistedAuthor
 	}
 	if message.Type != messageTypeDefault && message.Type != messageTypeReply {
@@ -103,6 +107,15 @@ func (c Config) Normalize(message Message) (connectorwire.InboundEventV1, SkipRe
 func (c Config) allowsAuthor(id string) bool {
 	for _, allowed := range c.AllowedAuthorIDs {
 		if allowed == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (c Config) allowsBotAuthor(id string) bool {
+	for _, allowed := range c.AllowedBotAuthorIDs {
+		if id == allowed {
 			return true
 		}
 	}

@@ -48,3 +48,22 @@ func TestMountedFileRequiresExactRWExt4ReceiverView(t *testing.T) {
 		}
 	}
 }
+
+func TestOwnerModeRejectsDirectMountObserverBeforeProcessAccess(t *testing.T) {
+	_, h, o := ownerFixture(t)
+	source, proof, err := h.observeProof(syntheticReader, nil)
+	must(t, err)
+	// A nonexistent process must never be queried in owner mode: source_mode
+	// precedes pidfd/proc access. No real runtime or container is required.
+	mount, err := h.OpenContainerMount(2147483647, strings.Repeat("a", 64), strings.Repeat("b", 64), source, proof)
+	if mount != nil {
+		t.Fatal("owner source acquired a mount observer")
+	}
+	failure, ok := err.(*MountError)
+	if !ok || failure.Stage != "source_mode" {
+		t.Fatal("owner source reached process observation")
+	}
+	if _, err := o.Read(); err != nil {
+		t.Fatal("rejected mount destroyed valid owner access")
+	}
+}

@@ -134,6 +134,7 @@ func (c *Controller) rememberDesiredTerminal(runID string, spec terminalSpec) {
 	if c.desired != nil {
 		c.desired[runID] = spec
 		delete(c.certainNoRuntime, runID)
+		delete(c.predispatch, runID)
 	}
 	c.mu.Unlock()
 	c.signalReconcile()
@@ -144,6 +145,7 @@ func (c *Controller) rememberCertainNoRuntimeTerminal(runID string, spec termina
 	if c.desired != nil {
 		c.desired[runID] = spec
 		c.certainNoRuntime[runID] = true
+		delete(c.predispatch, runID)
 	}
 	c.mu.Unlock()
 	c.signalReconcile()
@@ -159,6 +161,7 @@ func (c *Controller) desiredTerminal(runID string) (terminalSpec, bool, bool) {
 func (c *Controller) clearDesiredTerminal(runID string) {
 	c.mu.Lock()
 	delete(c.desired, runID)
+	delete(c.predispatch, runID)
 	delete(c.certainNoRuntime, runID)
 	c.mu.Unlock()
 }

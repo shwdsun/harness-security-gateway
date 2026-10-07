@@ -19,10 +19,12 @@ type Diagnostics struct {
 // describes the observed upstream field, including absent inference metadata.
 // For operation_rejected, Reason identifies the earlier latched rejection;
 // upstream status/media are absent because no new upstream response was observed.
+// LocalAuth labels a locally issued auth result; its upstream fields are empty.
 type ExchangeDiagnostic struct {
 	Operation          string `json:"operation"`
 	Stage              string `json:"stage"`
 	Reason             string `json:"reason,omitempty"`
+	LocalAuth          string `json:"local_auth,omitempty"`
 	MediaClass         string `json:"media_class,omitempty"`
 	UpstreamAuthorized bool   `json:"upstream_authorized,omitempty"`
 	UpstreamStatus     int    `json:"upstream_status,omitempty"`

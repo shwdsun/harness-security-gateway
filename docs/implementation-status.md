@@ -1,5 +1,684 @@
 # Implementation status
 
+## V4 consolidation reviewed; real acceptance remains open — 2026-10-07
+
+The accumulated owner-only V4 implementation has received an independent,
+code-grounded review of controller certainty, source ownership, native refresh,
+runtime separation, provider substitution and explicit official-bot admission.
+No concrete authority escape, speculative create replay or cleanup-release
+regression was found in that review. Review is advisory, not an acceptance proof.
+
+Local checks passed with Go1.26.7: command builds, module verification, normal
+tests and race, full opt-in tests excluding the exact legacy native CLI experiment,
+focused opt-in runtime/provider race, normal/tagged vet, security witness and
+configuration/bake-off checks. Initial restricted-environment cache/socket errors
+are environment limitations; the subsequent ordinary-host checks passed. No
+accepted native fault campaign was rerun to change a historical failed wrapper.
+
+CI now runs those opt-in component tests and vet, focused opt-in race and
+development checkpoint pushes. This entry records the local result and CI
+configuration; GitHub CI execution must be observed on the actual pushed commit.
+Deployment documentation now distinguishes the existing V3 development bundle
+from V4's separate Runner, Owner helper and root-controlled immutable artifacts.
+
+Approved-device real-provider compatibility, required natural refresh and private
+Discord completion remain unobserved for V4. CRED-01/M1 and the main integration
+gate remain open. The deployed V3 profile remains credential-exposed; neither
+offline Root workflow tests nor synthetic native witnesses approve production.
+Earlier dated entries retain their original scope.
+
+## Synthetic Owner crash and same-DB recovery accepted — 2026-10-06, 09:53 UTC
+
+Complete independent raw-evidence review and primary adjudication accepted the
+original bounded Owner SIGKILL, new-process original serve on the same database,
+startup credential retirement, terminal publication and final cleanup. Exact
+protected process identity remained stable while mutable RSS/scheduling fields
+changed. The authenticated Owner signal preceded the original callback deadline;
+old Owner/helper/cgroup absence was observed before the second explicit start.
+
+The new process retired the generation before removing the known container,
+without reopening credentials/provider/native execution or creating a new Run.
+The physical source lock had already released on process death; durable
+occupancy/workspace/ref remained until cleanup. Closed SQLite recorded one
+interrupted Run, refNULL/intent0/outputNULL, revocation1 and zero occupancy/locks/
+staged terminals. Enrolled fingerprint and unchanged source/proof were verified.
+Original joins and the specific expected listener-close error passed. Empty
+global inventory preceded five final owned stops and four inactive/PID0 units.
+
+The original whole batch remains failed/remote1: its stopped-report analyzer had
+a Python module/local-variable name collision. The complete original report was
+already collected; an alias-only local correction reproduced the failure and
+validated the same raw evidence with negative controls, without VM/disk/native
+replay or rewriting the failed result. Old metadata preservation is qualified by
+one recorded access-time-only difference; no old-byte or actor claim follows.
+
+The remaining planned synthetic fault scopes are now accepted separately. Do
+not rerun them merely to obtain a green wrapper. Approved-device real
+compatibility, required refresh/private Discord and final consolidated review/
+tests/docs/CI still precede CRED-01/M1 and merge readiness. V4 remains a candidate;
+the deployed profile remains `credential-exposed-personal`. Earlier dated
+entries below retain their historical scope.
+
+## First native helper loss accepted; Owner restart pending — 2026-10-06
+
+The original offline helperloss phase at08:40 UTC passed its narrow safe-failure
+boundary. One authenticated helper pidfd SIGKILL preceded successful native
+account/candidate promotion; actual external Create/Attach and Commit remained
+zero. Native/provider joins, source-held credential retirement, resource close
+and source unlock before publication passed. Closed SQLite recorded one failed
+Run, refNULL/intent0, revocation1 and zero occupancy/workspace locks. Complete
+independent raw-evidence review and primary adjudication accepted this scope.
+
+The whole batch remains failed. The private supervisor refused before the Owner
+crash signal; restart never ran. It compared complete mutable process status,
+which can reject legitimate diagnostic changes. The actual failing operand was
+not recorded and remains unknown. Later global inventory was nonempty and final
+four-unit verification failed; VM absence and old metadata preservation passed
+separately. All original results and volumes remain retained.
+
+Next repair only that private observer, retaining raw diagnostics and exact
+security/process/signal guards, then test only Owner crash and original same-DB
+recovery. Do not replay accepted helperloss or other native campaigns. Approved-
+device real compatibility/required refresh/private Discord and consolidation/
+review/CI remain before CRED-01/M1; V4 stays a candidate and the deployed profile
+remains `credential-exposed-personal`.
+
+## Synthetic Catalog401 recovery and native-refresh cancellation accepted — 2026-10-06
+
+The original offline VM executed Catalog401 recovery and authenticated native
+Controller cancellation at04:57–04:58 UTC. Complete raw-evidence review accepted
+both scopes. Catalog1/Inference2/Refresh1, two natural native exits/full candidates/
+Commits, actual canonical Runner tool/readback, healthy updated Owner source and
+contained tool socket denial passed. Cancellation consumed and closed a complete
+late200 refresh response, then rejected it on the original cancelled context:
+initialCommit1/recoveryCommit0, no candidate/replay and unchanged source.
+
+Exact cleanup, source-held retirement before release/publication, closed SQLite
+terminal/refNULL/intent0/zero occupancy and workspace locks, bounded secrecy and
+ordered empty global inventory/owned stops passed. Cancellation retirement follows
+runtime cleanup; startup retirement before cleanup remains a separate gate.
+
+The original wrapper remains failed at literal old-volume XML comparison before
+collection. One reviewed stopped-new-disk collection at05:25–05:26 UTC recovered
+the original guest evidence without replay. Dated old-volume differences were
+limited to exact access-time fields; no old-content digest or actor attribution
+is claimed. Earlier failures and retained volumes remain unchanged.
+
+Helper loss and same-database Owner crash/restart are the two remaining synthetic
+faults. Real compatibility/required refresh/private Discord and final consolidated
+tests/docs/review/CI remain before CRED-01/M1 and merge readiness. Reuse accepted
+fresh/Ready/Seed/kernel/inference401 evidence within its original artifact scope.
+V4 remains a candidate; deployment remains `credential-exposed-personal`.
+
+## Synthetic native inference401 recovery accepted — 2026-10-06, 01:26–01:30 UTC
+
+One new no-NIC VM completed the fixed native CLI's inference401 recovery with
+the production eight-second natural shutdown and sixteen-second cleanup bounds.
+Both helper calls exited normally without forced shutdown, validated full
+candidates and committed; the second refreshed. Actual Catalog2/Inference3/
+Refresh1, canonical Runner tool execution and independent readback passed.
+Source health, same-object live socket control/tool connect denial, bounded
+secrecy, source-held exact removal, release before publication and all joins
+passed. Closed SQLite recorded completed/refNULL/intent0 and zero revocations,
+credential occupancy and workspace locks; final global inventory was empty.
+Owned service stops, natural VM absence and the pinned old-metadata preservation
+gate passed. Complete independent review accepted this exact synthetic scope.
+
+The new canonical Runner's initial preparation also passed; the full fresh
+scenario was not rerun. Earlier fresh/Ready/Seed/kernel evidence retains its
+original version and scope. Earlier failed reports remain failed. This result
+does not establish a general helper exit bound or real-provider compatibility.
+Catalog401, recovery cancellation, helper loss, Owner crash/restart and bounded
+real-provider/Discord acceptance remain before CRED-01/M1 and merge readiness.
+The deployed profile remains `credential-exposed-personal`; V4 is a candidate.
+
+## Bounded normal helper shutdown implemented; composed recovery pending — 2026-10-06
+
+The V4 candidate now permits eight seconds of natural EOF shutdown after a
+successful account/read. Live cancellation or cleanup expiry interrupts that
+wait; TERM/KILL and reader joins use a separate sixteen-second cleanup budget.
+Ordinary error cleanup retains its five-second grace and twelve-second resolve
+cleanup. Forced exits still refuse authorization. Original joins, full candidate
+validation, cancellation/Owner-close checks and Commit conditions remain;
+the60-second invocation and45-second endpoint idle limits are unchanged.
+
+A synthetic helper exiting six seconds after actual EOF passed; cancellation
+and Owner.close at the same post-account EOF barrier promptly refused Commit
+and joined. These three regressions passed race execution. Full local Go test,
+race and vet plus security demo passed. The canonical Runner and Owner were
+rebuilt; the actual52-file Runner closure changed exactly the two helper source
+files. Older artifact claims retain their original hashes and scope.
+
+Independent implementation review found no blocker in this exact correction.
+A new native inference401 composition with these production budgets remains
+before recovery acceptance. The earlier failed
+VM case is unchanged. This local correction does not close CRED-01/M1, activate
+a production target or approve publication; the deployed profile remains
+`credential-exposed-personal`.
+
+## Fixed helper exits naturally near the original cutoff — 2026-10-06, 00:36 UTC
+
+One network-none helper-only measurement reused the fixed native ELF/launcher
+and exact synthetic rotating-token inputs. Both serialized consumer calls
+accepted, with one refresh and complete candidate validation/Commit. The refreshed
+helper exited normally/status0 without TERM/KILL about4.98 seconds after stdin
+EOF; all process/readers/relay joins and owned container removal passed. The
+measurement used private40/48-second observation bounds while retaining all
+original exit/cancellation/Commit predicates and the60-second invocation limit.
+
+This is a local helper compatibility result. It does not establish a general
+native exit bound, identify an internal upstream cause or pass the original
+failed VM inference401 composition. Production still uses its original five-
+second EOF cutoff. The next proposed fix gives successful account/read a bounded
+normal shutdown allowance while preserving prompt cancellation, shorter error
+cleanup and rejection of every forced exit. It requires regression checks, new
+compiled artifact hashes and affected composition acceptance before any M1 or
+activation claim. Previously accepted fresh/Ready/Seed/kernel facts are reused
+within their original scope; CRED-01/M1 and real-path gates remain open.
+
+## Native recovery refusal localized; shutdown measurement pending — 2026-10-06, 00:00–00:04 UTC
+
+One isolated inference401 diagnostic reused the unchanged native artifacts and
+synthetic rotating-token inputs. Its bounded stages prove an accepted refresh
+request, complete200 response/receipt and successful native account/read. Process,
+readers and relay joined, but `cleanExit` refused the invocation because the
+five-second EOF wait entered forced shutdown. The recorded other exit conditions
+passed. Signal delivery, natural exit latency and the private candidate file
+were not measured; candidate validation and source Commit were never reached.
+The original recovery case and whole campaign remain **failed**.
+
+Independent review checked the report, indexed bytes, all368 current sources,
+the unchanged52-file canonical Runner closure and reversible private diagnostic
+overlays. Failed generation retirement, zero occupancy/locks, all provider joins,
+empty global container inventory and owned cleanup passed. These establish safe
+failure, not successful recovery. Report SHA256
+`261e9fc08cc5d3e4e18ed9f8a3219a03c63e692b15982a9bdaf8c1b146c2c44e`
+contains1,710,080B/574 regular members/164 index records.
+
+The next narrow measurement observes the fixed helper's EOF, signal syscall,
+terminal state and candidate boundaries in a network-none container with synthetic
+storage. Experimental waiting budgets do not change production acceptance.
+Reuse the earlier complete fresh/Ready/Seed/kernel evidence. Recovery/fault/real
+acceptance, consolidation and CRED-01/M1 remain open; deployment stays
+`credential-exposed-personal`. No production service, credential, policy or
+publication changes follow from this diagnostic.
+
+## Fresh native isolation passed; inference401 recovery failed — 2026-10-05, 22:57–23:01 UTC
+
+One fresh offline VM completed the canonical Runner's native tool call and
+independent file readback. The fresh subtest passed without SKIP. Root observed
+a live Owner and distinct Runner, exact executable/mount/UID identities, and
+an owner-secret-free local seed. The same probe connected to the live Owner
+socket as an unprivileged positive control; native tools attempted that same
+socket object at the fixed mounted path and received EPERM, closing the FD.
+AF_UNIX socket creation itself succeeded and remains diagnostic; actual channel
+connection is the security measurement. INET4/6 creation was denied. Bounded
+Runner secrecy scan, unchanged original source/health, source-held exact removal,
+unlock before publication and all recorded cleanup joins passed.
+
+The **whole campaign failed** in inference401. Actual Catalog2/Inference1 and
+one Owner refresh dispatch were observed, followed by unavailable local auth;
+successful native candidate/persistence and resumed inference were not observed.
+The Run failed, its generation was revoked, and closed read-only SQLite showed
+no runtime ref, credential occupancy or workspace lock. All provider joins
+completed. Zero-valued result counters assigned only after the completion
+assertion are unobserved, not evidence of no earlier Create/Attach. Diagnose the
+native account/join/candidate boundary before a revised, isolated recovery case;
+reuse the complete fresh witness and earlier Ready/Seed/kernel evidence.
+
+Immutable report SHA256
+`091f25805651f3cd7ee4c25acdd0ab03655e92cadaac6e3167d2c62fc52039a8`
+has2,088,960B/637 unique regular members/186 index records. A separate failure
+audit checked all368 public sources, frozen inputs and report/index bytes before
+correction. Global inventory was empty and five owned stops succeeded; Owner
+failed/PID0, so four inactive units did not pass. Natural VM shutdown, owned-domain
+absence and old full metadata preservation passed. Earlier false reports remain
+unchanged. Current exact rotating-input parser/candidate controls pass locally,
+but cannot explain the unmeasured native failure. No production credentials,
+Discord activation or global security policy changed. Catalog401/cancel/helper
+loss/Owner restart, real compatibility/required refresh, consolidation/review/CI
+and CRED-01/M1 remain open; deployed classification stays
+`credential-exposed-personal`.
+
+## Canonical Ready and readonly package controls passed — 2026-10-05, 19:51–19:54 UTC
+
+A fresh offline VM passed four actual native Seed lifecycle cases and seven
+actual kernel package controls without SKIP. The V4-only repair verifies the
+fixed hash-pinned package's directory/open-file readonly properties in the
+Runner's namespace, where host-root artifact UIDs need not appear as root.
+Host installation/ancestor guards, exact mount admission, closed layout, hashes,
+hardlink rejection and legacy ownership rules remain intact. Nested writable
+mounts, chmod0555 on a writable mount, corruption and extra files were refused.
+
+The canonical Runner reached Ready through configured startup/enrollment,
+controller, Owner, Docker attach, receiver and permit. Its intentional stop
+before RunStart produced a clean interrupted result, exactly one Create/Attach,
+source-locked exact deletion, release before publication, unchanged original
+source and joined controller/artifact/process-lock cleanup. Go/systemd journals
+independently confirm successful test completion. All364 source and frozen input
+hashes match after execution; old full metadata and natural VM absence passed.
+
+The original outer batch remains **failed**: its oneshot exit-status guard saw
+code0 after service deactivation, instead of the required code1. State unloading
+is an inference, not a traced cause. Independent review accepts the narrower
+component/Ready gate; final global container inventory was not reached and is
+not claimed. The next distinct full Run campaign must retain service status and
+collect that inventory independently, without replaying Ready solely for a
+wrapper receipt. Native tools/401/recovery/secrecy, real compatibility/refresh
+and consolidation/review/current CI remain; CRED-01/M1/activation/merge are open.
+The deployed profile remains `credential-exposed-personal`.
+
+## Runtime prerequisites passed; preAttach binding defect found — 2026-10-05, 18:22–18:25 UTC
+
+A fresh offline batch using the measured RootlessKit source with a minimal
+none-driver repair passed actual namespace/loopback, exact image and container
+NNP/seccomp/capability/cgroup checks. Owner startup/enrollment and one Create/Attach
+reached; Ready did not. Code review identified that preAttach used the original
+owner Binding to validate the separate disposable seed, which must be rejected.
+The minimal shared validation repair preserves both independent capabilities.
+Current source checks/build/review and a new Ready batch follow; this failed result
+is retained. Exact owner-container cleanup/order/joins and VM/service stops passed,
+and stopped-copy hash verified unchanged source; final global inventory was not
+observed. The inherited guest AppArmor label is unconfined, not an extra confinement
+claim. Full native tools/recovery/secrecy, real acceptance and consolidation remain;
+CRED-01/M1/V4 activation and merge stay blocked.
+
+## Ready blocked at dependency network setup — 2026-10-05, 09:51–09:54 UTC
+
+One newly authorized offline batch restored the vendor's detached-mode default
+while retaining NET=none and all product pins. Paused containment and both native
+ext4 source proofs passed, but RootlessKit's network setup failed with an nsenter
+Invalid argument before daemon-peer attestation. Namespace/image/resource/owner/
+Ready observations were not reached. This failure does not establish another
+AppArmor denial. The original false result and all failed state are retained.
+Collected hashes/sizes, five service stops, final MainPID0/socket absence, natural
+VM shutdown, owned-domain absence and full old metadata preservation were checked.
+No actual container inventory was observed. All361 product sources remain unchanged.
+
+The private dependency code suggests an asynchronous namespace-holder race;
+this is a source-based hypothesis, not a traced syscall attribution. Resolve that
+narrow startup prerequisite before another Ready batch, reusing existing evidence.
+No product guard or global security policy changed and no operator setup is
+indicated. CRED-01/M1/merge and V4 activation remain blocked; deployed classification
+stays `credential-exposed-personal`. Earlier dated records below are preserved.
+
+## Image naming accepted, Ready blocked by fixture runtime mode — 2026-10-05
+
+The authorized offline batch at09:12–09:15 UTC passed paused containment, both
+native ext4 source proofs and the original immutable named image lookup with
+Id/RepoDigest/amd64 checks. Resource creation succeeded, but start failed at
+Docker's default AppArmor profile visibility check. Owner, effective resource
+controls and Ready did not run. The false result and failed disks are retained.
+Service stops/MainPID0/natural shutdown, exact VM absence and full old metadata
+preservation passed. Container removal or empty inventory was not established.
+Independent review checked the collected evidence and these claim limits.
+
+Measured vendor code identifies the fixture's explicit detached-network-mode
+override. A private one-line guest-unit candidate restores the vendor default,
+retaining NET=none and product pins; it remains unexecuted. Its daemon/guest
+loopback boundary and actual namespaces/routes/labels/resources must be measured
+before Ready. No product source or security policy changed. Source-proof/image
+positives do not close CRED-01/M1, activate V4 or authorize merge; native/tool/
+recovery/secrecy, real acceptance and consolidation remain. Deployed
+classification stays `credential-exposed-personal`.
+
+## Image-name correction and next Ready batch prepared — 2026-10-05
+
+A fresh bounded offline batch now freezes the wrapper-only image-name candidate
+and the unchanged Ready/native/probe/unit artifacts. All361 product source hashes
+and module manifests/sums still match their original build provenance; no broad
+Go stage was repeated. Affected streamed-transfer, resource-observation and new
+attachment refusal checks pass; independent review verified final input lineage,
+pins and operation scope. Resource observations bind the requested sleep
+container's PID/starttime, NNP, default seccomp, capabilities and effective cgroups,
+recording AppArmor without adding policy. They are not native secrecy evidence.
+
+Dated read-only lab inspection at08:50 UTC verifies original reusable inputs,
+retained failed-state metadata, no proposed collision and capacity. The fresh
+VM/stage/volumes are **not authorized or executed**. Exact image lookup, resource
+and Ready acceptance remain absent; the prior image-name failure is retained below.
+Full native/tool/401/recovery/secrecy/real acceptance and final consolidation still
+precede CRED-01/M1 and merge. Deployed classification remains unchanged.
+
+## Ready attempt reached source proof, blocked at image naming — 2026-10-05
+
+The expired October3 preparation was renewed with three test-only date literals;
+production sources and native/probe/unit artifacts remain unchanged. Affected
+race/vet and packaging checks pass. One authorized offline VM then passed both
+unprivileged native ext4 source proofs and reached rootless daemon peer/cgroup2
+capability checks. Image content import succeeded, but lookup by the immutable
+image reference failed because the exported wrapper carries no image name.
+Runtime startup failed; owner, effective container resource checks and Ready
+were **not reached**. Its original failed result and evidence remain retained.
+Service stops, MainPID0, natural shutdown, exact VM absence and complete old-state
+metadata preservation were checked in the dated run.
+
+A separate offline candidate changes only the outer image-name annotation,
+preserving all content-addressed bytes and product pins. Selected-platform
+descriptor closure and affected refusal checks pass; native named-import remains
+unverified. The daemon also reported denial loading its default AppArmor profile
+and did not advertise AppArmor in SecurityOptions. Container confinement is
+therefore an open prerequisite, not a verified consequence of daemon startup.
+Review these two packaging prerequisites before another bounded batch. No
+product guard or host-global policy changed; no automatic retry is authorized.
+CRED-01/M1, full native/recovery/secrecy/real-path acceptance and merge remain open.
+The deployed classification remains `credential-exposed-personal`; the dated
+preparations and failures below remain historical evidence.
+
+## Corrected Ready-only batch prepared — 2026-10-03, 14:58 UTC
+
+A fresh private batch now freezes the reviewed permission/cleanup correction and
+signed-base-derived collector guard. Unchanged product sources and measured
+owner/probe/unit artifacts are reused by exact pins; affected archive, staging
+and attachment rejection checks pass. Independent review found no preparation
+blocker. Dated read-only lab inspection confirms reusable input identity/hashes,
+old-state preservation, no proposed collision and resource availability.
+The new VM/stage/volumes are **not authorized or executed**. This preparation
+does not prove native source proof, runtime, receiver or Ready. The prior failed
+attempt is retained below; full native/recovery/secrecy/real-path acceptance,
+CRED-01/M1 and merge remain open. Deployed profile classification is unchanged.
+
+## Ready VM attempt stopped before admission — 2026-10-03, 13:22 UTC
+
+The authorized bounded offline VM passed its paused containment, signed-image
+kernel/dependency and guest provisioning checks, then failed before runtime/owner
+start. Its native source Hold rejected a fixture parent directory: process
+umask077 had changed the requested root-owned0755 parents to0700, preventing the
+unprivileged owner from traversing them. The credential0700/auth0600 modes were
+correct; product guards are unchanged. CaptureProof, runtime/receiver and Ready
+were **not reached**. The VM stopped naturally, final units had MainPID0, and its
+absence and older lab metadata preservation were independently checked.
+
+The first collector also assumed a generic root partition type. Evidence was
+recovered offline from the same stopped disk with signed-base-derived GPT/ext4
+identity and logical source comparisons; both original failures stay retained.
+A separate private fixture correction passes local permission checks under the
+actual umask and bounded independent review. It is not a newly frozen VM plan or
+a guest acceptance result. The next step is a fresh corrected Ready-only batch;
+full native/tool/401/recovery/secrecy and real-path gates, CRED-01/M1 and merge
+remain open. No product source or deployed profile classification changed.
+
+## Affected V4 composition evidence — 2026-10-03
+
+A further opt-in Ready-only test and its frozen artifact/config/service-unit
+preparation now use the actual isolated constructor, global startup ownership,
+native enrollment and controller. Its observer validates Runner Ready and stops
+before RunStart, requiring an intentional interrupted result and ordered exact
+cleanup. This composition has **not run**. The offline systemd VM/runtime inputs
+and bounded single-VM batch are now prepared: signed clean guest image and
+uidmap closure, measured static Docker bundle, exact cached image archive,
+native source-proof and effective-resource preflights, finite stop and independent
+post-stop evidence collection. Execution requires its exact operation authority.
+Tagged compile-only, affected vet, freshness-boundary
+race checks and disabled opt-in behavior pass; these are preparation checks.
+Production sources remain unchanged. Full native tools/recovery/secrecy and
+bounded real-path acceptance remain open.
+
+The production code is unchanged from October 1. Two opt-in tests add positive
+evidence at the remaining composition seams. Actual `isolatedRun.Prepare` now has
+native ext4 HeldSource/CaptureProof/Handoff evidence, original owner Claim,
+separate owner/seed bindings and mount arguments, registration before readiness,
+and two-phase finalization under success, readiness failure, cancellation and
+failed join. The original lock and healthy source survive borrowed-capability
+cleanup. Readiness/transport is a private fake with simplified local auth bytes;
+this does not establish native auth compatibility, persistence or admission.
+
+One frozen rootless network-none probe passed the actual `NewConfiguredCodex`
+V4 constructor with root-mapped read-only static artifacts, service-owned tmpfs
+mutable roots, exact hashes/profile and owner FD Close. Its process pin names
+the probe binary, not a deployed sandboxd. It never activates the owner gate,
+creates a Run/container, reads enrolled auth or calls a provider. The previous
+probe failed because the cached image lacked the CLI executable required by
+config inspection; the corrected fixture supplies its frozen real CLI read-only,
+without executing it. Both temporary outer containers were removed by exact ID
+with absence verified. No host installation or service/policy change occurred.
+
+The native seed test and three race repetitions pass on private ext4 temporary
+fixtures; tagged full compilation (53 package entries) and affected vet pass.
+All 358 prior internal/cmd source hashes are unchanged; two new test files bring
+that inventory to 360. October 1 broad test/race/vet evidence retains its date.
+Checkout ancestry, initial test fixture/constant and tool temporary-write failures
+remain recorded; no product predicate was relaxed to admit them. Internal review
+checked the two tests and their narrower evidence boundaries.
+
+Actual root-controlled service startup, kernel bootstrap receiver, independent
+owner/Runner native HRP/tool/recovery/secrecy composition and bounded real-path
+acceptance remain open. See [V4 remaining acceptance](codex-profile-v4.md#remaining-acceptance).
+CRED-01/M1 remain blocked; no merge or activation follows from these positives.
+
+## Isolated runtime/profile wiring candidate — 2026-10-01
+
+The opt-in [V4 candidate](codex-profile-v4.md) now connects the controller's
+original HeldSource owner borrow to the provider/native consumer. Exact one-use
+Claim is shared by copies; there is no mount fallback. Provider ownership is
+registered before native preparation, which completes before external Create.
+The unchanged ten-second inert-bootstrap phase verifies a separate disposable
+seed object/content and both scope bindings, then opens already prepared
+admission. The real enrolled auth is absent from this candidate's bind arguments.
+
+Provider/helper/preparation join precedes container removal; seed handles and the
+borrow finalize after verified absence or certain non-dispatch. The controller
+retains original-source health across resource deletion and retires invalid
+generations before held-source and durable occupancy release. Tests cover joined
+taint, failed join, revoke failure/lost response, same-inode seed mutation and
+independent static/mutable ownership. A separate schema/profile/adapter/pin keeps
+old authority unchanged and retains native tools/developer instructions.
+
+Startup now obtains the helper-absence gate after the global process lock and
+before any store/recovery, in isolated serve and enrollment. Inert `-check`
+does not activate it. Root-controlled static files/parent chains and pinned
+launcher/native FDs prevent service-owned executable mutation; outstanding Run
+borrows prevent premature FD Close. Independent review found a conflicting
+ToolPackage-owner predicate in the first wiring and verified its correction;
+mutable roots still require service ownership.
+
+Focused offline tests, ordinary full tests, normal/tagged vet and the security
+demo pass. Full tagged race completed at **08:31 UTC**, with all 48 ordinary
+package entries and five opt-in entries; all final checks match the same 358
+internal/cmd source files. Tool-sandbox failures and the first test fixture error
+are retained. The old `TestCodexExecIntegration` campaign is
+explicitly excluded from tagged runtime regression, without changing its test;
+native compatibility evidence keeps its date. No new container/provider/model,
+credential enrollment, deployment or remote CI observation occurred.
+
+Complete production-constructor metadata, actual wrapper Prepare/CaptureProof,
+bootstrap receiver and service-gate/native HRP/tool/secrecy composition are still
+open. The September 27 shared-domain/test-storage witness does not cover them.
+Next prepare that affected acceptance, then bounded real acceptance and final
+review/CI. V4 remains a blocked candidate; CRED-01/M1 and merge are not complete.
+
+## Per-Run provider authentication candidate — 2026-09-27
+
+The private [isolated provider adapter](credential-isolation-plan.md#per-run-provider-authentication--2026-09-27)
+now combines Endpoint admission with the native owner consumer. It generates
+fresh, fictional per-Run auth for the client, replaces accepted inference/catalog
+auth with owner-selected values, and handles client Refresh entirely locally.
+Only a valid upstream 401 can trigger one forced owner recovery. Concurrent and
+late 401s cannot repeat it or revoke a newer local representation; the adapter
+never replays inference. Existing connection/operation budgets remain unchanged.
+
+Independent review exposed a real HTTP budget mismatch: a rejected Refresh had
+already spent the Endpoint's slot even though no local auth was issued. The
+counterexample failed before the adapter checked the actual admission counter.
+Focused tests now cover that fix, a valid HTTP Refresh waiting for recovery,
+cross-Run/old/real-token rejection, cancellation, unjoined cleanup, auth failures,
+and local-vs-upstream diagnostics. Tainted auth remains on the original held
+source; successful resource cleanup cannot erase the controller's retirement
+obligation. That shared-object contract still needs runtime integration.
+
+One affected network-none witness used fixed CLI 0.151.0, the actual new provider
+and native consumer, and synthetic upstream/storage. It observed exactly one
+upstream 401, one native owner refresh, one local 401, one local Refresh, and a
+successful new inference. Owner token strings stayed unchanged; cached readiness
+and refresh each reached one accepted test-storage commit. Client files/output
+and diagnostics contained no raw dynamic owner canary. All processes, readers,
+endpoint and relay joined; the single container was removed by exact identity
+and absence verified without rescue. No real model/provider/credential was used.
+
+Full ordinary tests, normal/tagged vet and the security demo pass. Race coverage
+completed at 19:25 UTC across all 48 ordinary package entries: the first run
+completed 42 before its driver's total timeout; a bounded continuation passed
+the remaining six against identical source digests. The original incomplete run
+is retained as a timeout, not a pass.
+The candidate remains unselected by every executable/profile. The witness shares
+client/owner PID and mount domains and is not final Runner containment, actual
+HeldSource enrollment, host startup-gate, HRP/tool or Catalog-401 acceptance.
+Next wire the isolated immutable profile, artifacts, startup check and shared
+credential lifecycle; then run the affected combined acceptance and bounded real
+path. CRED-01/M1 and merge remain open. Existing profiles retain their exposed
+classification; deployment and remote CI were not re-observed in this work.
+
+## Trusted native consumer candidate — 2026-09-20
+
+The [owner native consumer](credential-isolation-plan.md#trusted-native-consumer-candidate--2026-09-20)
+is implemented, still private and unwired. It binds a native candidate to the
+complete observed refresh response, permits unchanged token strings, separates
+cached readiness from refresh, and persists only after process/readers/relay
+join. The fixed launcher denies new processes while allowing threads. Unknown
+Wait results and incomplete joins retain cleanup obligations; failed auth never
+replays a refresh or restores old credentials. A startup cgroup gate exists as
+a candidate, but its placement and actual service observation remain unwired.
+
+Independent review closed inherited-filter test coverage, relay nuisance-request
+handling, uncertain-Wait cleanup and extra-response acceptance gaps. Kernel
+filter tests and synthetic process/storage/protocol/cancellation faults pass.
+The affected fixed Codex 0.151.0 witness then exposed a real mock gap: native
+notifications include `emittedAtMs`. A synthetic reproduction failed before the
+exact-key, typed notification-metadata fix. The timestamp is discarded and cannot
+authorize or prove refresh. The corrected canonical consumer/launcher passes
+fresh and stale native auth in a network-none container, one synthetic refresh
+and one test-storage commit each, including unchanged token strings. Failed
+preflight/compatibility evidence is retained and all five experiment containers
+were removed without rescue. No real credentials, OAuth, model or deployment
+operation occurred. This witness does not compose the actual HeldSource storage
+or the host service gate with the final Runner.
+
+Final ordinary tests, full race (05:00 UTC), and normal/tagged vet pass after
+the metadata correction. The security demo passed at 00:20 UTC before that
+notification-only correction. The next work is provider auth substitution,
+isolated Runner/profile and artifact wiring, then affected lifecycle/secrecy and
+bounded real-path acceptance. CRED-01 and M1 remain open, the deployed path is
+still `credential-exposed-personal`, and this is not a merge/release gate pass.
+
+## Owner credential storage — 2026-09-19
+
+The next CRED-01 component is implemented locally: a scope/proof-bound owner
+borrow, exclusive of the legacy credential mount; bounded reads of the pinned
+source; and compare/write/truncate/fsync/readback without replacing the enrolled
+inode. Persistence failures invalidate that held source and retain its locks;
+they never restore an older token group. Managed-auth parsing checks the fixed
+file shape, account/subject consistency and timestamp ordering. It does not
+verify OAuth or establish credential freshness. See the
+[storage result and remaining integration](credential-isolation-plan.md#owner-storage-implementation--2026-09-19).
+
+Independent internal review found and verified fixes for diagnostic formatting
+leaks and a direct mount-observer bypass of the source mode. Temporary-file
+tests exercise real I/O and locks with synthetic content, including partial
+writes, failed sync/readback/close, stale content, replaced objects and races.
+The first full race run exposed a controller regression outside the new storage
+component: a certain Create failure could lose its no-dispatch proof across
+cleanup failures, and online reconciliation could act on a snapshot read before
+the worker completed. Six injected persistence schedules and a stale-snapshot
+control failed before correction and pass after it. The controller now retains
+the existing proof for a runtime-certified non-dispatch failure and re-reads
+after claiming reconciliation ownership. Uncertain Create and restart fences
+retain their previous semantics. The original failure cannot be uniquely
+attributed to one of these two paths and remains preserved. After correction,
+ordinary full tests, full race (completed at 23:16 UTC), normal/tagged vet and the
+security demo pass. The local regression gate is green; this is not remote CI
+or real-path acceptance.
+
+No executable selects these new APIs. The native helper still needs a verified
+refresh-result and process/recovery contract; then the provider boundary and
+isolated Runner profile must be connected and accepted. This preserves the
+existing control-plane design and requires no new daemon or schema. CRED-01 and
+M1 remain open, and the deployed classification remains
+`credential-exposed-personal`. No real credentials or deployed state changed.
+
+## Trusted native-refresh compatibility — 2026-09-19
+
+The [bounded native-auth probe](credential-isolation-plan.md#offline-trusted-native-refresh-result--2026-09-19)
+resolved the next CRED-01 compatibility gate using fixed CLI 0.151.0 and synthetic
+credentials only. Fresh and stale state refreshed, persisted and reloaded across
+processes. Independent checks rejected read-only write-back, provider refusal and
+a withheld response. RPC success alone was insufficient. A failed first stale
+case revealed two rotations from stale startup plus forced refresh; the bounded
+continuation separated those purposes without raising the request budget.
+
+Six experiment containers were removed, including the failed case; no real
+credentials, model requests or deployment changes occurred. Build/vet and internal
+independent review covered the fixture; the September 17 full product regression
+result retains its date and was not rerun for this testdata-only addition.
+
+Next implement the trusted credential consumer and persistence/lifecycle contract,
+then integrate owner-auth substitution and the isolated runtime profile. No
+production authentication code changed in this step. CRED-01, M1, real acceptance
+and the merge gate remain open; the deployed classification is still
+`credential-exposed-personal`.
+
+## Pre-dispatch recovery correction — 2026-09-17
+
+A deterministic fault schedule reproduced a lost proof: Begin committed, but
+the next read failed before any Create call; after storage recovered, the old
+controller still treated the Run as uncertain. The controller now retains a
+process-local proof of non-dispatch, revalidates immutable Run identity and boot,
+and retries clear/stage/close/publication without Create or Lookup. Re-offered
+requests first finish an existing terminal plan, preventing a lost clear response
+from allowing another Create under an old proof. Unknown/foreign boots, a bound
+ref, identity conflicts and process restart cannot borrow this shortcut.
+
+Ordinary full tests, full race tests, vet, focused fault/re-offer regressions,
+the security demo and existing formalpilot implementation tests passed. Internal
+independent review identified and then verified closure of the re-offer issue.
+The prior race failure remains retained; its exact original path was not uniquely
+attributed. The current regression gate is green. No deployed state changed.
+
+Post-dispatch removal followed by failed intent persistence still conservatively
+retains its same-boot fence, as already documented by the recovery model. That
+availability limit and process-loss behavior are preserved; no Store/schema or
+formal-model change was introduced. Next is trusted credential refresh/write-back;
+CRED-01 and M1 remain open.
+
+## Credential substitution compatibility — 2026-09-17
+
+The [bounded offline client probe](credential-isolation-plan.md#offline-client-compatibility-result--2026-09-17)
+passed fresh, stale and persistent-401 cases through the actual fixed
+ProviderCanaryLauncher/CLI. Local representations supported native tool work;
+refresh updated local auth without disclosing the separately generated synthetic
+owner secrets into the scanned client files/output. A first inadequate one-401
+fixture failed and is retained. All four experiment containers were removed.
+The owner-side upstream/refresh/persistence mechanism was simulated. No real
+credentials, provider requests or deployment changes occurred, and CRED-01
+remains open. Trusted refresh/write-back is the next implementation gate.
+
+The same work package's ordinary tests and vet passed, including the tagged
+fixture race check. The broader race run exposed an unresolved existing
+`sandboxcontroller` uncertain-Create lifecycle assertion: cleanup remained
+pending with its workspace lock retained. The isolated unchanged subtest passed
+three times; that does not supersede the full-package failure. Diagnose the
+pre-dispatch proof and post-cleanup persistence failure paths before extending
+the production credential lifecycle. At that point the full regression gate was
+not green; the later correction and verification above supersede that status,
+while the broader M1 merge requirements remain open.
+
+## Current planning baseline — 2026-09-17
+
+The functional private Discord-to-Codex path has scoped repeat evidence: the
+2026-09-16 23:43 UTC continuation completed two distinct Runs with independent
+first-attempt replies, sequential containers and clean service stops. The earlier
+failed repeat remains retained. This does not close credential isolation,
+complete adversarial coverage, long-running operation or production acceptance.
+
+The proposed next merge milestone is **M1: credential-isolated private path**,
+including the affected native/real-path acceptance, final review and CI; see
+[milestones](milestones.md) and the [CRED-01 candidate](credential-isolation-plan.md).
+No isolation implementation or profile reclassification has occurred. The dated
+observations and older capability summaries below retain their original scopes;
+statements that the Discord Connector is absent, that only one message has ever
+completed, or that the permanent-refusal wedge is still unfixed are superseded by
+the later evidence above and the September 16 entries below. Other release gates
+remain open. This planning update does not rerun tests or observe new host state.
+
 Last verified: 2026-09-16 (the ingress wedge fixed, installed and witnessed on the live channel; credential rotation witnessed live: a byte-identical replacement of the enrolled object was refused and retired, and authority returned only through an explicit enrollment on a new TargetRevision; live-channel cases: two refusal classes witnessed with real platform payloads and the one-live-Run fence witnessed under real timing, after one real Discord message reached the fixed Codex target and its reply returned to the same conversation, on one host; after unattended pacing and bounded counters on the Connector's ingress path, and review-only deployment templates for a separate Discord Connector identity, after the log-redaction audit over the deployed services and restart, crash and reboot recovery under the separate service identities; repeatability, live-channel adversarial cases, real-traffic quota behaviour, credential rotation and boot activation remain open)
 
 At **03:57–04:04 UTC on 2026-09-15**, one real message posted by the operator's

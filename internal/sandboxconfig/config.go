@@ -102,7 +102,7 @@ func Load(path string) (Config, error) {
 	if err := strictjson.Decode(data, MaxConfigBytes, MaxJSONDepth, &config); err != nil {
 		return Config{}, err
 	}
-	if config.Schema == SchemaCodexV1 {
+	if config.isCodex() {
 		if err := exactCodexFields(data); err != nil {
 			return Config{}, err
 		}
@@ -135,10 +135,10 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && c.Schema != SchemaCodexV1 {
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && !c.isCodex() {
 		return invalid("schema", "unsupported sandbox configuration")
 	}
-	if c.Schema != SchemaCodexV1 && c.Codex != nil {
+	if !c.isCodex() && c.Codex != nil {
 		return invalid("codex", "requires sandboxd/codex-v1")
 	}
 	if err := c.PeerUID.Validate(); err != nil {
@@ -247,14 +247,14 @@ func (c Config) Validate() error {
 		}
 		usedTargetStates[stateRef] = index
 	}
-	if c.Schema == SchemaCodexV1 {
+	if c.isCodex() {
 		return c.validateCodex()
 	}
 	return nil
 }
 
 func (c Config) Registry() (*targetregistry.Registry, error) {
-	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && c.Schema != SchemaCodexV1 {
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && !c.isCodex() {
 		return nil, invalid("schema", "unsupported sandbox configuration")
 	}
 	for _, target := range c.Targets {
@@ -274,8 +274,8 @@ func (c Config) validateTarget(target targetmanifest.Definition) error {
 	if c.Schema == SchemaV2 && target.Schema() != targetmanifest.SchemaV1 {
 		return invalid("targets", "sandboxd/v2 accepts only harness-target/v1")
 	}
-	if c.Schema == SchemaCodexV1 {
-		return matchCodex(target)
+	if c.isCodex() {
+		return matchCodex(target, c.Schema)
 	}
 	if target.Schema() == targetmanifest.SchemaV2 {
 		return validateMockProfile(target)

@@ -32,6 +32,8 @@ func codexExecution(config sandboxconfig.Config, runtime *dockerruntime.Runtime,
 	return executionSetup{
 		bindings: []credentialsource.Binding{binding},
 		runtime:  func() (*dockerruntime.Runtime, error) { return runtime, nil },
+		startup:  runtime.ActivateOwner,
+		close:    runtime.CloseOwnerArtifacts,
 		authority: func(m targetmanifest.Definition, fp string) (sandboxservice.ResolvedAuthority, error) {
 			actual, err := m.Fingerprint()
 			if err != nil || m.ID() != manifest.ID() || m.Revision() != manifest.Revision() || fp != fingerprint || actual != fp {

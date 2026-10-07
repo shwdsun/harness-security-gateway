@@ -26,6 +26,7 @@ type credentialSpec struct {
 	files         []credentialArtifact
 	binds         []credentialBind
 	provider      *providerSpec
+	ownerOnly     bool
 }
 
 type credentialArtifact struct{ path, digest string }
@@ -35,12 +36,36 @@ type credentialLaunch struct {
 	runID    string
 	observer bootstrapObserver
 	started  bool
+	owner    *credentialsource.OwnerAccess
+	binding  credentialsource.Binding // Disposable seed, distinct from owner.
+}
+
+// The original owner capability and disposable Runner seed have separate
+// bindings. Validate both before attach and again while the bootstrap is inert;
+// neither capability can stand in for the other.
+func (l *credentialLaunch) validate(spec targetSpec) error {
+	if l == nil || l.source == nil || spec.credential == nil {
+		return ErrCredentialUnavailable
+	}
+	binding := spec.credential.binding
+	if spec.credential.ownerOnly {
+		if l.owner == nil || l.owner.ValidateClaimed(l.runID, spec.fingerprint, binding) != nil {
+			return ErrCredentialUnavailable
+		}
+		binding = l.binding
+	} else if l.owner != nil {
+		return ErrCredentialUnavailable
+	}
+	if l.source.Validate(l.runID, spec.fingerprint, binding) != nil {
+		return ErrCredentialUnavailable
+	}
+	return nil
 }
 
 const credentialRunnerUID = 1000
 
 func (s *credentialSpec) prepare(h *credentialsource.Handoff, runID, fingerprint string) error {
-	if s == nil || h == nil || s.checkArtifacts() != nil || h.Claim(runID, fingerprint, s.binding) != nil {
+	if s == nil || s.ownerOnly || h == nil || s.checkArtifacts() != nil || h.Claim(runID, fingerprint, s.binding) != nil {
 		return ErrCredentialUnavailable
 	}
 	return nil
@@ -110,6 +135,39 @@ func (r *Runtime) CreateWithCredential(ctx context.Context, runID string, manife
 		return "", uncertainCreate(ErrCredentialUnavailable)
 	}
 	r.credentials[ref] = &credentialLaunch{source: h, runID: runID, observer: observer}
+	return ref, nil
+}
+
+func (r *Runtime) CreateWithOwner(ctx context.Context, runID string, manifest targetmanifest.Definition, owner *credentialsource.OwnerAccess) (ContainerRef, error) {
+	if r == nil || ctx == nil || owner == nil {
+		return "", ErrCredentialUnavailable
+	}
+	spec, exists := r.targets[targetKey{manifest.ID(), manifest.Revision()}]
+	if !exists || spec.credential == nil || !spec.credential.ownerOnly {
+		return "", ErrCredentialUnavailable
+	}
+	observer, err := r.attestBootstrapObserver(ctx)
+	if err != nil {
+		return "", err
+	}
+	ref, err := r.createAuthorized(ctx, runID, manifest, nil, owner)
+	if err != nil {
+		return "", err
+	}
+	resource, ok := r.runProvider(runID).(clientAuthProvider)
+	if !ok {
+		return "", uncertainCreate(ErrCredentialUnavailable)
+	}
+	source, binding := resource.ClientCredential()
+	r.credentialMu.Lock()
+	defer r.credentialMu.Unlock()
+	if r.credentials == nil {
+		r.credentials = make(map[ContainerRef]*credentialLaunch)
+	}
+	if r.credentials[ref] != nil || source == nil {
+		return "", uncertainCreate(ErrCredentialUnavailable)
+	}
+	r.credentials[ref] = &credentialLaunch{source: source, owner: owner, binding: binding, runID: runID, observer: observer}
 	return ref, nil
 }
 
