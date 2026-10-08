@@ -1,0 +1,39 @@
+{
+  "schema": "agentd/v3",
+  "database": "/var/lib/hgw-agentd/state/core.sqlite3",
+  "sandbox_socket": "/run/hgw/sandbox/sandboxd.sock",
+  "run_timeout_seconds": 300,
+  "delivery_lease_seconds": 30,
+  "run_dispatch_lease_seconds": 30,
+  "ingress": {
+    "accept_window_seconds": 300,
+    "receipt_window_seconds": 3600,
+    "future_skew_seconds": 60,
+    "max_receipts_per_connector": 128,
+    "max_queued_runs_per_connector": 16,
+    "max_nonterminal_runs_per_connector": 32,
+    "max_pending_deliveries_per_connector": 128,
+    "max_retained_input_bytes_per_connector": 4194304,
+    "max_database_pages": 16384
+  },
+  "connectors": [
+    {
+      "id": "private-local",
+      "socket": "/run/hgw/local/agentd.sock",
+      "peer_uid": 21003,
+      "self_actor_ref": "bot"
+    }
+  ],
+  "bindings": [
+    {
+      "id": "private",
+      "connector_id": "private-local",
+      "actor_ref": "operator",
+      "conversation_ref": "private",
+      "target": {
+        "id": "project-codex",
+        "revision": "project-codex-daemon-unset"
+      }
+    }
+  ]
+}

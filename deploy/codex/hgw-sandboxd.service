@@ -1,0 +1,19 @@
+# Review-only. Rootless Docker under this UID must be provisioned separately.
+[Unit]
+Description=Harness Security Gateway fixed Codex sandbox owner
+ConditionPathExists=/etc/hgw/sandboxd.json
+
+[Service]
+Type=exec
+User=hgw-sandboxd
+Group=hgw-sandboxd
+SupplementaryGroups=hgw-sandbox-ipc
+UMask=0077
+WorkingDirectory=/var/lib/hgw-sandboxd
+Environment=HOME=/var/lib/hgw-sandboxd XDG_RUNTIME_DIR=/run/user/21002
+ExecStart=/opt/hgw/codex-dev/bin/sandboxd-codex -config /etc/hgw/sandboxd.json
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+KillMode=control-group
+TimeoutStopSec=90
+Restart=no

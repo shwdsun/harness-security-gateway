@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/executionhttp"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
@@ -54,10 +55,14 @@ type Registry interface {
 // Store is the consumer-owned persistence surface. No method accepts a prompt.
 type Store interface {
 	GetRun(ctx context.Context, runID string) (sandboxstore.Run, error)
+	RetireOccupiedCredentialGenerations(ctx context.Context) error
+	GetRunCredentialEnrollment(ctx context.Context, runID string) (sandboxstore.CredentialGeneration, credentialsource.Proof, error)
+	RevokeRunCredential(ctx context.Context, runID string) error
 	BeginRuntimeIntent(ctx context.Context, runID, bootID string) (sandboxstore.Run, bool, error)
 	ClearRuntimeIntent(ctx context.Context, runID string) (sandboxstore.Run, error)
 	SetRuntimeRef(ctx context.Context, runID, runtimeRef string) (sandboxstore.Run, error)
 	AppendEvent(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error)
+	StageTerminal(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error)
 	ResolveSessionForRun(ctx context.Context, runID, sessionRef, targetID, targetRevision, sessionScopeDigest string) (string, error)
 	ConfirmRuntimeStopped(ctx context.Context, runID string) (sandboxstore.Run, error)
 	ListUnreconciled(ctx context.Context) ([]sandboxstore.Run, error)
@@ -74,19 +79,42 @@ type Process interface {
 // Runtime contains no caller-selected Docker flags, paths, or options.
 type Runtime interface {
 	ListManaged(ctx context.Context) ([]string, error)
-	Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (string, error)
-	LookupIntent(ctx context.Context, runID string, manifest targetmanifest.Manifest) (ref string, found bool, err error)
+	// A failure without dockerruntime.ErrCreateUncertain certifies no external
+	// Create dispatch. Every possibly dispatched failure must wrap that sentinel;
+	// allocated local resources still require CloseRunResources before release.
+	Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error)
+	LookupIntent(ctx context.Context, runID string, manifest targetmanifest.Definition) (ref string, found bool, err error)
 	AttachStart(ctx context.Context, ref string) (Process, error)
 	Inspect(ctx context.Context, ref string) (dockerruntime.Inspection, error)
 	Stop(ctx context.Context, ref string) error
 	Kill(ctx context.Context, ref string) error
 	RemoveStopped(ctx context.Context, ref string) error
+	// CloseRunResources stops and joins process-owned resources for the exact
+	// durable Run, including when its container is already absent. Success is
+	// required before credentials or terminal publication may be released.
+	CloseRunResources(ctx context.Context, runID string) error
+}
+
+// CredentialRuntime receives a borrowed one-Run source capability after the
+// durable Create intent. Its AttachStart must keep the bootstrap inert until
+// independent receiver verification, then consume the private launch phase
+// before returning ordinary HRP pipes. A Runtime without this surface cannot
+// execute a credential-bearing Run through the credential-free Create method.
+// Its failure certainty contract is the same as Runtime.Create.
+type CredentialRuntime interface {
+	CreateWithCredential(context.Context, string, targetmanifest.Definition, *credentialsource.Handoff) (string, error)
+}
+
+// OwnerCredentialRuntime consumes the same held source through its separate
+// owner-only capability. There is no fallback to a Runner mount handoff.
+type OwnerCredentialRuntime interface {
+	CreateWithOwner(context.Context, string, targetmanifest.Definition, *credentialsource.OwnerAccess) (string, error)
 }
 
 type BridgeFunc func(
 	ctx context.Context,
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	resolvedVendorToken *string,
 	runnerOutput io.Reader,
 	runnerInput io.Writer,
@@ -100,14 +128,16 @@ type BootIDSource func() (string, error)
 type Option func(*options) error
 
 type options struct {
-	queueCapacity  int
-	cleanupTimeout time.Duration
-	waitGrace      time.Duration
-	reconcileEvery time.Duration
-	bridge         BridgeFunc
-	sessionRef     SessionRefGenerator
-	clock          Clock
-	bootIDSource   BootIDSource
+	queueCapacity      int
+	cleanupTimeout     time.Duration
+	waitGrace          time.Duration
+	reconcileEvery     time.Duration
+	bridge             BridgeFunc
+	sessionRef         SessionRefGenerator
+	clock              Clock
+	bootIDSource       BootIDSource
+	credentialBindings map[string]credentialsource.Binding
+	openCredential     credentialOpener
 }
 
 func WithQueueCapacity(capacity int) Option {

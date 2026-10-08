@@ -174,7 +174,7 @@ func newFixture(t *testing.T) testFixture {
 		},
 		Workspaces:   []sandboxconfig.StorageEntry{{Ref: "workspace-main", Directory: "project-main"}},
 		RunnerStates: []sandboxconfig.StorageEntry{{Ref: "state-main", Directory: "target-state"}},
-		Targets:      []targetmanifest.Manifest{manifest},
+		Targets:      []targetmanifest.Definition{runtimeDefinition(t, manifest)},
 	}
 	return testFixture{
 		config:       config,
@@ -245,7 +245,7 @@ func managedRecord(t *testing.T, fixture testFixture, runID, id string, state Co
 		Image:    fixture.manifest.Runner.Image,
 		State:    state,
 		ExitCode: 0,
-		Labels:   expectedLabels(runID, fixture.manifest, fingerprint),
+		Labels:   expectedLabels(runID, runtimeDefinition(t, fixture.manifest), fingerprint),
 	}
 	data, err := json.Marshal(record)
 	if err != nil {
@@ -262,4 +262,13 @@ func requireArguments(t *testing.T, got helperCall, want []string) {
 	if fmt.Sprint(got.Environment) != fmt.Sprint(minimalEnvironment) {
 		t.Fatalf("environment mismatch\n got: %q\nwant: %q", got.Environment, minimalEnvironment)
 	}
+}
+
+func runtimeDefinition(t *testing.T, manifest targetmanifest.Manifest) targetmanifest.Definition {
+	t.Helper()
+	definition, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return definition
 }

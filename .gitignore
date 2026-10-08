@@ -26,6 +26,37 @@
 !/demo/security/**
 !/internal/
 !/internal/**
+
+# Reviewed offline assembly recipe/templates; local deployment state stays out.
+!/deploy/
+/deploy/*
+!/deploy/codex/
+/deploy/codex/*
+!/deploy/codex/README.md
+!/deploy/codex/build.py
+!/deploy/codex/test_build.py
+!/deploy/codex/templates_test.go
+!/deploy/codex/inputs.lock.json
+!/deploy/codex/agentd.example.json
+!/deploy/codex/sandboxd.example.json
+!/deploy/codex/hgw.sysusers
+!/deploy/codex/hgw.tmpfiles
+!/deploy/codex/hgw-agentd.service
+!/deploy/codex/hgw-sandboxd.service
+!/deploy/codex/hgw-sandboxd-docker.service
+!/deploy/codex/hgw-connector-discord.service
+!/deploy/codex/hgw-discord.sysusers
+!/deploy/codex/hgw-discord.tmpfiles
+!/deploy/codex/discord-connector.example.json
+
+# Reviewed opt-in formal pilot sources; do not export tools or run artifacts.
+!/formal/
+/formal/*
+!/formal/recovery/
+/formal/recovery/*
+!/formal/recovery/README.md
+!/formal/recovery/check.py
+!/formal/recovery/traces.json
 !/runners/
 !/runners/mock/
 !/runners/mock/Dockerfile
@@ -42,6 +73,9 @@
 !/docs/competitive-bakeoff.md
 !/docs/connector-protocol.md
 !/docs/design-principles.md
+!/docs/first-principles.md
+!/docs/drift-ledger.md
+!/docs/discord-connector.md
 !/docs/deployment.md
 !/docs/implementation-status.md
 !/docs/positioning.md

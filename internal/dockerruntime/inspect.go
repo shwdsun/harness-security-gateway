@@ -3,9 +3,11 @@ package dockerruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/shwdsun/harness-security-gateway/internal/strictjson"
+	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
 const inspectFormat = `{"id":{{json .Id}},"name":{{json .Name}},"image":{{json .Config.Image}},"state":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},"labels":{{json .Config.Labels}}}`
@@ -157,6 +159,9 @@ func (r *Runtime) verifyManaged(record inspectRecord) (targetSpec, error) {
 	if !exists || record.Labels[labelTargetFingerprint] != spec.fingerprint || record.Image != spec.image {
 		return targetSpec{}, ErrForeignContainer
 	}
+	if spec.credential != nil && record.Labels[labelRuntimePolicy] != spec.credential.pin {
+		return targetSpec{}, ErrForeignContainer
+	}
 	if normalizeContainerName(record.Name) != deterministicName(runID) {
 		return targetSpec{}, ErrForeignContainer
 	}
@@ -220,6 +225,9 @@ func (r *Runtime) probeFullRef(ctx context.Context, ref ContainerRef) (bool, err
 func (r *Runtime) Inspect(ctx context.Context, ref ContainerRef) (Inspection, error) {
 	record, _, err := r.inspectManaged(ctx, ref)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			r.forgetCredential(ref)
+		}
 		return Inspection{}, err
 	}
 	return Inspection{
@@ -235,6 +243,16 @@ func validateSpecStorage(spec targetSpec) error {
 	}
 	if err := validateDirectory(spec.workspacePath, spec.workspaceRoot); err != nil {
 		return err
+	}
+	switch spec.stateKind {
+	case targetmanifest.RunnerStateNone:
+		if spec.statePath != "" || spec.stateRoot != "" {
+			return fmt.Errorf("%w: none carries runner-state storage", ErrInvalidStorage)
+		}
+		return nil
+	case targetmanifest.RunnerStatePersistent:
+	default:
+		return fmt.Errorf("%w: unknown runner-state kind", ErrInvalidStorage)
 	}
 	if err := validateDirectory(spec.stateRoot, spec.stateRoot); err != nil {
 		return err

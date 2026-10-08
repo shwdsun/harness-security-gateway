@@ -131,6 +131,10 @@ func TestMaintenanceRejectsUnsafeDatabasePaths(t *testing.T) {
 	if err := os.WriteFile(regular, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Creation modes are filtered by umask; force the unsafe fixture mode.
+	if err := os.Chmod(regular, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	symlink := filepath.Join(root, "symlink.sqlite3")
 	if err := os.Symlink(regular, symlink); err != nil {
 		t.Fatal(err)

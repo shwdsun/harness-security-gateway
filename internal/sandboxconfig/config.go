@@ -20,6 +20,7 @@ import (
 
 const (
 	SchemaV2       = "sandboxd/v2"
+	SchemaV3       = "sandboxd/v3"
 	MaxConfigBytes = 1 << 20
 	MaxJSONDepth   = 14
 	MaxNameBytes   = 128
@@ -46,16 +47,17 @@ type StorageEntry struct {
 }
 
 type Config struct {
-	Schema          string                    `json:"schema"`
-	Socket          string                    `json:"socket"`
-	PeerUID         localidentity.UID         `json:"peer_uid"`
-	StateDatabase   string                    `json:"state_database"`
-	WorkspaceRoot   string                    `json:"workspace_root"`
-	RunnerStateRoot string                    `json:"runner_state_root"`
-	Runtime         Runtime                   `json:"runtime"`
-	Workspaces      []StorageEntry            `json:"workspaces"`
-	RunnerStates    []StorageEntry            `json:"runner_states"`
-	Targets         []targetmanifest.Manifest `json:"targets"`
+	Schema          string                      `json:"schema"`
+	Socket          string                      `json:"socket"`
+	PeerUID         localidentity.UID           `json:"peer_uid"`
+	StateDatabase   string                      `json:"state_database"`
+	WorkspaceRoot   string                      `json:"workspace_root"`
+	RunnerStateRoot string                      `json:"runner_state_root"`
+	Runtime         Runtime                     `json:"runtime"`
+	Workspaces      []StorageEntry              `json:"workspaces"`
+	RunnerStates    []StorageEntry              `json:"runner_states"`
+	Targets         []targetmanifest.Definition `json:"targets"`
+	Codex           *Codex                      `json:"codex,omitempty"`
 }
 
 // ProcessLockPath is deliberately global to the current OS user. V1 permits
@@ -100,6 +102,11 @@ func Load(path string) (Config, error) {
 	if err := strictjson.Decode(data, MaxConfigBytes, MaxJSONDepth, &config); err != nil {
 		return Config{}, err
 	}
+	if config.isCodex() {
+		if err := exactCodexFields(data); err != nil {
+			return Config{}, err
+		}
+	}
 	base := filepath.Dir(absolute)
 	for field, value := range map[string]*string{
 		"socket":            &config.Socket,
@@ -128,8 +135,11 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if c.Schema != SchemaV2 {
-		return invalid("schema", "must be sandboxd/v2")
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && !c.isCodex() {
+		return invalid("schema", "unsupported sandbox configuration")
+	}
+	if !c.isCodex() && c.Codex != nil {
+		return invalid("codex", "requires sandboxd/codex-v1")
 	}
 	if err := c.PeerUID.Validate(); err != nil {
 		return invalid("peer_uid", err.Error())
@@ -201,37 +211,88 @@ func (c Config) Validate() error {
 	if err != nil {
 		return err
 	}
-	stateRefs, err := validateStorageEntries("runner_states", c.RunnerStates)
+	stateRefs := make(map[string]struct{})
+	if c.Schema != SchemaV2 && c.RunnerStates == nil {
+		return invalid("runner_states", "must be an explicit array (may be empty)")
+	}
+	if c.Schema == SchemaV2 || len(c.RunnerStates) != 0 {
+		stateRefs, err = validateStorageEntries("runner_states", c.RunnerStates)
+	}
 	if err != nil {
 		return err
 	}
 	if len(c.Targets) == 0 {
 		return invalid("targets", "must not be empty")
 	}
-	if _, err := targetregistry.New(c.Targets); err != nil {
+	if _, err := c.Registry(); err != nil {
 		return invalid("targets", err.Error())
 	}
 	usedTargetStates := make(map[string]int, len(c.Targets))
 	for index, target := range c.Targets {
-		if _, exists := workspaceRefs[target.WorkspaceRef]; !exists {
+		if _, exists := workspaceRefs[target.Common().WorkspaceRef]; !exists {
 			return invalid(fmt.Sprintf("targets[%d].workspace_ref", index), "does not map to an approved workspace")
 		}
-		if _, exists := stateRefs[target.StateRef]; !exists {
+		stateRef, persistent := target.RunnerState().PersistentRef()
+		if !persistent {
+			continue
+		}
+		if _, exists := stateRefs[stateRef]; !exists {
 			return invalid(fmt.Sprintf("targets[%d].state_ref", index), "does not map to approved runner state")
 		}
-		if previous, exists := usedTargetStates[target.StateRef]; exists {
+		if previous, exists := usedTargetStates[stateRef]; exists {
 			return invalid(
 				fmt.Sprintf("targets[%d].state_ref", index),
 				fmt.Sprintf("must not share runner state with targets[%d]", previous),
 			)
 		}
-		usedTargetStates[target.StateRef] = index
+		usedTargetStates[stateRef] = index
+	}
+	if c.isCodex() {
+		return c.validateCodex()
 	}
 	return nil
 }
 
 func (c Config) Registry() (*targetregistry.Registry, error) {
-	return targetregistry.New(c.Targets)
+	if c.Schema != SchemaV2 && c.Schema != SchemaV3 && !c.isCodex() {
+		return nil, invalid("schema", "unsupported sandbox configuration")
+	}
+	for _, target := range c.Targets {
+		if err := c.validateTarget(target); err != nil {
+			return nil, err
+		}
+	}
+	return targetregistry.NewDefinitions(c.Targets)
+}
+
+// Apply the same version/profile gate to registry entries and independently
+// supplied resolver inputs; helper APIs cannot bypass the config schema.
+func (c Config) validateTarget(target targetmanifest.Definition) error {
+	if err := target.Validate(); err != nil {
+		return invalid("target manifest", err.Error())
+	}
+	if c.Schema == SchemaV2 && target.Schema() != targetmanifest.SchemaV1 {
+		return invalid("targets", "sandboxd/v2 accepts only harness-target/v1")
+	}
+	if c.isCodex() {
+		return matchCodex(target, c.Schema)
+	}
+	if target.Schema() == targetmanifest.SchemaV2 {
+		return validateMockProfile(target)
+	}
+	return nil
+}
+
+// This is a total matcher for the built-in, provider-free mock envelope only.
+// The separate fixed Codex schema never acquires authority through this gate.
+func validateMockProfile(target targetmanifest.Definition) error {
+	common := target.Common()
+	if common.Runner.Family != "mock" || common.Runner.AdapterVersion != "0.1.0" ||
+		common.PolicyRef != "builtin.locked-down-v1" || common.AuthProfileRef != "builtin.none" ||
+		common.SkillBundleRef != "builtin.none" || common.NetworkProfileRef != "builtin.none" {
+		return invalid("targets", "authority resolution supports only the locked-down mock profile")
+	}
+	return nil
 }
 
 func (c Config) WorkspacePath(ref string) (string, bool) {

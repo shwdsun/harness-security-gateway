@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/executionwire"
 	"github.com/shwdsun/harness-security-gateway/internal/sandboxconfig"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
@@ -34,6 +36,7 @@ const (
 	labelTargetID          = "io.harness-gateway.target-id"
 	labelTargetRevision    = "io.harness-gateway.target-revision"
 	labelTargetFingerprint = "io.harness-gateway.target-fingerprint"
+	labelRuntimePolicy     = "io.harness-gateway.runtime-policy"
 )
 
 type ContainerRef string
@@ -43,9 +46,15 @@ func (r ContainerRef) String() string {
 }
 
 type Runtime struct {
-	cli      string
-	endpoint string
-	targets  map[targetKey]targetSpec
+	cli                 string
+	endpoint            string
+	targets             map[targetKey]targetSpec
+	credentialMu        sync.Mutex
+	credentials         map[ContainerRef]*credentialLaunch
+	providers           map[string]runProvider // Same process as runtime ownership.
+	inventoryPin        string
+	ownerStartup        func() error
+	ownerArtifactsClose func() error
 }
 
 type targetKey struct {
@@ -60,9 +69,11 @@ type targetSpec struct {
 	workspaceRoot string
 	statePath     string
 	stateRoot     string
+	stateKind     targetmanifest.RunnerStateKind
 	stdinLimit    int64
 	stdoutLimit   int64
 	stderrLimit   int64
+	credential    *credentialSpec
 }
 
 func New(config sandboxconfig.Config) (*Runtime, error) {
@@ -73,7 +84,21 @@ func New(config sandboxconfig.Config) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	statePaths, err := resolveStorage(config.RunnerStateRoot, config.RunnerStates)
+	// The catalog is an operator mapping, not an instruction to inspect every
+	// dormant resource. Only persistent target references resolve state leaves.
+	// None still shares the validated private namespace root, never a leaf.
+	var stateEntries []sandboxconfig.StorageEntry
+	for _, target := range config.Targets {
+		if ref, persistent := target.RunnerState().PersistentRef(); persistent {
+			for _, entry := range config.RunnerStates {
+				if entry.Ref == ref {
+					stateEntries = append(stateEntries, entry)
+					break
+				}
+			}
+		}
+	}
+	statePaths, err := resolveStorage(config.RunnerStateRoot, stateEntries)
 	if err != nil {
 		return nil, err
 	}
@@ -95,24 +120,29 @@ func New(config sandboxconfig.Config) (*Runtime, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: target manifest", ErrInvalidConfig)
 		}
-		workspacePath, exists := workspacePaths[manifest.WorkspaceRef]
+		workspacePath, exists := workspacePaths[manifest.Common().WorkspaceRef]
 		if !exists {
 			return nil, fmt.Errorf("%w: unresolved workspace reference", ErrInvalidConfig)
 		}
-		statePath, exists := statePaths[manifest.StateRef]
-		if !exists {
-			return nil, fmt.Errorf("%w: unresolved runner-state reference", ErrInvalidConfig)
+		var statePath, stateRoot string
+		if ref, persistent := manifest.RunnerState().PersistentRef(); persistent {
+			statePath, exists = statePaths[ref]
+			if !exists {
+				return nil, fmt.Errorf("%w: unresolved runner-state reference", ErrInvalidConfig)
+			}
+			stateRoot = config.RunnerStateRoot
 		}
-		targets[targetKey{id: manifest.ID, revision: manifest.Revision}] = targetSpec{
+		targets[targetKey{id: manifest.ID(), revision: manifest.Revision()}] = targetSpec{
 			fingerprint:   fingerprint,
-			image:         manifest.Runner.Image,
+			image:         manifest.Common().Runner.Image,
 			workspacePath: workspacePath,
 			workspaceRoot: config.WorkspaceRoot,
 			statePath:     statePath,
-			stateRoot:     config.RunnerStateRoot,
+			stateRoot:     stateRoot,
+			stateKind:     manifest.RunnerState().Kind(),
 			stdinLimit:    streamInputLimit(manifest),
 			stdoutLimit:   streamOutputLimit(manifest),
-			stderrLimit:   int64(manifest.Limits.MaxStderrBytes),
+			stderrLimit:   int64(manifest.Common().Limits.MaxStderrBytes),
 		}
 	}
 	return &Runtime{
@@ -124,7 +154,15 @@ func New(config sandboxconfig.Config) (*Runtime, error) {
 
 // Create creates one stopped, immutable runner container. The returned
 // reference is a full Docker container ID, never a caller-selected name.
-func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (ContainerRef, error) {
+func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (ContainerRef, error) {
+	return r.create(ctx, runID, manifest, nil)
+}
+
+func (r *Runtime) create(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff) (ContainerRef, error) {
+	return r.createAuthorized(ctx, runID, manifest, handoff, nil)
+}
+
+func (r *Runtime) createAuthorized(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff, owner *credentialsource.OwnerAccess) (ContainerRef, error) {
 	if err := r.ready(ctx); err != nil {
 		return "", err
 	}
@@ -134,16 +172,34 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 	if err := manifest.Validate(); err != nil {
 		return "", fmt.Errorf("%w: target manifest", ErrInvalidArgument)
 	}
-	if err := validateProfile(manifest); err != nil {
-		return "", err
+	if handoff == nil && owner == nil {
+		if err := validateProfile(manifest); err != nil {
+			return "", err
+		}
 	}
 	fingerprint, err := manifest.Fingerprint()
 	if err != nil {
 		return "", fmt.Errorf("%w: target fingerprint", ErrInvalidArgument)
 	}
-	spec, exists := r.targets[targetKey{id: manifest.ID, revision: manifest.Revision}]
-	if !exists || spec.fingerprint != fingerprint || spec.image != manifest.Runner.Image {
+	spec, exists := r.targets[targetKey{id: manifest.ID(), revision: manifest.Revision()}]
+	if !exists || spec.fingerprint != fingerprint || spec.image != manifest.Common().Runner.Image {
 		return "", ErrTargetNotConfigured
+	}
+	if spec.credential == nil {
+		if err := validateProfile(manifest); err != nil {
+			return "", err
+		}
+		if handoff != nil || owner != nil {
+			return "", ErrCredentialUnavailable
+		}
+	} else if spec.credential.ownerOnly {
+		if handoff != nil || owner == nil || spec.credential.checkArtifacts() != nil || owner.Claim(runID, fingerprint, spec.credential.binding) != nil {
+			return "", ErrCredentialUnavailable
+		}
+	} else if owner != nil {
+		return "", ErrCredentialUnavailable
+	} else if err := spec.credential.prepare(handoff, runID, fingerprint); err != nil {
+		return "", err
 	}
 	// Recheck immediately before passing authority-bearing paths to the CLI.
 	// This narrows (but cannot eliminate) the CLI bind-mount TOCTOU window.
@@ -153,9 +209,14 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 	if err := r.attestRootless(ctx); err != nil {
 		return "", err
 	}
+	// Allocate only after the one-use handoff is claimed, before an external
+	// Create could be accepted. Failure retains any allocated owner for cleanup.
+	if spec, err = r.prepareProviderOwner(ctx, runID, spec, owner); err != nil {
+		return "", err
+	}
 
 	name := deterministicName(runID)
-	labels := expectedLabels(runID, manifest, fingerprint)
+	labels := r.runtimeLabels(runID, manifest, fingerprint)
 	arguments := createArguments(name, labels, spec, manifest)
 	stdout, invoked, err := r.runObserved(ctx, "create", arguments...)
 	if err == nil {
@@ -180,7 +241,7 @@ func (r *Runtime) Create(ctx context.Context, runID string, manifest targetmanif
 		if record.ID != string(ref) {
 			return "", uncertainCreate(ErrForeignContainer)
 		}
-		if verifyErr := verifyExpected(record, name, manifest.Runner.Image, labels); verifyErr != nil {
+		if verifyErr := verifyExpected(record, name, manifest.Common().Runner.Image, labels); verifyErr != nil {
 			return "", uncertainCreate(verifyErr)
 		}
 		return ref, nil
@@ -218,11 +279,15 @@ func (r *Runtime) ready(ctx context.Context) error {
 	return nil
 }
 
-func validateProfile(manifest targetmanifest.Manifest) error {
-	if manifest.PolicyRef != LockedPolicyRef ||
-		manifest.AuthProfileRef != NoneProfileRef ||
-		manifest.SkillBundleRef != NoneProfileRef ||
-		manifest.NetworkProfileRef != NoneProfileRef {
+func validateProfile(manifest targetmanifest.Definition) error {
+	if manifest.Schema() == targetmanifest.SchemaV2 &&
+		(manifest.Common().Runner.Family != "mock" || manifest.Common().Runner.AdapterVersion != "0.1.0") {
+		return ErrUnsupportedProfile
+	}
+	if manifest.Common().PolicyRef != LockedPolicyRef ||
+		manifest.Common().AuthProfileRef != NoneProfileRef ||
+		manifest.Common().SkillBundleRef != NoneProfileRef ||
+		manifest.Common().NetworkProfileRef != NoneProfileRef {
 		return ErrUnsupportedProfile
 	}
 	return nil
@@ -288,17 +353,29 @@ func deterministicName(runID string) string {
 	return containerNamePrefix + hex.EncodeToString(digest[:16])
 }
 
-func expectedLabels(runID string, manifest targetmanifest.Manifest, fingerprint string) map[string]string {
+func expectedLabels(runID string, manifest targetmanifest.Definition, fingerprint string) map[string]string {
 	return map[string]string{
 		labelManaged:           "v1",
 		labelRunID:             runID,
-		labelTargetID:          manifest.ID,
-		labelTargetRevision:    manifest.Revision,
+		labelTargetID:          manifest.ID(),
+		labelTargetRevision:    manifest.Revision(),
 		labelTargetFingerprint: fingerprint,
 	}
 }
 
-func createArguments(name string, labels map[string]string, spec targetSpec, manifest targetmanifest.Manifest) []string {
+func (r *Runtime) runtimeLabels(runID string, manifest targetmanifest.Definition, fingerprint string) map[string]string {
+	labels := expectedLabels(runID, manifest, fingerprint)
+	if spec := r.targets[targetKey{manifest.ID(), manifest.Revision()}]; spec.credential != nil {
+		labels[labelRuntimePolicy] = spec.credential.pin
+	}
+	return labels
+}
+
+func createArguments(name string, labels map[string]string, spec targetSpec, manifest targetmanifest.Definition) []string {
+	scratchBytes := tmpfsBytes
+	if spec.credential != nil {
+		scratchBytes = 512 << 20
+	}
 	arguments := []string{
 		"container", "create",
 		"--name", name,
@@ -306,6 +383,9 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 	}
 	for _, key := range []string{labelManaged, labelRunID, labelTargetID, labelTargetRevision, labelTargetFingerprint} {
 		arguments = append(arguments, "--label", key+"="+labels[key])
+	}
+	if pin, ok := labels[labelRuntimePolicy]; ok {
+		arguments = append(arguments, "--label", labelRuntimePolicy+"="+pin)
 	}
 	arguments = append(arguments,
 		"--interactive",
@@ -316,11 +396,11 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 		"--log-driver", "none",
 		"--cap-drop", "ALL",
 		"--security-opt", "no-new-privileges=true",
-		"--memory", strconv.FormatInt(manifest.Limits.MemoryBytes, 10),
-		"--memory-swap", strconv.FormatInt(manifest.Limits.MemoryBytes, 10),
-		"--cpus", formatCPU(manifest.Limits.CPUMillis),
-		"--pids-limit", strconv.FormatInt(manifest.Limits.PIDs, 10),
-		"--tmpfs", fmt.Sprintf("/tmp:rw,nosuid,nodev,noexec,size=%d,mode=1777", tmpfsBytes),
+		"--memory", strconv.FormatInt(manifest.Common().Limits.MemoryBytes, 10),
+		"--memory-swap", strconv.FormatInt(manifest.Common().Limits.MemoryBytes, 10),
+		"--cpus", formatCPU(manifest.Common().Limits.CPUMillis),
+		"--pids-limit", strconv.FormatInt(manifest.Common().Limits.PIDs, 10),
+		"--tmpfs", fmt.Sprintf("/tmp:rw,nosuid,nodev,noexec,size=%d,mode=1777", scratchBytes),
 		"--workdir", "/workspace",
 		// In a rootless daemon, container uid 0 maps to sandboxd's dedicated
 		// host uid. This lets the runner access private 0700 binds without
@@ -329,14 +409,17 @@ func createArguments(name string, labels map[string]string, spec targetSpec, man
 		"--user", "0:0",
 	)
 	workspaceMount := "type=bind,src=" + spec.workspacePath + ",dst=/workspace,bind-propagation=rprivate"
-	if manifest.WorkspaceMode == targetmanifest.WorkspaceReadOnly {
+	if manifest.Common().WorkspaceMode == targetmanifest.WorkspaceReadOnly {
 		workspaceMount += ",readonly"
 	}
-	arguments = append(arguments,
-		"--mount", workspaceMount,
-		"--mount", "type=bind,src="+spec.statePath+",dst=/state,bind-propagation=rprivate",
-		manifest.Runner.Image,
-	)
+	arguments = append(arguments, "--mount", workspaceMount)
+	if spec.stateKind == targetmanifest.RunnerStatePersistent {
+		arguments = append(arguments, "--mount", "type=bind,src="+spec.statePath+",dst=/state,bind-propagation=rprivate")
+	}
+	if spec.credential != nil {
+		arguments = append(arguments, spec.credential.arguments()...)
+	}
+	arguments = append(arguments, manifest.Common().Runner.Image)
 	return arguments
 }
 
@@ -346,17 +429,17 @@ func formatCPU(millis int64) string {
 	return fmt.Sprintf("%d.%03d", whole, fraction)
 }
 
-func streamInputLimit(manifest targetmanifest.Manifest) int64 {
+func streamInputLimit(manifest targetmanifest.Definition) int64 {
 	// encoding/json may expand one input byte to a six-byte Unicode escape.
 	// HRP/1 sends one start frame, so add one bounded envelope.
-	return 6*int64(manifest.Limits.MaxInputBytes) + 16<<10
+	return 6*int64(manifest.Common().Limits.MaxInputBytes) + 16<<10
 }
 
-func streamOutputLimit(manifest targetmanifest.Manifest) int64 {
+func streamOutputLimit(manifest targetmanifest.Definition) int64 {
 	// Account for JSON's worst-case six-byte string escaping, every permitted
 	// event, the ready/terminal envelopes, and framing. Manifest validation
 	// makes the resulting aggregate ceiling finite (about 14 MiB at HRP/1 max).
-	return 6*int64(manifest.Limits.MaxOutputBytes) +
-		int64(manifest.Limits.MaxEvents)*(6*int64(manifest.Limits.MaxProgressBytes)+2<<10) +
+	return 6*int64(manifest.Common().Limits.MaxOutputBytes) +
+		int64(manifest.Common().Limits.MaxEvents)*(6*int64(manifest.Common().Limits.MaxProgressBytes)+2<<10) +
 		64<<10
 }

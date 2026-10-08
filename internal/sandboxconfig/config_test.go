@@ -10,6 +10,7 @@ import (
 
 	"github.com/shwdsun/harness-security-gateway/internal/localidentity"
 	"github.com/shwdsun/harness-security-gateway/internal/strictjson"
+	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
 func quote(value string) string {
@@ -333,9 +334,7 @@ func TestTargetsCannotShareHarnessState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second := config.Targets[0]
-	second.ID = "project-other"
-	second.Revision = "project-other-r1"
+	second := editV1(t, config.Targets[0], func(m *targetmanifest.Manifest) { m.ID = "project-other"; m.Revision = "project-other-r1" })
 	config.Targets = append(config.Targets, second)
 	if err := config.Validate(); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("shared target state error = %v", err)

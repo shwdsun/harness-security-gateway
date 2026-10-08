@@ -1,0 +1,66 @@
+{
+  "schema": "hsg-codex-offline-inputs/v1",
+  "status": "measured-development-inputs",
+  "go_version": "go1.26.7",
+  "image": "golang@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd",
+  "profile_sha256": "8bbae8b91929e32c4eca53270716c35e03999ec03d535f7011a088472b80ce50",
+  "native": {
+    "uid-setup": {
+      "bytes": 821456,
+      "sha256": "7fc46663e876aa51c090c0dc4ced2187721034a31b935b357761ffd42d5132b9",
+      "executable": true
+    },
+    "credential-bootstrap": {
+      "bytes": 2801035,
+      "sha256": "b27ced1fff5cf045f530b39c83264a32e175ea75fda01ee8600d9af3c6756cca",
+      "executable": true
+    },
+    "codex-provider-runner": {
+      "bytes": 6371263,
+      "sha256": "f260ca92f157c2f24836b35b43149f7bd88ca77f9dc541bf21cc367766873e45",
+      "executable": true
+    },
+    "startup-canary": {
+      "bytes": 12383359,
+      "sha256": "b9dd08a4b2ffe50a1661586710891c70400a65ed144868156fcf2bde8bb203a3",
+      "executable": true
+    },
+    "seccomp.json": {
+      "bytes": 11128,
+      "sha256": "9211e333a26f4e8f8616c186916d7dc85bcc1c8c760f2dcc0aec9b83dc2710b0",
+      "executable": false
+    }
+  },
+  "tool_package": {
+    "bin/codex": {
+      "bytes": 270815680,
+      "sha256": "9739cbc928b9c573be83256acd46668f5dd4f119d2d09e05246895ca2aaf0c9a",
+      "executable": true
+    },
+    "bin/codex-code-mode-host": {
+      "bytes": 69333056,
+      "sha256": "a9adcea47799d8caaec5fbf073966fef2869f754bc7b463e30783880dfb12913",
+      "executable": true
+    },
+    "codex-package.json": {
+      "bytes": 205,
+      "sha256": "ed8beb433be66cf74a75af94f4b2e2df35ef25325620ddad1a377bba8f1ffeea",
+      "executable": false
+    },
+    "codex-path/rg": {
+      "bytes": 5408904,
+      "sha256": "e62198eb19b136b88c330af83647b5a962cb99b6b1f066758568f12de1974849",
+      "executable": true
+    },
+    "codex-resources/bwrap": {
+      "bytes": 529776,
+      "sha256": "7df960565a0dece99240ea4b9d0e011307817f9f3b73176c7b71fda44fe84765",
+      "executable": true
+    },
+    "codex-resources/zsh/bin/zsh": {
+      "bytes": 898480,
+      "sha256": "67faaaa89242c4a332e16e508a1977cffc24bf7fca31d4411cdfd101f3831ef3",
+      "executable": true
+    }
+  }
+}

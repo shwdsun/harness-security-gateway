@@ -10,22 +10,34 @@ authenticated messaging events into durable Runs against operator-approved,
 immutable harness targets without implementing another agent loop or
 orchestrator.
 
-> **Status: research prototype / pre-alpha.** The control-plane walking
-> skeleton and offline security witness are implemented. Two sealed `new_only`
-> Codex adapter behavior profiles exist in code, but no Codex Runner image or
-> TargetManifest is shipped and the default build omits its entrypoint. No
-> provider-authenticated Codex target or Discord Connector exists yet. Do not
-> deploy this repository as a production gateway or treat it as evidence of a
-> secure Discord-to-Codex path.
+> **Status as of 2026-10-08: pre-alpha.** Default builds support the mock path;
+> native Codex execution requires an explicit opt-in build. The control plane
+> and private Discord Connector are implemented. Two September 16 live text
+> Runs exercised an older profile whose reusable provider auth remained readable
+> by its Runner. The owner-isolated V4 candidate has scoped synthetic evidence,
+> but its October 7 real campaign stopped after enrollment, before a task.
+> **CRED-01/M1, real-provider refresh and V4 Discord acceptance remain open.**
+> Reviewed source integration does not approve deployment or a production
+> release. See [implementation status](docs/implementation-status.md) and the
+> [milestone boundaries](docs/milestones.md).
 
-What runs today: the Go control plane passes its ordinary and race tests, and
-`make demo-security` checks five offline properties. The end-to-end platform
-path uses a deterministic mock Runner, not Discord or a model provider.
+Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
+For a code, design or research review, the
+[engineering case study](docs/engineering-case-study.md) traces key decisions
+to implementation and counterexamples, explains the AI-assisted development
+workflow, and relates its limits to July–October 2026 research. The
+[deployment guide](docs/deployment.md) separates runnable mock support,
+dated native experiments and the remaining real-path gates.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
 > never select or widen that envelope.
 
 ## Why this exists
+
+The goal is a practical personal gateway: request coding work from a private
+conversation, run it within an operator-approved environment, and receive the
+result in that conversation. The first intended path is private Discord to one
+immutable Codex target.
 
 Messaging-to-agent connectivity is easy to demonstrate; authority is the
 harder problem. A message is untrusted intent entering a powerful execution
@@ -61,8 +73,9 @@ have separate, sandbox-owned lifetimes.
 
 ## Current implementation
 
-This is a real control plane exercised end to end with a deterministic mock
-Runner; it is not yet a real platform-to-provider integration.
+The control plane is exercised with a deterministic mock Runner and a dated
+private Discord-to-Codex text deployment. Credential isolation for that useful
+workflow remains the next integration milestone.
 
 | Area | Status |
 | --- | --- |
@@ -70,9 +83,13 @@ Runner; it is not yet a real platform-to-provider integration.
 | Sandbox lifecycle and uncertain-create reconciliation | Implemented and deterministically tested with a fake runtime; the digest-pinned mock Runner was exercised locally on rootless Docker, outside public CI |
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
-| Codex adapter | Context-free v1 and fixed private-messaging v2 `new_only` cuts implemented and unit-tested; neither is wired into a shipped target |
-| Real Codex target | Not implemented; blocked on image, context, auth, egress, cancellation, and teardown gates |
-| Discord Connector | Not implemented |
+| Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
+| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance remains open. No approved production V4 image is shipped |
+| Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
+| Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
+| Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
+| Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
+| Private Discord Connector | Implemented with exact identity/Binding admission, durable cursor and reply delivery; dated two-message deployment evidence exists |
 | Production deployment | Not ready |
 
 The detailed and authoritative status is in
@@ -106,6 +123,12 @@ Today this repository supports two bounded uses: the offline security witness
 above, and the advanced mock flow in the local runbook. The latter runs the
 control services on the host and creates one digest-pinned mock Runner
 container per Run; it is not a Discord or Codex deployment.
+
+The [provider canary](docs/codex-provider-canary.md) and
+[fixed Codex daemon path](docs/codex-daemon-startup.md) are opt-in experiments
+requiring explicit artifacts, local prerequisites and authorization for their
+external effects. Their native entrypoints are omitted from default builds;
+neither supplies a production installer or approved production target.
 
 The intended real topology keeps long-lived control services separate from
 ephemeral harness execution. A Connector may be packaged as one long-running
@@ -141,10 +164,15 @@ block a turnkey real-platform deployment.
   cannot redirect a reply.
 - An ambiguous container create is reconciled by immutable identity and is
   never retried as a second create.
-- The sandbox session design keeps provider tokens private. Current evidence
-  uses synthetic mock tokens only; a real provider credential boundary remains
-  an open gate. Public session references are exact-scope, one-use capabilities
-  and never authorize a new Run.
+- The mock session path keeps synthetic provider-session tokens in sandbox
+  state. Core sees exact-scope, one-use opaque references, which never authorize
+  a new Run. This does not establish secrecy of a real provider credential.
+
+The V3/provider-canary contract is explicitly `credential-exposed-personal`:
+native tools can read its dedicated credential file, and allowed provider
+requests can disclose data they can read. The runtime-owned operation endpoint
+constrains requests; it does not hide the credential from those tools. See the
+[canary's credential boundary](docs/codex-provider-canary.md).
 
 Code, deterministic tests, runtime evidence, and explicitly scoped experiments
 outrank prose or model review. See [architecture.md](docs/architecture.md) and
@@ -156,18 +184,16 @@ model.
 The following gates remain open; the repository makes no claim that they have
 passed:
 
-- deploy distinct service UIDs and verify private path ownership, setgid
-  directory traversal, and `0660` socket access;
-- build and digest-pin the Codex image, then bind resolved auth, network,
-  context, and runtime profiles into the target revision;
-- close repository/system skill and customization injection, then test
-  credential reach, refresh, revocation, and provider-versus-tool egress;
-- prove cancellation, detached-descendant cleanup, and container quiescence;
-- exercise fake ingress against the real target before adding a platform
-  credential;
-- implement a Discord Connector with stable-ID admission and Connector-owned
-  durable cursor, spool, reconnect, and catch-up behavior;
-- complete the deny audit and isolated private-Discord adversarial experiments.
+- close CRED-01 on the named real V4 profile, including provider compatibility,
+  required refresh and private Discord task/reply acceptance;
+- attest the accepted profile's exact artifacts, distinct service identities,
+  credential and filesystem reach, and provider-versus-tool egress;
+- complete its applicable adversarial, cancellation, crash and cleanup cases,
+  including repository customization and detached descendants;
+- establish a supported installation, update and recovery procedure with
+  predictable operator effort before a personal pilot release;
+- measure benefit and operating cost against simpler alternatives before
+  expanding the product.
 
 Some internal identifiers retain the original prototype namespace (`HG_`,
 `hgw`, and `harness-gateway`) because they participate in persisted hashes,
@@ -179,12 +205,13 @@ guarantee.
 
 | Path | Responsibility |
 | --- | --- |
-| `cmd/` | `agentd`, `sandboxd`, `hgwctl`, fake Connector, mock Runner, and disabled Codex adapter entry points |
+| `cmd/` | Control services, local utilities, mock Runner and experimental Codex/bootstrap/canary entry points |
 | `internal/` | Closed protocols, policy, durable stores, dispatch, runtime, and adapter packages |
 | `demo/security/` | Credential-free deterministic security witness |
 | `runners/mock/` | Digest-pinnable mock Runner image |
 | `config/` | Example daemon configuration; never message-selectable |
 | `bakeoff/` | Candidate-neutral adversarial cases and result schema |
+| `formal/recovery/` | Opt-in recovery model, checked-in trace corpus and explicit proof assumptions |
 | `docs/` | Architecture, protocols, evidence limits, status, and runbook |
 
 ## Non-goals
@@ -197,18 +224,27 @@ matrix are deliberately deferred.
 
 ## Documentation
 
+- [Engineering case study, AI-assisted workflow and research questions](docs/engineering-case-study.md)
+- [Current implementation status](docs/implementation-status.md)
+- [2026-09-10 checkpoint and reflection](docs/checkpoint-2026-09-10.md)
+- [Content evolution and verification scope](docs/content-evolution-and-verification.md)
+- [Controlled provider canary and evidence limits](docs/codex-provider-canary.md)
+- [First principles: axioms and what they force](docs/first-principles.md)
+- [Drift ledger: what traces and what does not](docs/drift-ledger.md)
 - [Design principles](docs/design-principles.md)
 - [Architecture](docs/architecture.md)
 - [Access-control model](docs/access-control.md)
 - [Connector protocol](docs/connector-protocol.md)
 - [Harness Runner Protocol](docs/runner-protocol.md)
 - [Deployment and artifact lifecycle](docs/deployment.md)
-- [Implementation status](docs/implementation-status.md)
 - [Product scope](docs/positioning.md)
 - [Competitive security bake-off](docs/competitive-bakeoff.md)
 - [Local mock runbook](docs/runbook.md)
 
 ## Security and license
+
+HSG is developed independently with AI assistance; its implementation and
+verification records are also available as a reference for other projects.
 
 Please report vulnerabilities through
 [GitHub private vulnerability reporting](https://github.com/shwdsun/harness-security-gateway/security/advisories/new),

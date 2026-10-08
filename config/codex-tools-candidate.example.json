@@ -1,0 +1,51 @@
+{
+  "schema": "codex-candidate/v1",
+  "profile_id": "codex.chatgpt-personal-messaging-tools-v3",
+  "target": {
+    "schema": "harness-target/v2",
+    "id": "project-codex",
+    "revision": "project-codex-tools-v3-unset",
+    "runner": {
+      "family": "codex",
+      "adapter_version": "0.3.0-new-only",
+      "protocol": "hrp/1",
+      "image": "example/codex-tools-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "required_features": []
+    },
+    "workspace_ref": "project-main",
+    "workspace_mode": "rw",
+    "runner_state": {
+      "kind": "none"
+    },
+    "policy_ref": "codex.locked-tools-v3",
+    "auth_profile_ref": "codex.chatgpt-file-personal-v1",
+    "skill_bundle_ref": "builtin.none",
+    "network_profile_ref": "codex.provider-control-v1",
+    "session_mode": "new_only",
+    "limits": {
+      "timeout_seconds": 300,
+      "memory_bytes": 536870912,
+      "cpu_millis": 1000,
+      "pids": 64,
+      "max_input_bytes": 32768,
+      "max_output_bytes": 2000,
+      "max_progress_bytes": 4096,
+      "max_stderr_bytes": 4096,
+      "max_events": 16,
+      "max_session_age_seconds": 0,
+      "max_session_turns": 0
+    }
+  },
+  "workspace": {
+    "ref": "project-main",
+    "path": "/srv/hsg/workspaces/project-main"
+  },
+  "credential": {
+    "workspace_ref": "project-main",
+    "auth_profile_ref": "codex.chatgpt-file-personal-v1",
+    "slot_ref": "personal-codex",
+    "generation": 1,
+    "root": "/srv/hsg/credentials",
+    "directory": "codex-project-main"
+  }
+}

@@ -8,6 +8,11 @@ current pre-alpha proves only the implemented control-plane properties and mock
 path described in [implementation-status.md](implementation-status.md); it is
 not yet a production containment boundary or an agent platform.
 
+The axioms this design rests on, and the consequences those axioms force, are
+separated out in [first-principles.md](first-principles.md). This document
+states the laws; that one states why they are not optional and where the
+derivation stops.
+
 Its central rule is:
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
@@ -119,6 +124,11 @@ claim -> threat or counterexample -> closed contract -> mechanism
       -> deterministic test -> production-shaped canary -> residual limit
 ```
 
+For changes, apply the [content evolution and verification contract](content-evolution-and-verification.md).
+Select checks by affected guarantees and assumptions, reuse unchanged evidence,
+and concentrate costly acceptance on the integrated delivery. This chain does
+not require every small edit to reopen research, formal proof or native trials.
+
 The evidence vocabulary is deliberately strict:
 
 - **design assumption**: accepted for progress but not yet demonstrated;
@@ -145,6 +155,15 @@ AI-assisted development follows the same authority rule as the product:
 - code, tests, runtime evidence, and primary sources decide whether a model
   finding is accepted;
 - model agreement never authorizes a design change by itself.
+
+The development interaction also has an acceptance boundary. Complete available
+implementation, verification and recovery preparation before requiring an
+operator handoff; an installation dependency does not block ordinary debugging.
+Count manual steps and rework across the objective, and redesign a workflow
+that repeatedly returns unfinished agent work to its operator. Functional
+success, security acceptance and process compliance are separate outcomes.
+The [engineering case study](engineering-case-study.md) connects these choices
+to inspectable evidence and recent research, without claiming measured speedup.
 
 ## Change test
 

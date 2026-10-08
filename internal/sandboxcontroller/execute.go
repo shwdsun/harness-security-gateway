@@ -29,7 +29,17 @@ func (c *Controller) execute(
 		// durable request. Leave it accepted so the exact request can be re-offered.
 		return
 	}
-	if terminalState(run.State) {
+	// A clear transaction can commit while its response is lost, leaving an
+	// accepted row with no durable intent. Re-offering that row must finish the
+	// retained terminal plan, never turn an old pre-dispatch proof into authority
+	// over a newly dispatched Create. The worker owns this Run's active phase.
+	if spec, certain, desired := c.desiredTerminal(request.RunID); desired {
+		ctx, cancel := context.WithTimeout(context.Background(), c.cleanupTimeout)
+		defer cancel()
+		_ = c.reconcileDesired(ctx, run, spec, certain)
+		return
+	}
+	if terminalDecided(run) {
 		return
 	}
 	if run.State == executionwire.RunStateCancelling {
@@ -42,13 +52,13 @@ func (c *Controller) execute(
 	}
 
 	entry, err := c.registry.Resolve(request.TargetID, request.ExpectedRevision)
-	if err != nil || entry.Manifest.ID != request.TargetID || entry.Manifest.Revision != request.ExpectedRevision {
+	if err != nil || entry.Manifest.ID() != request.TargetID || entry.Manifest.Revision() != request.ExpectedRevision {
 		c.finishWithoutRuntime(request, c.classifyFailure(request, err))
 		return
 	}
 	executionCtx, executionCancel := context.WithTimeout(
 		runCtx,
-		time.Duration(entry.Manifest.Limits.TimeoutSeconds)*time.Second,
+		time.Duration(entry.Manifest.Common().Limits.TimeoutSeconds)*time.Second,
 	)
 	defer executionCancel()
 
@@ -63,19 +73,19 @@ func (c *Controller) execute(
 		defer func() { value = "" }()
 	}
 
+	if err := c.prepareCredential(run, entry.Manifest); err != nil {
+		c.finishWithoutRuntime(request, terminalPolicyDenied)
+		return
+	}
+
 	// Intent persistence is control-plane work. A caller cancellation or Run
 	// deadline must not make the Begin result ambiguous merely because the
 	// execution context expired while SQLite was committing it.
 	intentCtx, intentCancel := context.WithTimeout(context.Background(), c.cleanupTimeout)
 	_, intentCreated, err := c.store.BeginRuntimeIntent(intentCtx, request.RunID, c.bootID)
 	if err != nil {
-		spec := c.classifyFailure(request, err)
-		if c.clearAmbiguousPredispatchIntent(intentCtx, run) == nil {
-			c.finishCertainNoRuntime(intentCtx, request, spec)
-		} else {
-			c.finishWithoutRuntime(request, spec)
-		}
 		intentCancel()
+		c.finishPredispatchFailure(run, request, c.classifyFailure(request, err))
 		return
 	}
 	if !intentCreated {
@@ -83,6 +93,7 @@ func (c *Controller) execute(
 		// An existing intent is recovery authority, not permission to dispatch a
 		// second Create. Lookup plus the boot epoch is the only safe boundary.
 		c.finishCreateFailure(
+			run,
 			request,
 			entry.Manifest,
 			false,
@@ -97,11 +108,17 @@ func (c *Controller) execute(
 	// Create call. Because Create has not yet been invoked, a verified clear
 	// permits an exact cancellation/deadline result without any runtime lookup.
 	latest, getErr := c.store.GetRun(intentCtx, request.RunID)
-	if getErr != nil || !sameRunIdentity(run, latest) || latest.RuntimeRef != nil ||
+	if getErr != nil {
+		intentCancel()
+		c.finishPredispatchFailure(run, request, terminalInterrupted)
+		return
+	}
+	if !sameRunIdentity(run, latest) || latest.RuntimeRef != nil ||
 		!latest.RuntimeIntentPending || latest.RuntimeIntentBootID == nil ||
 		*latest.RuntimeIntentBootID != c.bootID {
 		intentCancel()
 		c.finishCreateFailure(
+			run,
 			request,
 			entry.Manifest,
 			false,
@@ -115,19 +132,21 @@ func (c *Controller) execute(
 		if latest.State == executionwire.RunStateCancelling {
 			spec = terminalCancelled
 		}
-		if clearErr := c.clearCertainRuntimeIntent(intentCtx, request.RunID); clearErr == nil {
-			c.finishCertainNoRuntime(intentCtx, request, spec)
-		} else {
-			c.finishWithoutRuntime(request, spec)
-		}
 		intentCancel()
+		c.finishPredispatchFailure(run, request, spec)
+		return
+	}
+	if run.CredentialRequired && c.validateCredential(intentCtx, request.RunID) != nil {
+		intentCancel()
+		c.finishPredispatchFailure(run, request, terminalPolicyDenied)
 		return
 	}
 	intentCancel()
 
-	ref, err := c.runtime.Create(executionCtx, request.RunID, entry.Manifest)
+	ref, err := c.createRuntime(executionCtx, run, entry.Manifest)
 	if err != nil {
 		c.finishCreateFailure(
+			run,
 			request,
 			entry.Manifest,
 			intentCreated,
@@ -156,6 +175,15 @@ func (c *Controller) execute(
 	if boundRun.State == executionwire.RunStateCancelling {
 		c.finishWithRuntime(request, ref, terminalCancelled)
 		return
+	}
+	if run.CredentialRequired {
+		credentialCtx, credentialCancel := context.WithTimeout(context.Background(), c.cleanupTimeout)
+		err := c.validateCredential(credentialCtx, request.RunID)
+		credentialCancel()
+		if err != nil {
+			c.finishWithRuntime(request, ref, terminalPolicyDenied)
+			return
+		}
 	}
 
 	process, err := c.runtime.AttachStart(executionCtx, ref)
@@ -219,7 +247,7 @@ func (c *Controller) execute(
 	}
 
 	current, getErr := c.getRunControl(request.RunID)
-	if getErr == nil && !terminalState(current.State) {
+	if getErr == nil && !terminalDecided(current) {
 		cause := bridgeErr
 		if diagnosticErr != nil {
 			cause = diagnosticErr
@@ -246,7 +274,7 @@ func (c *Controller) execute(
 		return
 	}
 	current, err = c.getRunControl(request.RunID)
-	if err == nil && terminalState(current.State) {
+	if err == nil && terminalDecided(current) {
 		_ = c.confirmStopped(request.RunID)
 	}
 }
@@ -269,7 +297,13 @@ func (c *Controller) eventSink() runnerbridge.Sink {
 				VendorToken: *emission.VendorSessionToken,
 			}
 		}
-		_, err := c.store.AppendEvent(ctx, emission.Event, mapping)
+		var err error
+		switch emission.Event.Type {
+		case executionwire.RunEventStarted, executionwire.RunEventProgress:
+			_, err = c.store.AppendEvent(ctx, emission.Event, mapping)
+		default:
+			_, err = c.store.StageTerminal(ctx, emission.Event, mapping)
+		}
 		return err
 	}
 }
@@ -283,10 +317,9 @@ func (c *Controller) finishWithoutRuntime(request executionwire.StartRunRequest,
 		return
 	}
 	if run.RuntimeRef != nil || run.RuntimeIntentPending {
-		// Durable runtime authority keeps a terminal row discoverable. Commit
-		// the caller-visible outcome first, then attempt cleanup; any lookup or
-		// runtime failure retains the ref/intent and workspace lock for retry.
-		if !terminalState(run.State) {
+		// Freeze the outcome privately before cleanup. A lookup/runtime failure
+		// retains the candidate, ref/intent and workspace lock for retry.
+		if !terminalDecided(run) {
 			run, err = c.commitTerminal(ctx, request.RunID, spec)
 			if err != nil {
 				return
@@ -309,15 +342,14 @@ func (c *Controller) finishWithoutRuntime(request executionwire.StartRunRequest,
 		_ = c.confirmStoppedContext(ctx, request.RunID)
 		return
 	}
-	if terminalState(run.State) {
+	if terminalDecided(run) {
 		c.clearDesiredTerminal(request.RunID)
 		return
 	}
 
-	// A legacy row with neither a durable ref nor an intent marker is not
-	// guaranteed to remain discoverable after terminalization (especially for
-	// a read-only workspace), so close its identity-verified lookup window
-	// before committing the terminal event.
+	// Without a ref or intent, absence still needs an identity-verified lookup
+	// unless this worker retained the stronger never-dispatched proof. Preserve
+	// that conservative order even though staging now keeps the row discoverable.
 	manifest, err := c.manifestForRun(run)
 	if err != nil {
 		return
@@ -344,39 +376,26 @@ func (c *Controller) finishWithRuntime(request executionwire.StartRunRequest, re
 	}
 }
 
-// finishCertainNoRuntime is used only after a fresh durable proof that this
-// worker never called Runtime.Create and no runtime authority remains. Unlike
-// finishWithoutRuntime it deliberately performs no LookupIntent probe.
-func (c *Controller) finishCertainNoRuntime(
-	ctx context.Context,
-	request executionwire.StartRunRequest,
-	spec terminalSpec,
-) {
-	c.rememberCertainNoRuntimeTerminal(request.RunID, spec)
-	run, err := c.store.GetRun(ctx, request.RunID)
-	if err != nil || run.RuntimeRef != nil || run.RuntimeIntentPending {
-		return
-	}
-	if !terminalState(run.State) {
-		if _, err := c.commitTerminal(ctx, request.RunID, spec); err != nil {
-			return
-		}
-	}
-	c.clearDesiredTerminal(request.RunID)
-	_ = c.confirmStoppedContext(ctx, request.RunID)
-}
-
 // finishCreateFailure handles the only lifecycle window where a container may
-// exist without a durable reference. A certain pre-dispatch failure can clear
-// a newly-created intent directly. Every other case must cross the boot-aware
-// LookupIntent boundary; it never dispatches Create again.
+// exist without a durable reference. Runtime failures certified before external
+// Create dispatch retain the same proof as failures before calling Runtime.Create.
+// Every uncertain result must cross the boot-aware LookupIntent boundary; this
+// path never dispatches Create again.
 func (c *Controller) finishCreateFailure(
+	initial sandboxstore.Run,
 	request executionwire.StartRunRequest,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	intentCreated bool,
 	spec terminalSpec,
 	cause error,
 ) {
+	if intentCreated && !errors.Is(cause, dockerruntime.ErrCreateUncertain) {
+		// Retain certainty before any fallible read/clear/stage/close operation.
+		// A Runtime method call is not itself an external Create dispatch: the
+		// runtime must mark every possibly dispatched failure ErrCreateUncertain.
+		c.finishPredispatchFailure(initial, request, spec)
+		return
+	}
 	c.rememberDesiredTerminal(request.RunID, spec)
 	ctx, cancel := context.WithTimeout(context.Background(), c.cleanupTimeout)
 	defer cancel()
@@ -384,28 +403,10 @@ func (c *Controller) finishCreateFailure(
 	if err != nil {
 		return
 	}
-	if intentCreated && !errors.Is(cause, dockerruntime.ErrCreateUncertain) {
-		clearErr := c.clearCertainRuntimeIntent(ctx, request.RunID)
-		if !terminalState(run.State) {
-			run, err = c.commitTerminal(ctx, request.RunID, spec)
-			if err != nil {
-				return
-			}
-		}
-		c.clearDesiredTerminal(request.RunID)
-		// A failed clear leaves the terminal intent (or an unexpected durable
-		// ref) visible to ListUnreconciled. Never Confirm across that boundary.
-		if clearErr == nil {
-			_ = c.confirmStoppedContext(ctx, request.RunID)
-		}
-		return
-	}
-
-	// Uncertain Create (including replay of an existing intent) becomes a
-	// closed terminal outcome immediately. RuntimeIntentPending is retained
-	// until boot-aware lookup proves cleanup, so both RW and RO rows stay in
-	// ListUnreconciled without blocking agentd on an Accepted run.
-	if !terminalState(run.State) {
+	// Uncertain Create freezes an interrupted candidate, not a public terminal.
+	// Both RW and RO rows retain authority and remain discoverable until the
+	// boot-aware lookup proves cleanup. Agentd must wait for that proof.
+	if !terminalDecided(run) {
 		run, err = c.commitTerminal(ctx, request.RunID, spec)
 		if err != nil {
 			return
@@ -461,10 +462,11 @@ func (c *Controller) clearCertainRuntimeIntent(ctx context.Context, runID string
 	return lastErr
 }
 
-// clearAmbiguousPredispatchIntent proves that a failed Begin call did not
-// leave runtime authority behind. The initial snapshot and the fresh row must
-// describe the same immutable Run, and any committed intent must belong to the
-// current boot. This relies on sandboxd's single execution worker.
+// clearAmbiguousPredispatchIntent clears an intent whose worker knows external
+// Create was never dispatched. The initial snapshot and fresh row must describe
+// the same immutable Run, and a committed intent must belong to the current boot.
+// This relies on sandboxd's single execution worker and the runtime's certified
+// failure contract, never on absence observed by a lookup.
 func (c *Controller) clearAmbiguousPredispatchIntent(ctx context.Context, initial sandboxstore.Run) error {
 	if initial.State != executionwire.RunStateAccepted || initial.RuntimeRef != nil || initial.RuntimeIntentPending {
 		return errors.New("sandboxcontroller: invalid initial pre-dispatch state")
@@ -474,7 +476,8 @@ func (c *Controller) clearAmbiguousPredispatchIntent(ctx context.Context, initia
 		return err
 	}
 	if !sameRunIdentity(initial, latest) || latest.RuntimeRef != nil ||
-		(latest.State != executionwire.RunStateAccepted && latest.State != executionwire.RunStateCancelling) {
+		(latest.State != executionwire.RunStateAccepted && latest.State != executionwire.RunStateCancelling &&
+			!(terminalState(latest.State) && !latest.RuntimeIntentPending)) {
 		return errors.New("sandboxcontroller: pre-dispatch state changed ambiguously")
 	}
 	if !latest.RuntimeIntentPending {
@@ -516,6 +519,9 @@ func (c *Controller) classifyFailure(request executionwire.StartRunRequest, caus
 	if !request.Deadline.After(c.clock().UTC()) || errors.Is(cause, context.DeadlineExceeded) {
 		return terminalDeadline
 	}
+	if errors.Is(cause, ErrCredentialUnavailable) || errors.Is(cause, dockerruntime.ErrCredentialUnavailable) {
+		return terminalPolicyDenied
+	}
 	if errors.Is(cause, sandboxstore.ErrSessionNotFound) || errors.Is(cause, sandboxstore.ErrSessionScope) {
 		return terminalInvalidSession
 	}
@@ -547,6 +553,28 @@ func (c *Controller) classifyFailure(request executionwire.StartRunRequest, caus
 		return terminalInterrupted
 	}
 	return terminalInternal
+}
+
+func (c *Controller) createRuntime(ctx context.Context, run sandboxstore.Run, manifest targetmanifest.Definition) (string, error) {
+	if !run.CredentialRequired {
+		return c.runtime.Create(ctx, run.RunID, manifest)
+	}
+	state := c.credentialForRun(run.RunID)
+	if state == nil || state.invalid {
+		return "", ErrCredentialUnavailable
+	}
+	if state.owner != nil {
+		runtime, ok := c.runtime.(OwnerCredentialRuntime)
+		if !ok || state.handoff != nil {
+			return "", ErrCredentialUnavailable
+		}
+		return runtime.CreateWithOwner(ctx, run.RunID, manifest, state.owner)
+	}
+	runtime, ok := c.runtime.(CredentialRuntime)
+	if !ok || state.handoff == nil {
+		return "", ErrCredentialUnavailable
+	}
+	return runtime.CreateWithCredential(ctx, run.RunID, manifest, state.handoff)
 }
 
 func (c *Controller) resolveVendorSession(request executionwire.StartRunRequest) (string, error) {

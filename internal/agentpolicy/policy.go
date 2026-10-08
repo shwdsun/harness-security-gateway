@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/shwdsun/harness-security-gateway/internal/agentconfig"
+	"github.com/shwdsun/harness-security-gateway/internal/sessionauth"
 )
 
 const (
@@ -67,6 +68,26 @@ func (e Endpoint) Authorize(actorRef, conversationRef string) (Decision, error) 
 		return Decision{}, ErrNoBinding
 	}
 	return decision, nil
+}
+
+// SessionScope projects one successful exact binding into the complete scope
+// used by trusted local credential/target resolution. The caller selects only
+// an actor/conversation pair; fingerprints and target identity come from the
+// already compiled endpoint. This does not inspect or enroll a credential.
+func (e Endpoint) SessionScope(actorRef, conversationRef string) (sessionauth.Scope, error) {
+	decision, err := e.Authorize(actorRef, conversationRef)
+	if err != nil {
+		return sessionauth.Scope{}, err
+	}
+	scope := sessionauth.Scope{
+		BindingFingerprint: decision.BindingFingerprint, ConnectorID: e.connectorID,
+		ActorRef: actorRef, ConversationRef: conversationRef,
+		TargetID: decision.TargetID, TargetRevision: decision.TargetRevision,
+	}
+	if err := sessionauth.Validate(scope); err != nil {
+		return sessionauth.Scope{}, ErrInvalid
+	}
+	return scope, nil
 }
 
 // Policy is the immutable compiled ingress policy shared by Connector-bound

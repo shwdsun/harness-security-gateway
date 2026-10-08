@@ -30,6 +30,10 @@ func TestEnsureDirRejectsExistingLooseMode(t *testing.T) {
 	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// Creation modes are filtered by umask; force the unsafe fixture mode.
+	if err := os.Chmod(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := EnsureDir(path, 0o700); !errors.Is(err, ErrMode) {
 		t.Fatalf("EnsureDir() error = %v, want ErrMode", err)
 	}

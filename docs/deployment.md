@@ -17,12 +17,37 @@ protocol behavior remain authoritative in [architecture.md](architecture.md),
 | --- | --- | --- | --- |
 | Offline witness | production decoders, policy, service, and Core store with synthetic input | none required | five narrow deterministic security properties |
 | Local mock runbook | fake Connector, `agentd`, `sandboxd`, rootless Docker, and one mock Runner container per Run | no platform/model credential; a controlled registry may be needed before execution | protocol, persistence, and local runtime integration under the runbook's stated limits |
+| Opt-in fixed Codex experiment | fake Connector, ordinary `agentd`, opt-in `sandboxd` and fixed native Runner | dedicated provider credential and explicitly approved fixed upstream operations | one controlled local Run passed on 2026-09-11; manual provisioning, not production acceptance |
 | Real Discord to Codex | not shipped | would require both platform and provider credentials | no public deployment or security claim |
 
 Use `make demo-security` for the first path. Use the
 [local mock runbook](runbook.md) for the second. The runbook is deliberately
 manual: its checks are part of the experiment and must not be hidden by an
 installer.
+
+The [controlled provider canary](codex-provider-canary.md) is a separate opt-in
+experiment, omitted from the default build. It requires pinned local artifacts,
+explicit prerequisites and authorization for real credential/provider effects.
+Four real Runs failed on **2026-09-10**; the fifth completed native inference,
+a tool-written marker and local delivery at **21:52–21:53 UTC**, with
+independently observed cleanup. These remain experimental observations, not a
+supported production deployment; see the [dated results](codex-provider-canary.md#fifth-real-run--2026-09-10).
+
+The subsequent [fixed Codex startup configuration](codex-daemon-startup.md)
+wires that template into the existing `sandboxd` behind an explicit build
+switch. It supplies scope export, read-only local artifact checks and explicit
+enrollment. A separately authorized
+[ordinary-service Run with fake ingress](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+passed on **2026-09-11 00:47 UTC**, including a native reply, tool marker and
+local delivery. Independent cleanup/source/history checks passed at **00:48 UTC**.
+Both services then remained stopped. These observations leave the production
+placement gates below open.
+
+The default local mock path retains v1 resumable Runner state. An explicit
+`sandboxd/v3` no-state example and a build-time fixed `new-only` mock artifact
+are also available; see the [optional runbook path](runbook.md#optional-v3-no-state-mock).
+Both use the same control plane and runtime adapter. The new path has local
+fake-runtime and real child-process tests, not a new live-container attestation.
 
 A private experimental vertical slice may prove that a Discord message can
 reach an installed Codex CLI. Such connectivity evidence does not turn the
@@ -52,8 +77,8 @@ ephemeral Runner container   one Run + one workspace + bounded harness authority
        |
        +-- thin HRP adapter -> pinned Codex/Claude/other harness
        |
-       +-- future reviewed provider path
-             -> narrow auth/egress proxy -> model provider
+       +-- reviewed provider transport
+             -> runtime-owned operation endpoint -> model provider
 ```
 
 Containerization is a packaging choice around a trust boundary, not the trust
@@ -76,9 +101,13 @@ boundary itself. The following placement rules are normative:
   capabilities, and bounded mounts/resources. A future networked target
   requires new runtime support plus a different reviewed profile and
   TargetRevision; configuration alone cannot enable it.
-- A future auth/egress proxy, if used, owns the provider credential and permits
-  only the target's reviewed model operation. Merely allowing a hostname is not
-  credential mediation.
+- Provider access requires enforcement of the target's reviewed operations and
+  lifetime. The opt-in canary and fixed daemon factory use a runtime-owned Unix/TLS endpoint and
+  a relay inside a network-none container. Its V3 `credential-exposed-personal`
+  contract still binds the dedicated credential file into that container;
+  native tools can read it. Operation mediation does not establish credential
+  hiding. The separately versioned V4 candidate below implements the stronger
+  credential boundary. Merely allowing a hostname is not operation mediation.
 
 Production placement requires distinct service identities and private path and
 socket permissions. Running every process under one UID, using a broad shared
@@ -90,13 +119,31 @@ live checkout is outside the intended deployment boundary.
 Harness-specific behavior belongs in the Runner artifact:
 
 ```text
-runner-codex  = thin HRP adapter + pinned Codex executable + fixed profile
+runner-codex  = thin HRP adapter + pinned Codex package + fixed profile
 runner-claude = thin HRP adapter + pinned Claude executable + fixed profile
 ```
 
 The image and immutable TargetManifest select this combination. Adding a
 harness therefore adds a reviewed Runner artifact and target revision, not a
 vendor branch in `agentd` and not a message-selectable plugin.
+
+The [Codex v3 candidate](codex-profile-v3.md) fixes the native companion host,
+package manifest and bundled helpers with the CLI. Its reusable configuration
+and pre-readiness package checks are implemented; it has no approved production
+image or target. Package composition and native settings belong to this
+versioned artifact, while local credential/workspace mappings remain separate
+operator inputs. System sandbox prerequisites require environment evidence;
+the package recipe never changes host security settings.
+
+The [Codex V4 candidate](codex-profile-v4.md) uses a distinct isolated Runner
+artifact. Reusable provider auth and the fixed trusted refresh helper stay in
+the Owner domain; the Runner receives a Run-scoped channel and non-secret local
+auth representation. Native CLI, launcher, companion host and helper artifacts
+require immutable installation, separate from service-owned mutable storage.
+Bounded synthetic native and failure scopes have evidence; required real
+provider compatibility, refresh and private Discord acceptance remain open.
+The existing `deploy/codex` bundle describes V3 and does not package or approve
+this V4 candidate. M1 integration does not itself activate a production target.
 
 Platform-specific behavior belongs in a Connector artifact. A Discord
 Connector image or binary contains the reviewed Connector implementation and
@@ -215,9 +262,20 @@ provider-versus-tool egress, cancellation, descendant cleanup, and a durable
 Discord cursor/spool. Hiding those choices would make the prototype easier to
 start but harder to assess safely.
 
-The next legitimate deployment increment is narrow: satisfy the documented
-Codex target gates, exercise fake ingress against that real target, and only
-then add the private Discord Connector. A turnkey installer becomes appropriate
+The [offline fixed-target bundle](../deploy/codex/README.md) now provides a
+bounded assembly recipe, pinned measured native inputs and review-only separate
+service-identity templates. It compiles host services without network acquisition
+and creates no account, credential, runtime or service. The corresponding socket
+directory preparation supports the documented `02710` layout without changing
+private data permissions. Repeated assembly, source provenance and live identity
+isolation are distinct claims; see the recipe's evidence and activation gates.
+An [offline native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
+passed on **2026-09-11 at 04:29 UTC** with distinct kernel UIDs, synthetic state
+and the production Unix transport. It establishes the tested Linux permission
+and peer-authentication layout inside one rootless container. It does not
+establish host service accounts, a new runtime owner or credential transition.
+The scoped fake-ingress witness above is complete; production target
+and isolated private-Discord acceptance remain open. A turnkey installer becomes appropriate
 after that exact path has repeatable provisioning, rollback, and adversarial
-evidence. Until then, use only the two supported paths above and preserve each
-manual precondition as observable evidence.
+evidence. Until then, use the credential-free flows or an explicitly scoped
+fixed-Codex experiment, preserving each manual precondition as observable evidence.

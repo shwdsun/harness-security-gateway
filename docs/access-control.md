@@ -199,6 +199,19 @@ traversal to the known socket; the
 Connector cannot list, create, rename, or replace directory entries. sandboxd's
 socket follows the same pattern and admits only the agentd identity.
 
+As of **2026-09-11**, both daemon startup paths inspect the pre-provisioned
+distinct-UID parent through `localhttp.PrepareSocketParent`: listener-owned,
+exactly setgid `02710`, no symlink component and no ancestor replaceable by
+other users. They never create/chmod that shared directory. Same-UID startup
+still prepares `0700` directories. The
+[offline deployment templates](../deploy/codex/README.md) keep private DBs apart
+from these IPC directories. Local tests verify guards and socket GID inheritance.
+The [native identity witness](../internal/localhttp/testdata/identity-witness/README.md)
+passed on **2026-09-11 at 04:29 UTC** under actual distinct kernel UIDs inside
+an offline rootless container, including wrong-UID rejection despite shared
+groups, socket-parent protection and private-data isolation. Host provisioning,
+ancestor access and runtime placement still require deployment-specific checks.
+
 Config files are operator-owned regular files, readable but not writable by the
 service. Core DB is private to agentd; sandbox DB and rootless runtime state are
 private to sandboxd. A Connector receives only its own socket mount if it runs

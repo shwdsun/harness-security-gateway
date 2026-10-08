@@ -61,6 +61,7 @@ func testTargetAuthority(targetID, revision, stateRef string, pinByte, pathByte 
 		TargetID:              targetID,
 		TargetRevision:        revision,
 		RevisionPin:           strings.Repeat(string(pinByte), 64),
+		RunnerStateKind:       targetmanifest.RunnerStatePersistent,
 		RunnerStateRef:        stateRef,
 		RunnerStatePathDigest: strings.Repeat(string(pathByte), 64),
 		StatePathAbsent:       absent,
@@ -1176,7 +1177,7 @@ func TestRunnerStateOwnersAreAppendOnlyAndRequiredForRuns(t *testing.T) {
 	request.TargetID = "target-orphan"
 	request.ExpectedRevision = "target-orphan-r1"
 	if _, _, err := registerTestStart(store, context.Background(), request, request.ExpectedRevision,
-		"workspace-orphan", false); !errors.Is(err, ErrTargetRevisionNotFound) {
+		"workspace-orphan", false); !errors.Is(err, ErrRunnerStateOwnershipUnknown) {
 		t.Fatalf("ownerless target StartRun error = %v", err)
 	}
 }

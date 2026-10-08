@@ -44,6 +44,10 @@ func TestAcquireRejectsUnsafeFilesAndPaths(t *testing.T) {
 	if err := os.WriteFile(regular, nil, 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
+	// Creation modes are filtered by umask; force the unsafe fixture mode.
+	if err := os.Chmod(regular, 0o644); err != nil {
+		t.Fatalf("Chmod: %v", err)
+	}
 	if _, err := Acquire(regular); !errors.Is(err, ErrUnsafeFile) {
 		t.Fatalf("relaxed file error = %v, want ErrUnsafeFile", err)
 	}

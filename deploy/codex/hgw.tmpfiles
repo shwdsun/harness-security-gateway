@@ -1,0 +1,17 @@
+# Preparation template; applying tmpfiles can change existing ownership/modes.
+# Review existing paths first. No auth file, DB, runtime daemon or service starts.
+d /run/hgw 0755 root root -
+d /run/hgw/local 02710 hgw-agentd hgw-local-ipc -
+d /run/hgw/sandbox 02710 hgw-sandboxd hgw-sandbox-ipc -
+d /var/lib/hgw-agentd 0700 hgw-agentd hgw-agentd -
+d /var/lib/hgw-agentd/state 0700 hgw-agentd hgw-agentd -
+d /var/lib/hgw-connector-local 0700 hgw-connector-local hgw-connector-local -
+d /var/lib/hgw-sandboxd 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/state 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/workspaces 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/workspaces/project-main 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/runner-state 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/credentials 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/credentials/codex-project-main 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/provider 0700 hgw-sandboxd hgw-sandboxd -
+d /var/lib/hgw-sandboxd/artifacts 0700 hgw-sandboxd hgw-sandboxd -

@@ -22,11 +22,16 @@ func (ExecLauncher) Start(ctx context.Context, invocation Invocation) (Process, 
 		return nil, errors.New("codex adapter: nil launch context")
 	}
 	command := exec.Command(invocation.Path, invocation.Args...)
-	command.Env = append([]string(nil), invocation.Env...)
+	// An empty invocation must remain empty: nil would inherit the parent.
+	command.Env = append([]string{}, invocation.Env...)
 	command.Dir = invocation.Dir
 	command.Stdin = invocation.Stdin
 	command.Stdout = invocation.Stdout
 	command.Stderr = invocation.Stderr
+	// A descendant may retain the diagnostic pipes after the leader exits.
+	// Bound that drain and return an error; closing a pipe is not evidence of
+	// descendant quiescence, which remains the outer runtime's responsibility.
+	command.WaitDelay = childStopGrace
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := command.Start(); err != nil {
 		return nil, err

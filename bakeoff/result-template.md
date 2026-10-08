@@ -31,6 +31,7 @@ Use only `PASS`, `FAIL`, `NOT_SUPPORTED`, `NOT_OBSERVABLE`, or `BLOCKED`.
 | ID-02 | | | | | |
 | REL-01 | | | | | |
 | AUTH-01 | | | | | |
+| AUTH-02 | | | | | |
 | ISO-01 | | | | | |
 | ISO-02 | | | | | |
 | ISO-03 | | | | | |
@@ -39,6 +40,7 @@ Use only `PASS`, `FAIL`, `NOT_SUPPORTED`, `NOT_OBSERVABLE`, or `BLOCKED`.
 | CRED-01 | | | | | |
 | LIFE-01 | | | | | |
 | LIFE-02 | | | | | |
+| LIFE-03 | | | | | |
 | SESS-01 | | | | | |
 | DATA-01 | | | | | |
 | LIMIT-01 | | | | | |

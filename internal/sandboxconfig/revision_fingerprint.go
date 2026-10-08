@@ -8,12 +8,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/shwdsun/harness-security-gateway/internal/sandboxstore"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
 
 const (
-	revisionSecurityFingerprintDomain = "harness-gateway.sandboxconfig.revision-security/v1"
-	runnerStatePathFingerprintDomain  = "harness-gateway.sandboxconfig.runner-state-path/v1"
+	revisionSecurityFingerprintDomain   = "harness-gateway.sandboxconfig.revision-security/v1"
+	revisionSecurityFingerprintDomainV2 = "harness-gateway.sandboxconfig.revision-security/v2"
+	runnerStatePathFingerprintDomain    = "harness-gateway.sandboxconfig.runner-state-path/v1"
 )
 
 type revisionAuthority struct {
@@ -30,14 +32,14 @@ type revisionAuthority struct {
 // to the local, operator-selected authorities that will execute it. The result
 // can be supplied directly to sandboxservice.WithRevisionPin.
 func (c Config) RevisionSecurityFingerprint(
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 	manifestFingerprint string,
 ) (string, error) {
 	if err := c.Validate(); err != nil {
 		return "", err
 	}
-	if err := manifest.Validate(); err != nil {
-		return "", invalid("target manifest", err.Error())
+	if err := c.validateTarget(manifest); err != nil {
+		return "", err
 	}
 	if err := validateManifestFingerprint(manifestFingerprint); err != nil {
 		return "", err
@@ -50,60 +52,91 @@ func (c Config) RevisionSecurityFingerprint(
 		return "", invalid("target manifest fingerprint", "does not match the supplied target manifest")
 	}
 
-	workspacePath, ok := c.WorkspacePath(manifest.WorkspaceRef)
+	workspacePath, ok := c.WorkspacePath(manifest.Common().WorkspaceRef)
 	if !ok {
 		return "", invalid("target workspace_ref", "does not map to an approved workspace")
 	}
-	runnerStatePath, ok := c.RunnerStatePath(manifest.StateRef)
-	if !ok {
-		return "", invalid("target state_ref", "does not map to approved runner state")
+	var runnerStatePath string
+	stateRef, persistent := manifest.RunnerState().PersistentRef()
+	if persistent {
+		runnerStatePath, ok = c.RunnerStatePath(stateRef)
+		if !ok {
+			return "", invalid("target runner state", "does not map to approved runner state")
+		}
+		runnerStatePath = filepath.Clean(runnerStatePath)
 	}
 
 	authority := revisionAuthority{
 		manifestFingerprint: manifestFingerprint,
 		workspacePath:       filepath.Clean(workspacePath),
-		runnerStatePath:     filepath.Clean(runnerStatePath),
+		runnerStatePath:     runnerStatePath,
 		runtimeKind:         string(c.Runtime.Kind),
 		runtimeEndpoint:     c.Runtime.Endpoint,
 		runtimeSocketPath:   filepath.Clean(c.Runtime.SocketPath),
 		runtimeCLIPath:      filepath.Clean(c.Runtime.CLI),
 	}
-	return fingerprintRevisionAuthority(authority), nil
+	if manifest.Schema() == targetmanifest.SchemaV1 {
+		return fingerprintRevisionAuthority(authority), nil
+	}
+	return fingerprintRevisionAuthorityV2(authority, manifest.RunnerState()), nil
 }
 
-// RunnerStateOwnership returns the two durable, non-path identifiers needed
-// to bind one target revision to its configured runner-state directory. The
+// RunnerStateOwnership returns an explicit state kind and, only for persistent
+// state, the identifiers binding a revision to its configured directory. The
 // path fingerprint is deliberately separate from the revision fingerprint so
 // sandboxd can detect reuse across different targets and revisions without
 // storing a host path in its database.
 //
-// pathAbsent is a trusted local startup observation. A missing durable owner
+// PathAbsent is a trusted local startup observation. A missing durable owner
 // may be created only when this exact path was absent before registration; an
 // existing unowned path is never adopted from the current configuration.
 func (c Config) RunnerStateOwnership(
-	manifest targetmanifest.Manifest,
-) (stateRef string, pathFingerprint string, pathAbsent bool, err error) {
+	manifest targetmanifest.Definition,
+) (sandboxstore.RunnerStateOwnership, error) {
 	if err := c.Validate(); err != nil {
-		return "", "", false, err
+		return sandboxstore.RunnerStateOwnership{}, err
 	}
-	if err := manifest.Validate(); err != nil {
-		return "", "", false, invalid("target manifest", err.Error())
+	if err := c.validateTarget(manifest); err != nil {
+		return sandboxstore.RunnerStateOwnership{}, err
 	}
-	runnerStatePath, ok := c.RunnerStatePath(manifest.StateRef)
+	stateRef, persistent := manifest.RunnerState().PersistentRef()
+	if !persistent {
+		return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStateNone}, nil
+	}
+	runnerStatePath, ok := c.RunnerStatePath(stateRef)
 	if !ok {
-		return "", "", false, invalid("target state_ref", "does not map to approved runner state")
+		return sandboxstore.RunnerStateOwnership{}, invalid("target runner state", "does not map to approved runner state")
 	}
 	cleanPath := filepath.Clean(runnerStatePath)
 	_, statErr := os.Lstat(cleanPath)
+	pathAbsent := false
 	switch {
 	case statErr == nil:
 		pathAbsent = false
 	case os.IsNotExist(statErr):
 		pathAbsent = true
 	default:
-		return "", "", false, invalid("target state_ref", "cannot inspect approved runner state")
+		return sandboxstore.RunnerStateOwnership{}, invalid("target runner state", "cannot inspect approved runner state")
 	}
-	return manifest.StateRef, fingerprintRunnerStatePath(cleanPath), pathAbsent, nil
+	return sandboxstore.RunnerStateOwnership{Kind: targetmanifest.RunnerStatePersistent,
+		Ref: stateRef, PathDigest: fingerprintRunnerStatePath(cleanPath), PathAbsent: pathAbsent}, nil
+}
+
+func fingerprintRevisionAuthorityV2(authority revisionAuthority, state targetmanifest.RunnerState) string {
+	digest := sha256.New()
+	writeFingerprintFrame(digest, revisionSecurityFingerprintDomainV2)
+	writeFingerprintFrame(digest, authority.manifestFingerprint)
+	writeFingerprintFrame(digest, authority.workspacePath)
+	writeFingerprintFrame(digest, string(state.Kind()))
+	if ref, persistent := state.PersistentRef(); persistent {
+		writeFingerprintFrame(digest, ref)
+		writeFingerprintFrame(digest, authority.runnerStatePath)
+	}
+	writeFingerprintFrame(digest, authority.runtimeKind)
+	writeFingerprintFrame(digest, authority.runtimeEndpoint)
+	writeFingerprintFrame(digest, authority.runtimeSocketPath)
+	writeFingerprintFrame(digest, authority.runtimeCLIPath)
+	return hex.EncodeToString(digest.Sum(nil))
 }
 
 func fingerprintRevisionAuthority(authority revisionAuthority) string {

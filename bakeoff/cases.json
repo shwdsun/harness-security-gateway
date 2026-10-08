@@ -103,6 +103,18 @@
       "priority": "P0",
       "title": "Resource bounds",
       "assertion": "CPU, memory, PID count, wall time, output bytes, event count, and persistent disk growth are bounded and observable."
+    },
+    {
+      "id": "AUTH-02",
+      "priority": "P0",
+      "title": "Ambiguity fails closed",
+      "assertion": "An unrecognized message shape, an unavailable target revision, a missing credential generation, or any other question the system cannot answer from operator-owned state is refused; nothing is inferred, defaulted, or resolved by model judgement."
+    },
+    {
+      "id": "LIFE-03",
+      "priority": "P0",
+      "title": "Unattended continuity",
+      "assertion": "After a restart, a replaced credential object, and a platform event that can never be accepted, the system holds exactly the authority an operator enrolled: it neither resumes with more, nor wedges itself into holding none."
     }
   ]
 }

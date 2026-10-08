@@ -31,7 +31,20 @@ func (c *Controller) reconcileManaged(ctx context.Context) error {
 	return nil
 }
 
+// Startup retirement precedes every runtime observation or cleanup. It must
+// finish before an old occupant can disappear or a new worker can gain authority.
+func (c *Controller) reconcileStartup(ctx context.Context) error {
+	if err := c.store.RetireOccupiedCredentialGenerations(ctx); err != nil {
+		return fmt.Errorf("sandboxcontroller: retire interrupted credentials: %w", err)
+	}
+	return c.reconcileRuns(ctx, true)
+}
+
 func (c *Controller) reconcile(ctx context.Context) error {
+	return c.reconcileRuns(ctx, false)
+}
+
+func (c *Controller) reconcileRuns(ctx context.Context, startup bool) error {
 	runs, err := c.store.ListUnreconciled(ctx)
 	if err != nil {
 		return fmt.Errorf("sandboxcontroller: list unreconciled runs: %w", err)
@@ -39,6 +52,19 @@ func (c *Controller) reconcile(ctx context.Context) error {
 	var failures []error
 	for _, run := range runs {
 		runCtx, cancel := context.WithTimeout(ctx, c.cleanupTimeout)
+		if startup && run.CredentialRequired && run.State == executionwire.RunStateAccepted &&
+			!run.RuntimeIntentPending && run.RuntimeRef == nil && !run.TerminalPending {
+			// Lost process-local credential validation/locks cannot be rebuilt by
+			// reoffering an old accepted Run. Stage its failure, then use the same
+			// exact cleanup/publication path as other interrupted work. Ordinary
+			// reconciliation must still leave fresh accepted Runs available.
+			run, err = c.commitReconciledTerminal(runCtx, run.RunID, terminalInterrupted)
+			if err != nil {
+				cancel()
+				failures = append(failures, err)
+				continue
+			}
+		}
 		spec, certainNoRuntime, desired := c.desiredTerminal(run.RunID)
 		var err error
 		if desired {
@@ -63,9 +89,12 @@ func (c *Controller) reconcileDesired(
 	spec terminalSpec,
 	certainNoRuntime bool,
 ) error {
+	if proof, exists := c.predispatchProofFor(run.RunID); exists {
+		return c.reconcilePredispatch(ctx, proof, spec)
+	}
 	if certainNoRuntime {
-		// The memo can outlive the control context that proved Create was never
-		// called. Re-read after acquiring reconciliation ownership; if runtime
+		// The memo can outlive the control context proving no external Create
+		// was dispatched. Re-read after acquiring reconciliation ownership; if runtime
 		// authority or a different lifecycle state appeared, discard the shortcut
 		// and use the ordinary cleanup path.
 		latest, err := c.store.GetRun(ctx, run.RunID)
@@ -75,12 +104,12 @@ func (c *Controller) reconcileDesired(
 		run = latest
 		if run.RuntimeRef != nil || run.RuntimeIntentPending ||
 			(run.State != executionwire.RunStateAccepted && run.State != executionwire.RunStateCancelling &&
-				!terminalState(run.State)) {
+				!terminalDecided(run)) {
 			certainNoRuntime = false
 		}
 	}
 	if run.RuntimeRef != nil || run.RuntimeIntentPending {
-		if !terminalState(run.State) {
+		if !terminalDecided(run) {
 			terminalRun, err := c.commitReconciledTerminal(ctx, run.RunID, spec)
 			if err != nil {
 				return err
@@ -126,12 +155,12 @@ func (c *Controller) reconcileDesired(
 }
 
 func (c *Controller) reconcileRun(ctx context.Context, run sandboxstore.Run) error {
-	if terminalState(run.State) {
+	if terminalDecided(run) {
 		if run.RuntimeRef != nil {
 			if err := c.cleanupRuntimeContext(ctx, *run.RuntimeRef); err != nil {
 				return err
 			}
-		} else if run.WorkspaceLockHeld || run.RuntimeIntentPending {
+		} else if run.WorkspaceLockHeld || run.CredentialLeaseHeld || run.RuntimeIntentPending || run.TerminalPending {
 			// A crash can occur after Docker accepted Create but before
 			// SetRuntimeRef committed. Only identity-verified LookupIntent plus the
 			// boot epoch may prove it gone; reconciliation never issues Create.
@@ -235,7 +264,7 @@ func (c *Controller) recoverThenTerminal(ctx context.Context, run sandboxstore.R
 func (c *Controller) cleanupNoRefIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	if run.RuntimeIntentPending {
 		return c.reconcilePendingIntent(ctx, run, manifest)
@@ -251,7 +280,7 @@ func (c *Controller) cleanupNoRefIntent(
 func (c *Controller) reconcilePendingIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	if err := hostepoch.Validate(c.bootID); err != nil {
 		return errors.New("sandboxcontroller: current host boot identifier is invalid")
@@ -322,7 +351,7 @@ func (c *Controller) clearIntentAfterKnownCleanup(ctx context.Context, runID, re
 func (c *Controller) lookupAndCleanupIntent(
 	ctx context.Context,
 	run sandboxstore.Run,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) error {
 	ref, found, lookupErr := c.runtime.LookupIntent(ctx, run.RunID, manifest)
 	if lookupErr != nil {
@@ -347,16 +376,16 @@ func (c *Controller) finalizeReconciled(ctx context.Context, runID string, propo
 	return c.confirmStoppedContext(ctx, runID)
 }
 
-func (c *Controller) manifestForRun(run sandboxstore.Run) (targetmanifest.Manifest, error) {
+func (c *Controller) manifestForRun(run sandboxstore.Run) (targetmanifest.Definition, error) {
 	entry, err := c.registry.Resolve(run.TargetID, run.TargetRevision)
 	if err != nil {
-		return targetmanifest.Manifest{}, fmt.Errorf("sandboxcontroller: resolve runtime intent: %w", err)
+		return targetmanifest.Definition{}, fmt.Errorf("sandboxcontroller: resolve runtime intent: %w", err)
 	}
-	if entry.Manifest.ID != run.TargetID || entry.Manifest.Revision != run.TargetRevision {
-		return targetmanifest.Manifest{}, errors.New("sandboxcontroller: registry returned mismatched runtime intent")
+	if entry.Manifest.ID() != run.TargetID || entry.Manifest.Revision() != run.TargetRevision {
+		return targetmanifest.Definition{}, errors.New("sandboxcontroller: registry returned mismatched runtime intent")
 	}
 	if err := entry.Manifest.Validate(); err != nil {
-		return targetmanifest.Manifest{}, errors.New("sandboxcontroller: registry returned invalid runtime intent")
+		return targetmanifest.Definition{}, errors.New("sandboxcontroller: registry returned invalid runtime intent")
 	}
 	return entry.Manifest, nil
 }
@@ -374,6 +403,12 @@ func (c *Controller) confirmStopped(runID string) error {
 }
 
 func (c *Controller) confirmStoppedContext(ctx context.Context, runID string) error {
+	if err := c.runtime.CloseRunResources(ctx, runID); err != nil {
+		return cleanupCause("run-resources", err)
+	}
+	if err := c.closeCredential(ctx, runID); err != nil {
+		return err
+	}
 	_, err := c.store.ConfirmRuntimeStopped(ctx, runID)
 	return err
 }

@@ -1157,6 +1157,75 @@ func TestStartClosedFailuresBecomeSafeTerminalRuns(t *testing.T) {
 	}
 }
 
+func TestPolicyDenialRequiresAbsenceAndKeepsTransientStartsRetryable(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		startCode executionhttp.ErrorCode
+		snapshot  func(string) executionwire.GetRunResponse
+		getCode   executionhttp.ErrorCode
+		wantState corestore.RunState
+		wantGets  int
+		wantErr   bool
+	}{
+		{"existing accepted", executionhttp.ErrorPolicyDenied, acceptedSnapshot, "", corestore.RunDispatching, 1, false},
+		{"existing running", executionhttp.ErrorPolicyDenied, runningSnapshot, "", corestore.RunRunning, 1, false},
+		{"existing completed", executionhttp.ErrorPolicyDenied, func(id string) executionwire.GetRunResponse {
+			return completedSnapshot(id, "original result", nil)
+		}, "", corestore.RunCompleted, 1, false},
+		{"unavailable observation", executionhttp.ErrorPolicyDenied, nil, executionhttp.ErrorUnavailable, corestore.RunDispatching, 1, true},
+		{"denied observation", executionhttp.ErrorPolicyDenied, nil, executionhttp.ErrorPolicyDenied, corestore.RunDispatching, 1, true},
+		{"internal Start", executionhttp.ErrorInternal, nil, "", corestore.RunDispatching, 0, true},
+		{"busy Start", executionhttp.ErrorWorkspaceBusy, nil, "", corestore.RunDispatching, 0, true},
+		{"unavailable Start", executionhttp.ErrorUnavailable, nil, "", corestore.RunDispatching, 0, true},
+		{"unknown Start", "future_error", nil, "", corestore.RunDispatching, 0, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			clock := &fakeClock{now: baseTime}
+			store, _, _ := openCoreStore(t, clock, &tokenSequence{})
+			run := ingestRun(t, store, "run_guarded", "event_guarded", "revision-1")
+			sandbox := &fakeSandbox{
+				startFn: func(context.Context, executionwire.StartRunRequest) (executionwire.RunStatus, error) {
+					if test.startCode == "future_error" {
+						return executionwire.RunStatus{}, &executionhttp.RemoteError{StatusCode: 503, Code: "future_error"}
+					}
+					return executionwire.RunStatus{}, executionhttp.NewServiceError(test.startCode, nil)
+				},
+				getFn: func(_ context.Context, request executionwire.GetRunRequest) (executionwire.GetRunResponse, error) {
+					if request.RunID != run.ID {
+						t.Error("absence probe used another Run ID")
+					}
+					if test.snapshot != nil {
+						return test.snapshot(request.RunID), nil
+					}
+					return executionwire.GetRunResponse{}, executionhttp.NewServiceError(test.getCode, nil)
+				},
+			}
+			engine := newEngine(t, store, sandbox, clock)
+			result, claimed, err := engine.DispatchOne(ctx)
+			if test.wantErr {
+				requireDispatchCode(t, err, ErrorSandboxUnavailable)
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			if !claimed || result.CoreState != test.wantState || result.Finished != (test.wantState == corestore.RunCompleted) || len(sandbox.gets) != test.wantGets {
+				t.Fatalf("guarded dispatch = %#v, claimed=%v gets=%d err=%v", result, claimed, len(sandbox.gets), err)
+			}
+			stored, err := store.GetRun(ctx, run.ID)
+			if err != nil || stored.State != test.wantState || stored.FailureCode != nil {
+				t.Fatalf("denial replaced existing/uncertain Run: %#v, %v", stored, err)
+			}
+			if result.Finished {
+				if delivery := claimOneDelivery(t, store); delivery.Text != "original result" {
+					t.Fatalf("denial replaced published result: %#v", delivery)
+				}
+			} else if deliveries, err := store.ClaimTextDeliveries(ctx, run.ConnectorID, 10, 30*time.Second); err != nil || len(deliveries) != 0 {
+				t.Fatalf("uncertain Run produced delivery: %#v, %v", deliveries, err)
+			}
+		})
+	}
+}
+
 func TestDeliveryIDIsStableDomainSeparatedAndOpaque(t *testing.T) {
 	t.Parallel()
 	first := deliveryIDForRun("run_1")

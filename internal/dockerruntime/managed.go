@@ -23,11 +23,15 @@ func (r *Runtime) ListManaged(ctx context.Context) ([]ContainerRef, error) {
 		return nil, err
 	}
 
-	output, err := r.run(ctx, "list-managed",
+	args := []string{
 		"container", "ls", "--all", "--no-trunc",
-		"--filter", "label="+labelManaged+"=v1",
+		"--filter", "label=" + labelManaged + "=v1",
 		"--format", managedListFormat,
-	)
+	}
+	if r.inventoryPin != "" {
+		args = append(args, "--filter", "label="+labelRuntimePolicy+"="+r.inventoryPin)
+	}
+	output, err := r.run(ctx, "list-managed", args...)
 	if err != nil {
 		return nil, err
 	}

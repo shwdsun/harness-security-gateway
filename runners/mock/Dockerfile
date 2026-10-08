@@ -11,7 +11,11 @@ COPY cmd/mock-runner/main.go ./cmd/mock-runner/main.go
 
 RUN go build -mod=readonly -buildvcs=false -trimpath -ldflags="-s -w" -o /out/mock-runner ./cmd/mock-runner
 
-FROM scratch
+FROM builder AS new-only-builder
+
+RUN go build -mod=readonly -buildvcs=false -trimpath -ldflags="-s -w -X main.fixedSessionPolicy=new_only" -o /out/mock-runner ./cmd/mock-runner
+
+FROM scratch AS runtime-base
 
 LABEL org.opencontainers.image.title="Harness Security Gateway HRP mock runner" \
       org.opencontainers.image.description="Deterministic HRP/1 boundary conformance fixture" \
@@ -20,7 +24,15 @@ LABEL org.opencontainers.image.title="Harness Security Gateway HRP mock runner" 
       io.harness-gateway.hrp.adapter.family="mock" \
       io.harness-gateway.hrp.adapter.version="0.1.0"
 
-COPY --from=builder --chown=65532:65532 /out/mock-runner /mock-runner
-
 USER 65532:65532
 ENTRYPOINT ["/mock-runner"]
+
+FROM runtime-base AS new-only
+
+LABEL io.harness-gateway.mock.session-policy="new_only"
+COPY --from=new-only-builder --chown=65532:65532 /out/mock-runner /mock-runner
+
+# Keep the default final stage backward-compatible with the resumable mock.
+FROM runtime-base AS opaque-resume
+
+COPY --from=builder --chown=65532:65532 /out/mock-runner /mock-runner

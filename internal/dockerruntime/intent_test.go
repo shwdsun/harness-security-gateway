@@ -18,7 +18,7 @@ func TestLookupIntentReturnsOnlyExactImmutableContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestLookupIntentProvesAbsenceWithExactNameList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if err != nil || found || ref != "" {
 		t.Fatalf("LookupIntent() = (%q, %t, %v), want absent", ref, found, err)
 	}
@@ -81,7 +81,7 @@ func TestLookupIntentRecoversFromLostNameInspectResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+	ref, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if err != nil || !found || ref != ContainerRef(testContainerID) {
 		t.Fatalf("LookupIntent() = (%q, %t, %v)", ref, found, err)
 	}
@@ -130,7 +130,7 @@ func TestLookupIntentFailsClosedOnAmbiguousAbsence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ref, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+			ref, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 			if !errors.Is(err, test.want) || found || ref != "" {
 				t.Fatalf("LookupIntent() = (%q, %t, %v), want %v", ref, found, err, test.want)
 			}
@@ -158,7 +158,7 @@ func TestLookupIntentRefusesForeignContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+	_, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if !errors.Is(err, ErrForeignContainer) || found {
 		t.Fatalf("LookupIntent() = (found=%t, err=%v)", found, err)
 	}
@@ -171,7 +171,7 @@ func TestLookupIntentRejectsInvalidIntentBeforeCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, found, err := runtime.LookupIntent(context.Background(), "bad/name", fixture.manifest)
+	_, found, err := runtime.LookupIntent(context.Background(), "bad/name", runtimeDefinition(t, fixture.manifest))
 	if !errors.Is(err, ErrInvalidArgument) || found {
 		t.Fatalf("LookupIntent() = (found=%t, err=%v)", found, err)
 	}
@@ -187,7 +187,7 @@ func TestLookupIntentRefusesUnattestedDaemonBeforeNameInspection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, found, err := runtime.LookupIntent(context.Background(), "run-1", fixture.manifest)
+	_, found, err := runtime.LookupIntent(context.Background(), "run-1", runtimeDefinition(t, fixture.manifest))
 	if !errors.Is(err, ErrRootlessRequired) || found {
 		t.Fatalf("LookupIntent() = (found=%t, err=%v), want ErrRootlessRequired", found, err)
 	}

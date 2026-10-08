@@ -5,8 +5,10 @@
 The intended Harness Security Gateway boundary owns transport, identity,
 durable routing, Run lifecycle, and containment. A selected harness would own
 reasoning, tools, harness-specific skills, and any internal subagents. The
-shipped path currently uses only the deterministic mock Runner; no Codex,
-Claude Code, or messaging-platform target is enabled.
+default build uses the deterministic mock Runner. An explicit opt-in
+[fixed Codex startup path](codex-daemon-startup.md) now connects the validated
+native template to the same daemon/controller; production and messaging-platform
+targets remain disabled.
 
 `live` means the entrypoint and state are persistent. Harness processes are
 created for a Run and are not permanent agents.
@@ -17,7 +19,7 @@ created for a Run and are not permanent agents.
 | --- | --- | --- |
 | Connector instance | one platform credential and platform protocol | Core DB, workspaces, model credentials, runtime socket |
 | `agentd` | exact bindings, inbox/outbox, Runs, opaque session refs | workspaces, model credentials, container runtime |
-| local `hgwctl` | offline status and compare-protected reset for one configured Binding | raw scope selection, sandbox DB, vendor token, runtime or remote control |
+| local `hgwctl` | configuration-only scope export, offline status and compare-protected reset for one configured Binding | raw scope selection, sandbox DB, vendor token, runtime or remote control |
 | `sandboxd` | target manifests, workspace locks, harness state, runner runtime | platform credentials, Core DB |
 | Runner container | one workspace and one bounded Run capability | platform credentials, Core DB, runtime socket, other targets |
 | Auth proxy, when enabled | provider credentials and narrow model egress | workspace, platform credentials, runtime socket |
@@ -190,6 +192,14 @@ idempotent; changing or reassigning either namespace fails closed, and removing
 a Target does not release its historical owner. An existing path without that
 exact durable owner is never adopted from current configuration.
 
+Explicit `sandboxd/v3` additionally admits versioned no-state mock targets.
+The immutable `Definition` carries the original v1 or v2 manifest through the
+same registry/service/controller/runtime, never through a v2-to-v1 projection.
+Sandbox schema v9 records a durable state kind: `none` has no ownership row,
+per-target state directory or mount; `persistent` keeps the v6 ownership rule.
+Workspace and Run lifetimes are unchanged. The shared private namespace root
+may exist even when no target owns persistent Runner state.
+
 A target-bearing schema-v1–v5 sandbox database cannot reconstruct this history
 and refuses migration before v6 DDL; it requires a reviewed cold/offline
 procedure. The ownership claim is one canonical lexical namespace within a
@@ -283,7 +293,7 @@ recreated by a host reboot.
   session deletion or replacement. It refuses legacy live/session-bearing
   state before DDL and retains only terminal no-session history for audit;
 - sandbox schema v6 makes TargetRevision and runner-state ownership append-only,
-  requires an exact owner join before `StartRun`, and grants a first owner only
+  requires an exact owner join for persistent `StartRun`, and grants a first owner only
   after the trusted local startup layer observed the exact path absent. The
   owner commits before the new private state directory is created;
 - sandbox schema v7 freezes target-authored session age/turn policy on each new
@@ -291,20 +301,68 @@ recreated by a host reboot.
   parent ref once, requires a successor on opaque-resume completion, and adds a
   second one-live-Run fence. Existing sessions or nonterminal pre-v7 Runs block
   migration before DDL because their lifecycle authority cannot be inferred;
+- sandbox schema v8 adds one immutable, bounded, private terminal candidate
+  per Run. It does not rewrite v7 public history or migration checksums. The
+  controller stages every new outcome without advancing public state/sequence,
+  disclosing output, or binding a successor session. After trusted cleanup,
+  `ConfirmRuntimeStopped` publishes the exact candidate and session mapping,
+  clears runtime authority, releases the writer lock, and retires the candidate
+  in one sandbox transaction. Core's terminal/outbox transaction follows on
+  observation; there is no cross-database transaction. A failed publication
+  rolls back all those sandbox changes. Restart preserves a saved candidate
+  rather than inferring a new interrupted result or executing the harness again;
+- sandbox schema v9 preserves all earlier migration strings and adds immutable
+  Runner-state kind. The pre-DDL gate refuses missing historical owners;
+  reopen refuses contradictory ownership/session evidence. SQL guards prevent
+  none targets from acquiring owners or resumable sessions, and none does not
+  bypass the workspace lock or post-cleanup publication;
+- sandbox schema v10 adds immutable credential generations and target bindings,
+  one-way revocation and exclusive source/slot/Run occupancy. Acquisition joins
+  admission; release joins post-cleanup publication. Earlier targets remain
+  credential-free. Synthetic enrollment tests and the dated real canaries
+  exercise this boundary. A separate Linux
+  held-file primitive pins and revalidates local objects with advisory locks;
+  its native-ext4 adapter now collects and compares source/object/locator
+  digests. Schema v11 records generation and proof together in the same immutable
+  row, preserving proofless history and exact replay. Strict enrolled-target
+  registration now reads that pair, compares independently approved exact scope
+  and hashes it into the durable target pin in one whole-batch transaction.
+  The service now uses this strict registration for the whole registry after
+  freezing one trusted resolver result per entry and checking its exact scope
+  against the manifest. Compiled ingress policy supplies an independent six-field
+  scope projection. Default sandbox configuration resolves credential-free
+  locked-down mocks and retains their historical base pins. The explicit
+  `sandboxd/codex-v1` path uses its separately checked owner/artifact/provider
+  runtime pin and already enrolled exact scope. A configuration check never
+  enrolls; the local enrollment mode and normal daemon share global ownership.
+  The caller's non-credential authority resolution remains a separate obligation.
+  Controller startup retires
+  occupied generations before cleanup; idle generations remain enrolled. For
+  fresh admitted Runs the controller now compares Run-derived enrollment/proof
+  with frozen scope and local binding, holds/revalidates the source, and closes
+  physical locks before durable publication/release. Failed validation retires
+  the Run's generation; uncertain close retains occupancy until restart recovery.
+  Synthetic integration and scoped native/real-source canaries are exercised.
+  One [ordinary-service Run with fake ingress](codex-daemon-startup.md#first-ordinary-service-run--2026-09-11)
+  passed on 2026-09-11, including enrollment, native completion, tool marker,
+  local delivery and independent cleanup. Complete production image, source
+  lifecycle, context and deployment acceptance remain open. See
+  [credential source lifecycle](credential-source-lifecycle.md);
 - one writable Run is allowed per workspace in the MVP;
 - changing harness or target revision starts a new harness session;
 - `agentd` reconciles durable running Runs before claiming newer queued work;
-- `sandboxd` has one global execution lane. In the implemented mock path, a
-  terminal result may become visible before container cleanup finishes, but any
-  durable runtime reference, pending intent, running/cancelling row, or
-  reconciliation-store read failure closes that lane before the next
-  Create/Attach. It reopens only after cleanup crosses the durable proof
-  boundary. Codex Profile v1 is stricter: its terminal output remains
-  provisional until outer-container quiescence and removal are proved. That
-  release gate is not implemented, so the profile cannot be enabled. It needs
-  a generic durable staged-terminal mechanism that withholds output until
-  cleanup proof, then atomically publishes the terminal state and releases
-  locks; a Codex-specific controller branch or canary alone is insufficient;
+- `sandboxd` has one global execution lane. A staged candidate, durable runtime
+  reference, pending intent, running/cancelling row, retained physical credential
+  handle, or reconciliation-store read failure closes it before the next
+  Create/Attach. It reopens only after
+  cleanup crosses the durable proof boundary. Candidates also prevent a new
+  Create intent, progress append, cancellation replacement, or session-token
+  resolution for that Run. No Codex-specific publication branch exists.
+  Controller/store fault tests prove this ordering with fake runtimes, not
+  actual container quiescence. Exact-image detached-descendant canaries remain
+  required before enabling Codex. Already-public legacy terminal history is
+  not retroactively withheld; the internal direct-terminal store API is
+  retained for legacy/offline callers but cannot bypass an existing candidate;
 - before its one allowed container-create call, `sandboxd` durably records a
   pending runtime intent together with the current host boot ID;
 - a successful create stores the exact runtime reference. A definitely
@@ -313,6 +371,14 @@ recreated by a host reboot.
   persistence, `interrupted` is the only legal class regardless of the
   secondary cancellation/deadline trigger, and the intent/workspace lock remain
   until reconciliation proves cleanup;
+- if the current worker has not dispatched external Create, a failed Begin/read/clear keeps
+  a process-local proof tied to the original accepted Run and host boot.
+  Serialized recovery re-reads immutable identity, rejects a runtime reference
+  or foreign/unknown intent boot, and clears intent before publishing the
+  terminal result. A repeated offer first completes that retained terminal
+  plan; it cannot dispatch Create using the same Run. The proof is not restored
+  after process death, and never applies to an already-existing uncertain
+  intent. Startup continues to use the conservative durable recovery rules;
 - after an uncertain create, reconciliation is read-only: it calls
   `LookupIntent` and never issues a second create. On the same host boot, an
   absent lookup is not proof and cannot release the workspace;
@@ -330,8 +396,14 @@ recreated by a host reboot.
 - a pending record without a boot ID is therefore unsupported legacy/manual
   state, not something the automatic migration creates. As a defensive rule it
   is never cleared automatically, regardless of the lookup result;
-- startup first reconciles durable database records, then inventories and
-  cleans identity-verified managed containers not accounted for by that state.
+- startup, under the daemon's exclusive process lock, first atomically retires
+  every generation referenced by retained credential occupancy. Failure prevents
+  controller startup. It then reconciles durable Runs and finally inventories
+  and cleans identity-verified managed containers not accounted for by that state.
+  Old accepted credential Runs are staged as interrupted and recovered only for
+  cleanup, even if Create was never granted. Staged results remain unchanged.
+  Cleanup needs no credential reopen. Store opens and ordinary reconciliation
+  do not retire idle generations or interrupt current-process accepted Runs.
 
 These rules deliberately forbid a second create and forbid treating one absent
 lookup as an unlock fence. They avoid the name-reuse race in which the original
@@ -363,6 +435,16 @@ the runner. `StartRun` is idempotent by payload fingerprint. A non-null
 means the trusted Core scope currently has no ref. No wire field carries the
 target-authored age/turn policy: sandboxd resolves it from the immutable target
 revision before admission.
+
+An admission-time credential-authority rejection (including a retired generation
+or a scope mismatch) returns HTTP 403 with only `{"error":"policy_denied"}`.
+It reveals no credential identity or cause. Core uses its existing fixed
+policy-denied result, but only after `GetRun` proves that exact Run absent;
+an existing snapshot takes precedence, and an unavailable/denied observation
+cannot prove absence. Exact admitted replay still returns the original receipt
+after revocation. Credential/workspace occupancy and operational failures remain
+retryable. An unknown error code, including on an older Core, is also retryable;
+generic `internal` must never be interpreted as permanent denial.
 
 `sandboxd` to a runner container uses HRP/1 over pipes. The runner never receives
 a control-plane socket and cannot request additional authority. See
@@ -448,13 +530,28 @@ mechanism whose concrete local slot remains unresolved, mediated provider
 control traffic, no persistent Runner `/state`, an empty customization
 allow-set, and output release only after outer quiescence. The contract digest
 excludes the local slot ref, slot generation, resolved source identity, and
-token bytes. It is not yet the complete revision authority: a versioned target
-schema must first represent the closed `none` versus `persistent(ref)`
-Runner-state choice. A future sandboxd v3 resolver must then combine the
+token bytes. It is not yet the complete revision authority: the separate
+[TargetManifest v2](target-manifest.md) now represents the closed `none` versus
+`persistent(ref)` Runner-state choice and the explicit v3 local mock path
+integrates it under a new resolved fingerprint domain. Real provider profiles
+remain rejected. A future provider-specific resolver must combine the
 contract with resolved policy/auth/network content, any nontrivial skill
 content, and the complete local credential binding under a new fingerprint
-domain while preserving the legacy locked-down/three-none fingerprint. The
-current runtime continues to reject the expressible Codex projection.
+domain while preserving the legacy and v2 mock fingerprints. The strict store
+entrypoint now composes enrolled source/generation/proof and exact scope with a
+caller-supplied non-credential authority pin in one registration transaction;
+it does not implement that provider resolver or attest its input's completeness.
+The service/daemon now use a single startup authority resolver and strict batch
+registration, with the public configuration refusing every unsupported profile.
+See [credential TargetRevision composition](credential-source-enrollment.md#implemented-credential-targetrevision-composition).
+The current runtime continues to reject the expressible Codex projection.
+
+The [offline candidate preflight](codex-candidate-preflight.md) implements only
+total matching and local configuration/metadata diagnostics. Its distinct
+candidate digest is deliberately not a revision-security pin; its local
+`hgwctl` report is always execution-blocked and is consumed by no daemon. It
+neither supplies missing executable mediation content nor grants a credential
+lease. This keeps diagnostic configuration separate from runtime admission.
 
 `codex-profile-v2.md` preserves that blocked authority envelope but composes
 one exact private-messaging instruction profile at Codex's documented

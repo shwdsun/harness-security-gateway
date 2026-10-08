@@ -590,6 +590,8 @@ func terminalStartFailure(err error) (corestore.RunFailureCode, bool) {
 		return corestore.RunFailureRevisionMismatch, true
 	case sandboxErrorIs(err, executionhttp.ErrorInvalidSession):
 		return corestore.RunFailureInvalidSession, true
+	case sandboxErrorIs(err, executionhttp.ErrorPolicyDenied):
+		return corestore.RunFailurePolicyDenied, true
 	case sandboxErrorIs(err, executionhttp.ErrorInvalidState):
 		return corestore.RunFailureDeadlineExceeded, true
 	case sandboxErrorIs(err, executionhttp.ErrorConflict):

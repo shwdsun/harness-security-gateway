@@ -54,6 +54,16 @@ var (
 	ErrRunnerStateOwnershipUnknown = errors.New("sandboxstore: runner-state ownership cannot be proven")
 )
 
+// RunnerStateOwnership is a trusted local resolver result, never a wire input.
+// None has no ref, path digest, or path observation. Persistent carries all
+// three; PathAbsent authorizes first ownership, never adoption of old state.
+type RunnerStateOwnership struct {
+	Kind       targetmanifest.RunnerStateKind
+	Ref        string
+	PathDigest string
+	PathAbsent bool
+}
+
 // TargetAuthority is sandboxd's durable registration input for one exact
 // TargetRevision and its historically exclusive runner-state namespace.
 // RunnerStatePathDigest is a domain-separated digest of the resolved host path;
@@ -62,9 +72,11 @@ var (
 // exist before this registration attempt. It authorizes first ownership only;
 // it never permits adoption of an unowned existing directory.
 type TargetAuthority struct {
+	Credential            *CredentialRef
 	TargetID              string
 	TargetRevision        string
 	RevisionPin           string
+	RunnerStateKind       targetmanifest.RunnerStateKind
 	RunnerStateRef        string
 	RunnerStatePathDigest string
 	StatePathAbsent       bool
@@ -94,6 +106,9 @@ type Run struct {
 	State                executionwire.RunState
 	LastEventSeq         uint64
 	RuntimeRef           *string
+	// TerminalPending is private controller state, never an execution-wire
+	// event or output. The immutable candidate remains hidden until cleanup.
+	TerminalPending bool
 	// RuntimeIntentPending means sandboxd has durably authorized one
 	// deterministic runtime Create, but has not yet bound the resulting
 	// container reference or crossed a definitive recovery boundary.
@@ -109,6 +124,8 @@ type Run struct {
 	UpdatedAt           time.Time
 	TerminalAt          *time.Time
 	WorkspaceLockHeld   bool
+	CredentialRequired  bool
+	CredentialLeaseHeld bool
 }
 
 func validateBootID(value string) error {

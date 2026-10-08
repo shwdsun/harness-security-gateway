@@ -42,6 +42,12 @@ repository. Human maintainers own scope, security claims, and release decisions.
   its enablement gates.
 - `docs/codex-profile-v2.md`: sealed, blocked private-messaging behavior
   profile and its native Codex instruction mapping.
+- `docs/codex-profile-v3.md`: blocked native tool-package template, startup
+  checks and component/runtime evidence boundaries.
+- `docs/codex-profile-v4.md`: blocked owner-only auth/runtime candidate and its
+  remaining real-provider and deployment acceptance.
+- `docs/discord-connector.md`: the private Discord Connector's ingress,
+  identity, delivery and credential contract.
 - `docs/runbook.md`: local mock execution.
 
 Code and deterministic evidence outrank prose if they disagree. Report the
@@ -63,3 +69,15 @@ disagreement; do not silently expand a claim to make documentation pass.
   transcripts, caches, or host-specific evidence.
 - AI review is advisory. Adjudicate every finding against the code, stated
   invariants, and reproducible checks before accepting it.
+- Compliance with the operator's development agreement is part of task
+  acceptance. Minimize operator involvement and honor stricter stage budgets;
+  existing authorization must not be requested again without a scope change.
+- Before yielding unfinished work or requesting operator action, complete all
+  currently authorized implementation, verification, diagnosis and recovery
+  preparation. Identify any unavoidable external dependency with evidence.
+- Count manual-action requests across the same objective. Before a third
+  request for commands, authentication, platform steps, approval or evidence
+  transfer, stop adding operator work, record the process failure and redesign
+  the workflow. Changing scripts, batches, agents or sessions does not reset
+  this count. Continue independent work without weakening security or hiding
+  unavoidable dependencies.

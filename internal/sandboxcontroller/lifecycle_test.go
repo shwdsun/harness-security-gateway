@@ -340,7 +340,7 @@ func TestLegacyPendingWithoutBootNeverClearsAutomatically(t *testing.T) {
 			}
 			run, err := store.GetRun(context.Background(), request.RunID)
 			if err != nil || !run.RuntimeIntentPending || run.RuntimeIntentBootID != nil ||
-				!run.WorkspaceLockHeld || run.State != executionwire.RunStateInterrupted {
+				!run.WorkspaceLockHeld || !run.TerminalPending || terminalState(run.State) {
 				t.Fatalf("legacy pending authority = %#v, %v", run, err)
 			}
 			calls := runtime.callSnapshot()
@@ -380,7 +380,7 @@ func TestCleanupFailureRetainsAuthorityAndFailsClosedOnRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-		return run.State == executionwire.RunStateCompleted && run.RuntimeRef != nil && run.WorkspaceLockHeld
+		return run.TerminalPending && run.RuntimeRef != nil && run.WorkspaceLockHeld
 	})
 	if run.RuntimeRef == nil {
 		t.Fatal("cleanup failure cleared the runtime ref")
@@ -434,7 +434,7 @@ func TestCleanupFailureClosesGlobalExecutionGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	firstRun := awaitRun(t, dependencies.store, first.RunID, func(run sandboxstore.Run) bool {
-		return run.State == executionwire.RunStateCompleted && run.RuntimeRef != nil
+		return run.TerminalPending && run.RuntimeRef != nil
 	})
 	if firstRun.RuntimeRef == nil {
 		t.Fatal("cleanup failure did not retain the first runtime reference")
@@ -479,7 +479,7 @@ func TestOnlineReconciliationRetriesTransientPersistenceFailures(t *testing.T) {
 	bridge := func(
 		ctx context.Context,
 		request executionwire.StartRunRequest,
-		manifest targetmanifest.Manifest,
+		manifest targetmanifest.Definition,
 		token *string,
 		output io.Reader,
 		input io.Writer,
@@ -541,7 +541,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		var creates atomic.Int32
-		runtime.createFn = func(context.Context, string, targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(context.Context, string, targetmanifest.Definition) (string, error) {
 			creates.Add(1)
 			return "", dockerruntime.ErrInvalidArgument
 		}
@@ -568,7 +568,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		var creates atomic.Int32
-		runtime.createFn = func(_ context.Context, runID string, _ targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(_ context.Context, runID string, _ targetmanifest.Definition) (string, error) {
 			creates.Add(1)
 			runtime.installIntent(runID, dockerruntime.StateCreated)
 			return "", fmt.Errorf("%w: sanitized", dockerruntime.ErrCreateUncertain)
@@ -595,7 +595,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		var creates atomic.Int32
-		runtime.createFn = func(context.Context, string, targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(context.Context, string, targetmanifest.Definition) (string, error) {
 			creates.Add(1)
 			return "", dockerruntime.ErrCreateUncertain
 		}
@@ -612,11 +612,11 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+			return run.TerminalPending && run.RuntimeIntentPending
 		})
 		time.Sleep(40 * time.Millisecond)
 		run, err = dependencies.store.GetRun(context.Background(), request.RunID)
-		if err != nil || run.State != executionwire.RunStateInterrupted || !run.RuntimeIntentPending ||
+		if err != nil || !run.TerminalPending || terminalState(run.State) || !run.RuntimeIntentPending ||
 			run.RuntimeIntentBootID == nil || *run.RuntimeIntentBootID != testBootID || !run.WorkspaceLockHeld {
 			t.Fatalf("same-boot unresolved intent = %#v, %v", run, err)
 		}
@@ -668,7 +668,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		}
 	})
 
-	t.Run("read-only uncertain intent is terminal but remains unreconciled", func(t *testing.T) {
+	t.Run("read-only uncertain intent remains unpublished and unreconciled", func(t *testing.T) {
 		manifest := controllerManifest(
 			"target-create-ro", "target-create-ro-r1", "workspace-create-ro",
 			targetmanifest.WorkspaceReadOnly, targetmanifest.SessionNewOnly,
@@ -676,7 +676,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		var creates atomic.Int32
-		runtime.createFn = func(context.Context, string, targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(context.Context, string, targetmanifest.Definition) (string, error) {
 			creates.Add(1)
 			return "", dockerruntime.ErrCreateUncertain
 		}
@@ -693,7 +693,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+			return run.TerminalPending && run.RuntimeIntentPending
 		})
 		if run.WorkspaceLockHeld {
 			t.Fatalf("read-only intent unexpectedly holds writer lock: %#v", run)
@@ -721,7 +721,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		var creates atomic.Int32
-		runtime.createFn = func(context.Context, string, targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(context.Context, string, targetmanifest.Definition) (string, error) {
 			creates.Add(1)
 			return fakeContainerRef("should_not_create"), nil
 		}
@@ -748,7 +748,10 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+			// Staging commits before the asynchronous cleanup lookup. Observing
+			// that row alone does not order the following runtime assertion.
+			return run.TerminalPending && run.RuntimeIntentPending &&
+				containsCall(runtime.callSnapshot(), "lookup:"+request.RunID)
 		})
 		if run.RuntimeIntentBootID == nil || *run.RuntimeIntentBootID != testBootID ||
 			creates.Load() != 0 || !containsCall(runtime.callSnapshot(), "lookup:"+request.RunID) {
@@ -771,7 +774,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			dependencies := newTestDependencies(t, manifest)
 			runtime := newFakeRuntime()
 			var creates atomic.Int32
-			runtime.createFn = func(_ context.Context, runID string, _ targetmanifest.Manifest) (string, error) {
+			runtime.createFn = func(_ context.Context, runID string, _ targetmanifest.Definition) (string, error) {
 				creates.Add(1)
 				if recoveryFailure == "cleanup" {
 					runtime.installIntent(runID, dockerruntime.StateCreated)
@@ -779,7 +782,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 				return "", dockerruntime.ErrCreateUncertain
 			}
 			if recoveryFailure == "lookup" {
-				runtime.lookupFn = func(context.Context, string, targetmanifest.Manifest) (string, bool, error) {
+				runtime.lookupFn = func(context.Context, string, targetmanifest.Definition) (string, bool, error) {
 					return "", false, errors.New("private lookup failure")
 				}
 			} else {
@@ -801,7 +804,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-				return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+				return run.TerminalPending && run.RuntimeIntentPending
 			})
 			if !run.WorkspaceLockHeld || run.RuntimeIntentBootID == nil ||
 				*run.RuntimeIntentBootID != testBootID || creates.Load() != 1 {
@@ -815,7 +818,7 @@ func TestCreateIntentCertainAndUncertainFailureBoundaries(t *testing.T) {
 			}
 			run, err = dependencies.store.GetRun(context.Background(), request.RunID)
 			if err != nil || !run.RuntimeIntentPending || !run.WorkspaceLockHeld ||
-				run.State != executionwire.RunStateInterrupted {
+				!run.TerminalPending || terminalState(run.State) {
 				t.Fatalf("Close released failed recovery authority: %#v, %v", run, err)
 			}
 			if creates.Load() != 1 {
@@ -834,7 +837,7 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		createStarted := make(chan struct{})
-		runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Definition) (string, error) {
 			close(createStarted)
 			<-ctx.Done()
 			return "", fmt.Errorf("%w: private cancellation detail", dockerruntime.ErrCreateUncertain)
@@ -862,10 +865,9 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 			t.Fatal(err)
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+			return run.TerminalPending && run.RuntimeIntentPending
 		})
-		if run.Failure == nil || run.Failure.Code != executionwire.FailureRuntimeInterrupted ||
-			run.Failure.Message != messageInterrupted || !run.WorkspaceLockHeld {
+		if run.Failure != nil || terminalState(run.State) || !run.WorkspaceLockHeld {
 			t.Fatalf("uncertain cancellation = %#v", run)
 		}
 		controller.BeginClose()
@@ -874,6 +876,7 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 		if err := controller.Close(closeCtx); !errors.Is(err, ErrRuntimeIntentUnresolved) {
 			t.Fatalf("Close() uncertain cancellation error = %v", err)
 		}
+		assertInterruptedAfterBootFence(t, dependencies, runtime, request.RunID)
 	})
 
 	t.Run("deadline", func(t *testing.T) {
@@ -884,7 +887,7 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 		dependencies := newTestDependencies(t, manifest)
 		runtime := newFakeRuntime()
 		createStarted := make(chan struct{})
-		runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Manifest) (string, error) {
+		runtime.createFn = func(ctx context.Context, _ string, _ targetmanifest.Definition) (string, error) {
 			close(createStarted)
 			<-ctx.Done()
 			return "", fmt.Errorf("%w: private deadline detail", dockerruntime.ErrCreateUncertain)
@@ -908,10 +911,9 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 			t.Fatal("Create did not start before the request deadline")
 		}
 		run := awaitRun(t, dependencies.store, request.RunID, func(run sandboxstore.Run) bool {
-			return run.State == executionwire.RunStateInterrupted && run.RuntimeIntentPending
+			return run.TerminalPending && run.RuntimeIntentPending
 		})
-		if run.Failure == nil || run.Failure.Code != executionwire.FailureRuntimeInterrupted ||
-			run.Failure.Message != messageInterrupted || !run.WorkspaceLockHeld {
+		if run.Failure != nil || terminalState(run.State) || !run.WorkspaceLockHeld {
 			t.Fatalf("uncertain deadline = %#v", run)
 		}
 		controller.BeginClose()
@@ -920,6 +922,7 @@ func TestUncertainCreateAlwaysUsesInterruptedTerminalClass(t *testing.T) {
 		if err := controller.Close(closeCtx); !errors.Is(err, ErrRuntimeIntentUnresolved) {
 			t.Fatalf("Close() uncertain deadline error = %v", err)
 		}
+		assertInterruptedAfterBootFence(t, dependencies, runtime, request.RunID)
 	})
 }
 
@@ -1129,7 +1132,7 @@ func TestDesiredTerminalRetriesAfterCertainCreateAndAppendFailure(t *testing.T) 
 	store := &transientStore{Store: dependencies.store}
 	store.appendFailures.Store(1)
 	runtime := newFakeRuntime()
-	runtime.createFn = func(context.Context, string, targetmanifest.Manifest) (string, error) {
+	runtime.createFn = func(context.Context, string, targetmanifest.Definition) (string, error) {
 		return "", dockerruntime.ErrInvalidArgument
 	}
 	controller, err := New(
@@ -1343,7 +1346,7 @@ func TestCancellationWinsOldReconcileSnapshot(t *testing.T) {
 	lookupStarted := make(chan struct{})
 	releaseLookup := make(chan struct{})
 	var once sync.Once
-	runtime.lookupFn = func(context.Context, string, targetmanifest.Manifest) (string, bool, error) {
+	runtime.lookupFn = func(context.Context, string, targetmanifest.Definition) (string, bool, error) {
 		once.Do(func() { close(lookupStarted) })
 		<-releaseLookup
 		return "", false, nil
@@ -1379,7 +1382,7 @@ func TestCloseDeadlineBoundsFinalReconciliation(t *testing.T) {
 	)
 	dependencies := newTestDependencies(t, manifest)
 	runtime := newFakeRuntime()
-	runtime.lookupFn = func(ctx context.Context, _ string, _ targetmanifest.Manifest) (string, bool, error) {
+	runtime.lookupFn = func(ctx context.Context, _ string, _ targetmanifest.Definition) (string, bool, error) {
 		<-ctx.Done()
 		return "", false, ctx.Err()
 	}
@@ -1568,6 +1571,11 @@ func (s *legacyIntentStore) ClearRuntimeIntent(ctx context.Context, runID string
 	return s.Store.ClearRuntimeIntent(ctx, runID)
 }
 
+func (s *legacyIntentStore) StageTerminal(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error) {
+	run, err := s.Store.StageTerminal(ctx, event, mapping)
+	return maskLegacyIntentBoot(run), err
+}
+
 func (s *transientStore) GetRun(ctx context.Context, runID string) (sandboxstore.Run, error) {
 	if s.failNextGet.CompareAndSwap(1, 0) {
 		return sandboxstore.Run{}, errors.New("private transient GetRun failure")
@@ -1593,6 +1601,14 @@ func (s *transientStore) AppendEvent(
 		return sandboxstore.Run{}, errors.New("private transient AppendEvent failure")
 	}
 	return s.Store.AppendEvent(ctx, event, mapping)
+}
+
+func (s *transientStore) StageTerminal(ctx context.Context, event executionwire.RunEvent, mapping *sandboxstore.SessionMapping) (sandboxstore.Run, error) {
+	s.appendCalls.Add(1)
+	if s.appendFailures.CompareAndSwap(1, 0) {
+		return sandboxstore.Run{}, errors.New("private transient StageTerminal failure")
+	}
+	return s.Store.StageTerminal(ctx, event, mapping)
 }
 
 func (s *transientStore) SetRuntimeRef(

@@ -24,7 +24,7 @@ func TestParseOptions(t *testing.T) {
 	if err != nil || parsed.configPath != "config/sandboxd.json" {
 		t.Fatalf("parseOptions = %#v, %v", parsed, err)
 	}
-	for _, arguments := range [][]string{nil, {"-config", "x", "extra"}, {"-unknown"}} {
+	for _, arguments := range [][]string{nil, {"-config", "x", "extra"}, {"-unknown"}, {"-config", "x", "-check", "-enroll-credential"}} {
 		if _, err := parseOptions(arguments); err == nil {
 			t.Fatalf("parseOptions(%q) unexpectedly succeeded", arguments)
 		}
@@ -41,6 +41,7 @@ func TestPrepareFilesystemCreatesPrivateStorage(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "sandbox-private")
 	config := sandboxconfig.Config{
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   filepath.Join(root, "workspaces"),
 		RunnerStateRoot: filepath.Join(root, "runner-state"),
@@ -51,7 +52,7 @@ func TestPrepareFilesystemCreatesPrivateStorage(t *testing.T) {
 			{Ref: "mock-state", Directory: "mock-state"},
 			{Ref: "unused-state", Directory: "unused-state"},
 		},
-		Targets: []targetmanifest.Manifest{{StateRef: "mock-state"}},
+		Targets: []targetmanifest.Definition{filesystemTarget(t, "mock-state")},
 	}
 	if err := prepareFilesystem(config); err != nil {
 		t.Fatalf("prepareFilesystem: %v", err)
@@ -84,6 +85,39 @@ func TestPrepareFilesystemCreatesPrivateStorage(t *testing.T) {
 	}
 }
 
+func TestPrepareFilesystemKeepsSharedSocketSeparateFromPrivateData(t *testing.T) {
+	config := runnerStateOwnershipConfig(t)
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(root, "edge")
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, os.ModeSetgid|0o710); err != nil {
+		t.Fatal(err)
+	}
+	config.Socket = filepath.Join(parent, "sandboxd.sock")
+	config.PeerUID = localidentity.UID(os.Geteuid()) + 1
+	if err := config.PeerUID.Validate(); err != nil {
+		t.Skip("requires a valid synthetic distinct peer UID")
+	}
+	if err := prepareFilesystem(config); err != nil {
+		t.Fatal(err)
+	}
+	shared, err := os.Stat(parent)
+	if err != nil || shared.Mode() != os.ModeDir|os.ModeSetgid|0o710 {
+		t.Fatal("shared socket directory changed")
+	}
+	for _, path := range []string{filepath.Dir(config.StateDatabase), config.WorkspaceRoot, config.RunnerStateRoot} {
+		info, err := os.Stat(path)
+		if err != nil || info.Mode().Perm() != 0o700 {
+			t.Fatal("shared socket permissions leaked into private data", path, err)
+		}
+	}
+}
+
 func TestCommittedRunnerStateOwnerSurvivesCrashBeforeLeafCreation(t *testing.T) {
 	ctx := context.Background()
 	config := runnerStateOwnershipConfig(t)
@@ -93,7 +127,7 @@ func TestCommittedRunnerStateOwnerSurvivesCrashBeforeLeafCreation(t *testing.T) 
 	if err := prepareFilesystem(config); err != nil {
 		t.Fatalf("prepareFilesystem() = %v", err)
 	}
-	statePath, ok := config.RunnerStatePath(config.Targets[0].StateRef)
+	statePath, ok := config.RunnerStatePath(filesystemStateRef(t, config.Targets[0]))
 	if !ok {
 		t.Fatal("configured runner state did not resolve")
 	}
@@ -176,7 +210,7 @@ func TestExistingUnownedRunnerStateLeafIsNeverAdopted(t *testing.T) {
 			if err := prepareFilesystem(config); err != nil {
 				t.Fatalf("prepareFilesystem() = %v", err)
 			}
-			statePath, ok := config.RunnerStatePath(config.Targets[0].StateRef)
+			statePath, ok := config.RunnerStatePath(filesystemStateRef(t, config.Targets[0]))
 			if !ok {
 				t.Fatal("configured runner state did not resolve")
 			}
@@ -249,7 +283,7 @@ func runnerStateOwnershipConfig(t *testing.T) sandboxconfig.Config {
 	return sandboxconfig.Config{
 		Schema:          sandboxconfig.SchemaV2,
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
-		PeerUID:         localidentity.UID(1000),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   filepath.Join(root, "workspaces"),
 		RunnerStateRoot: filepath.Join(root, "runner-state"),
@@ -261,7 +295,7 @@ func runnerStateOwnershipConfig(t *testing.T) sandboxconfig.Config {
 		},
 		Workspaces:   []sandboxconfig.StorageEntry{{Ref: "workspace-main", Directory: "workspace-main"}},
 		RunnerStates: []sandboxconfig.StorageEntry{{Ref: "state-codex", Directory: "state-codex"}},
-		Targets:      []targetmanifest.Manifest{manifest},
+		Targets:      []targetmanifest.Definition{filesystemDefinition(t, manifest)},
 	}
 }
 
@@ -271,8 +305,13 @@ func TestPrepareFilesystemRefusesRelaxedExistingRoot(t *testing.T) {
 	if err := os.Mkdir(workspaceRoot, 0o755); err != nil {
 		t.Fatalf("Mkdir: %v", err)
 	}
+	// Creation modes are filtered by umask; force the unsafe fixture mode.
+	if err := os.Chmod(workspaceRoot, 0o755); err != nil {
+		t.Fatalf("Chmod: %v", err)
+	}
 	config := sandboxconfig.Config{
 		Socket:          filepath.Join(root, "control", "sandboxd.sock"),
+		PeerUID:         localidentity.UID(os.Geteuid()),
 		StateDatabase:   filepath.Join(root, "control", "sandboxd.sqlite3"),
 		WorkspaceRoot:   workspaceRoot,
 		RunnerStateRoot: filepath.Join(root, "runner-state"),
@@ -314,4 +353,27 @@ func TestAcquireOwnershipRejectsSecondLiveInstance(t *testing.T) {
 	if !errors.Is(err, localhttp.ErrSocketInUse) {
 		t.Fatalf("second acquireOwnership error = %v, want ErrSocketInUse", err)
 	}
+}
+
+func filesystemDefinition(t *testing.T, manifest targetmanifest.Manifest) targetmanifest.Definition {
+	t.Helper()
+	definition, err := targetmanifest.FromV1(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return definition
+}
+func filesystemTarget(t *testing.T, ref string) targetmanifest.Definition {
+	t.Helper()
+	original, _ := runnerStateOwnershipConfig(t).Targets[0].Manifest()
+	original.StateRef = ref
+	return filesystemDefinition(t, original)
+}
+func filesystemStateRef(t *testing.T, definition targetmanifest.Definition) string {
+	t.Helper()
+	ref, ok := definition.RunnerState().PersistentRef()
+	if !ok {
+		t.Fatal("expected persistent state fixture")
+	}
+	return ref
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/shwdsun/harness-security-gateway/internal/credentialsource"
 	"github.com/shwdsun/harness-security-gateway/internal/dockerruntime"
 	"github.com/shwdsun/harness-security-gateway/internal/targetmanifest"
 )
@@ -34,15 +35,25 @@ func (r *DockerRuntime) ListManaged(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Manifest) (string, error) {
+func (r *DockerRuntime) Create(ctx context.Context, runID string, manifest targetmanifest.Definition) (string, error) {
 	ref, err := r.runtime.Create(ctx, runID, manifest)
+	return ref.String(), err
+}
+
+func (r *DockerRuntime) CreateWithCredential(ctx context.Context, runID string, manifest targetmanifest.Definition, handoff *credentialsource.Handoff) (string, error) {
+	ref, err := r.runtime.CreateWithCredential(ctx, runID, manifest, handoff)
+	return ref.String(), err
+}
+
+func (r *DockerRuntime) CreateWithOwner(ctx context.Context, runID string, manifest targetmanifest.Definition, owner *credentialsource.OwnerAccess) (string, error) {
+	ref, err := r.runtime.CreateWithOwner(ctx, runID, manifest, owner)
 	return ref.String(), err
 }
 
 func (r *DockerRuntime) LookupIntent(
 	ctx context.Context,
 	runID string,
-	manifest targetmanifest.Manifest,
+	manifest targetmanifest.Definition,
 ) (string, bool, error) {
 	ref, found, err := r.runtime.LookupIntent(ctx, runID, manifest)
 	return ref.String(), found, err
@@ -90,6 +101,10 @@ func (r *DockerRuntime) RemoveStopped(ctx context.Context, value string) error {
 		return err
 	}
 	return r.runtime.RemoveStopped(ctx, ref)
+}
+
+func (r *DockerRuntime) CloseRunResources(ctx context.Context, runID string) error {
+	return r.runtime.CloseRunResources(ctx, runID)
 }
 
 type dockerProcess struct {

@@ -48,11 +48,17 @@ func (c *Controller) reconcileOnline() {
 			continue
 		}
 		runCtx, cancel := context.WithTimeout(c.rootCtx, c.cleanupTimeout)
-		spec, certainNoRuntime, desired := c.desiredTerminal(run.RunID)
-		if desired {
-			_ = c.reconcileDesired(runCtx, run, spec, certainNoRuntime)
-		} else {
-			_ = c.reconcileRun(runCtx, run)
+		// List can observe the worker before it finishes, while this claim is
+		// acquired only afterwards. Refresh under ownership before acting on
+		// the snapshot's runtime authority. A failed read must not use old state.
+		latest, err := c.store.GetRun(runCtx, run.RunID)
+		if err == nil && sameRunIdentity(run, latest) {
+			spec, certainNoRuntime, desired := c.desiredTerminal(run.RunID)
+			if desired {
+				_ = c.reconcileDesired(runCtx, latest, spec, certainNoRuntime)
+			} else {
+				_ = c.reconcileRun(runCtx, latest)
+			}
 		}
 		cancel()
 		c.releaseReconciliation(run.RunID)
@@ -64,7 +70,7 @@ func (c *Controller) claimReconciliation(run sandboxstore.Run) bool {
 	defer c.mu.Unlock()
 	_, desired := c.desired[run.RunID]
 	if run.State == executionwire.RunStateAccepted && run.RuntimeRef == nil &&
-		!run.RuntimeIntentPending && !desired && run.Deadline.After(c.clock().UTC()) {
+		!run.RuntimeIntentPending && !run.TerminalPending && !desired && run.Deadline.After(c.clock().UTC()) {
 		return false
 	}
 	offered := c.offered[run.RunID]

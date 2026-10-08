@@ -95,45 +95,57 @@ func (m Manifest) Validate() error {
 	if m.Schema != SchemaV1 {
 		return invalid("schema", "must be harness-target/v1")
 	}
-	for _, field := range []struct {
-		name  string
-		value string
-	}{
-		{"id", m.ID},
-		{"revision", m.Revision},
-		{"workspace_ref", m.WorkspaceRef},
-		{"state_ref", m.StateRef},
-		{"policy_ref", m.PolicyRef},
-		{"auth_profile_ref", m.AuthProfileRef},
-		{"skill_bundle_ref", m.SkillBundleRef},
-		{"network_profile_ref", m.NetworkProfileRef},
-	} {
-		if err := validateName(field.name, field.value); err != nil {
-			return err
-		}
+	if err := validateNames(
+		namedRef{"id", m.ID},
+		namedRef{"revision", m.Revision},
+		namedRef{"workspace_ref", m.WorkspaceRef},
+		namedRef{"state_ref", m.StateRef},
+		namedRef{"policy_ref", m.PolicyRef},
+		namedRef{"auth_profile_ref", m.AuthProfileRef},
+		namedRef{"skill_bundle_ref", m.SkillBundleRef},
+		namedRef{"network_profile_ref", m.NetworkProfileRef},
+	); err != nil {
+		return err
 	}
 	if m.WorkspaceMode != WorkspaceReadOnly && m.WorkspaceMode != WorkspaceReadWrite {
 		return invalid("workspace_mode", "must be ro or rw")
 	}
-	if m.SessionMode != SessionNewOnly && m.SessionMode != SessionOpaqueResume {
+	return validateExecution(m.SessionMode, m.Runner, m.Limits)
+}
+
+type namedRef struct{ field, value string }
+
+func validateNames(refs ...namedRef) error {
+	for _, ref := range refs {
+		if err := validateName(ref.field, ref.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateExecution holds the session/runner/limit rules shared by every
+// manifest schema, in v1's original precedence order.
+func validateExecution(mode SessionMode, runner Runner, limits Limits) error {
+	if mode != SessionNewOnly && mode != SessionOpaqueResume {
 		return invalid("session_mode", "must be new_only or opaque_resume")
 	}
-	if err := m.Runner.validate(); err != nil {
+	if err := runner.validate(); err != nil {
 		return err
 	}
-	if m.SessionMode == SessionOpaqueResume && !hasFeature(m.Runner.RequiredFeatures, runnerwire.FeatureSessionResume) {
+	if mode == SessionOpaqueResume && !hasFeature(runner.RequiredFeatures, runnerwire.FeatureSessionResume) {
 		return invalid("runner.required_features", "opaque_resume requires session.resume")
 	}
-	if err := m.Limits.validate(); err != nil {
+	if err := limits.validate(); err != nil {
 		return err
 	}
-	switch m.SessionMode {
+	switch mode {
 	case SessionNewOnly:
-		if m.Limits.MaxSessionAgeSeconds != 0 || m.Limits.MaxSessionTurns != 0 {
+		if limits.MaxSessionAgeSeconds != 0 || limits.MaxSessionTurns != 0 {
 			return invalid("limits", "new_only requires zero session lifecycle limits")
 		}
 	case SessionOpaqueResume:
-		if m.Limits.MaxSessionAgeSeconds == 0 || m.Limits.MaxSessionTurns == 0 {
+		if limits.MaxSessionAgeSeconds == 0 || limits.MaxSessionTurns == 0 {
 			return invalid("limits", "opaque_resume requires positive session lifecycle limits")
 		}
 	}
@@ -209,16 +221,26 @@ func (m Manifest) Fingerprint() (string, error) {
 	}
 	normalized := m
 	normalized.Revision = ""
-	normalized.Runner.RequiredFeatures = append([]runnerwire.Feature(nil), m.Runner.RequiredFeatures...)
-	sort.Slice(normalized.Runner.RequiredFeatures, func(i, j int) bool {
-		return normalized.Runner.RequiredFeatures[i] < normalized.Runner.RequiredFeatures[j]
-	})
+	normalized.Runner.RequiredFeatures = sortedFeatures(m.Runner.RequiredFeatures)
+	return digestManifest("harness-gateway.target-manifest/v1\x00", normalized)
+}
+
+// sortedFeatures returns an order-normalized copy; the caller's slice is never
+// mutated. An empty input intentionally keeps v1's historical nil (JSON null)
+// canonical form; the fixture tests pin it for both schemas.
+func sortedFeatures(features []runnerwire.Feature) []runnerwire.Feature {
+	sorted := append([]runnerwire.Feature(nil), features...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	return sorted
+}
+
+func digestManifest(domain string, normalized any) (string, error) {
 	data, err := json.Marshal(normalized)
 	if err != nil {
 		return "", fmt.Errorf("canonicalize manifest: %w", err)
 	}
 	digest := sha256.New()
-	_, _ = digest.Write([]byte("harness-gateway.target-manifest/v1\x00"))
+	_, _ = digest.Write([]byte(domain))
 	_, _ = digest.Write(data)
 	return hex.EncodeToString(digest.Sum(nil)), nil
 }

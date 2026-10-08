@@ -24,6 +24,7 @@ const (
 	ErrorRevisionMismatch ErrorCode = "revision_mismatch"
 	ErrorRunNotFound      ErrorCode = "run_not_found"
 	ErrorInvalidSession   ErrorCode = "invalid_session"
+	ErrorPolicyDenied     ErrorCode = "policy_denied"
 	ErrorWorkspaceBusy    ErrorCode = "workspace_busy"
 	ErrorConflict         ErrorCode = "conflict"
 	ErrorInvalidState     ErrorCode = "invalid_state"
@@ -183,7 +184,7 @@ func writeServiceError(writer http.ResponseWriter, err error) {
 func validServiceErrorCode(code ErrorCode) bool {
 	switch code {
 	case ErrorTargetNotFound, ErrorRevisionMismatch, ErrorRunNotFound,
-		ErrorInvalidSession, ErrorWorkspaceBusy, ErrorConflict,
+		ErrorInvalidSession, ErrorPolicyDenied, ErrorWorkspaceBusy, ErrorConflict,
 		ErrorInvalidState, ErrorUnavailable, ErrorInternal:
 		return true
 	default:
@@ -195,6 +196,8 @@ func statusForServiceError(code ErrorCode) int {
 	switch code {
 	case ErrorTargetNotFound, ErrorRunNotFound:
 		return http.StatusNotFound
+	case ErrorPolicyDenied:
+		return http.StatusForbidden
 	case ErrorRevisionMismatch, ErrorInvalidSession, ErrorWorkspaceBusy,
 		ErrorConflict, ErrorInvalidState:
 		return http.StatusConflict
