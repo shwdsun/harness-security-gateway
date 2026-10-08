@@ -2,6 +2,8 @@ package discordconnector
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -245,7 +247,6 @@ func (s *Service) DeliverOnce(ctx context.Context) (int, error) {
 			return completed, err
 		}
 		completed++
-		s.delivered++
 	}
 	return completed, nil
 }
@@ -271,8 +272,30 @@ func (s *Service) deliver(ctx context.Context, delivery connectorwire.OutboundTe
 		return s.complete(ctx, completion)
 	}
 	replyTo, _ := MessageIDFromRef(delivery.ReplyToRef)
+	encoded, err := json.Marshal(struct {
+		Channel string
+		ReplyTo string
+		Chunks  []string
+	}{s.config.ChannelID, replyTo, chunks})
+	if err != nil {
+		return err
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(append([]byte("hsg.discord.reply/v1\x00"), encoded...)))
+	refs, err := s.store.SentChunks(ctx, delivery.DeliveryID, digest)
+	if err != nil {
+		return err
+	}
+	if len(refs) > len(chunks) {
+		return errors.New("discordconnector: reply progress exceeds chunk count")
+	}
 	providerRef := ""
+	if len(refs) > 0 {
+		providerRef = refs[0]
+	}
 	for index, chunk := range chunks {
+		if index < len(refs) {
+			continue
+		}
 		reference := ""
 		if index == 0 {
 			reference = replyTo
@@ -283,13 +306,16 @@ func (s *Service) deliver(ctx context.Context, delivery connectorwire.OutboundTe
 			if !errors.As(err, &apiErr) {
 				return err
 			}
-			if providerRef != "" {
-				// Part of the reply is already posted; keep the durable record
-				// so a retry cannot repeat the first chunks.
-				break
-			}
 			completion.Outcome, completion.FailureClass = apiErr.Outcome()
-			return s.complete(ctx, completion)
+			if err := s.complete(ctx, completion); err != nil {
+				return err
+			}
+			// Complete the lease truthfully, then retain the platform failure
+			// for Run's bounded pacing (including Retry-After).
+			return apiErr
+		}
+		if err := s.store.RecordChunk(ctx, delivery.DeliveryID, digest, index, id, s.now().UTC().UnixMilli()); err != nil {
+			return err
 		}
 		if index == 0 {
 			providerRef = id
@@ -310,6 +336,9 @@ func (s *Service) deliver(ctx context.Context, delivery connectorwire.OutboundTe
 func (s *Service) complete(ctx context.Context, completion connectorwire.DeliveryCompleteV1) error {
 	if err := s.core.Complete(ctx, completion); err != nil {
 		return fmt.Errorf("complete delivery: %w", err)
+	}
+	if completion.Outcome == connectorwire.DeliveryDelivered {
+		s.delivered++
 	}
 	return nil
 }

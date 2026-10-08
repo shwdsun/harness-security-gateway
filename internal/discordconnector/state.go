@@ -12,9 +12,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// StateSchemaVersion is the Connector's own private ingress state. It holds no
-// message content, no credential and no Core data.
-const StateSchemaVersion = 1
+// StateSchemaVersion is the Connector's private cursor and delivery metadata.
+// It holds no message content, credential or Core database state.
+const StateSchemaVersion = 2
 
 const stateDDL = `
 CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL);
@@ -26,6 +26,14 @@ CREATE TABLE IF NOT EXISTS sent_deliveries(
     delivery_id TEXT PRIMARY KEY,
     provider_message_ref TEXT NOT NULL,
     sent_at_unix_ms INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sent_chunks(
+    delivery_id TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL CHECK(chunk_index >= 0 AND chunk_index < 8),
+    delivery_digest TEXT NOT NULL,
+    provider_message_ref TEXT NOT NULL,
+    sent_at_unix_ms INTEGER NOT NULL,
+    PRIMARY KEY(delivery_id, chunk_index)
 );`
 
 // Store keeps the durable cursor and the record of deliveries already sent to
@@ -64,23 +72,32 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, stateDDL); err != nil {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin connector state migration: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, stateDDL); err != nil {
 		return fmt.Errorf("create connector state: %w", err)
 	}
-	var version int
-	err := s.db.QueryRowContext(ctx, `SELECT version FROM schema_version`).Scan(&version)
+	var version, count int
+	err = tx.QueryRowContext(ctx, `SELECT COALESCE(MIN(version), 0), COUNT(*) FROM schema_version`).Scan(&version, &count)
 	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO schema_version(version) VALUES (?)`, StateSchemaVersion); err != nil {
-			return fmt.Errorf("record connector state version: %w", err)
-		}
 	case err != nil:
 		return fmt.Errorf("read connector state version: %w", err)
-	case version != StateSchemaVersion:
+	case count == 0:
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_version(version) VALUES (?)`, StateSchemaVersion); err != nil {
+			return fmt.Errorf("record connector state version: %w", err)
+		}
+	case count == 1 && version == 1:
+		if _, err := tx.ExecContext(ctx, `UPDATE schema_version SET version = ?`, StateSchemaVersion); err != nil {
+			return fmt.Errorf("upgrade connector state version: %w", err)
+		}
+	case count != 1 || version != StateSchemaVersion:
 		// A newer or unknown lineage is not silently adopted or rewritten.
-		return fmt.Errorf("discordconnector: unsupported state schema version %d", version)
+		return fmt.Errorf("discordconnector: unsupported state schema version %d (rows %d)", version, count)
 	}
-	return nil
+	return tx.Commit()
 }
 
 // Cursor reports the last message handed to Core, or reports that this channel
@@ -145,14 +162,86 @@ func (s *Store) SentDelivery(ctx context.Context, deliveryID string) (string, bo
 	return ref, true, nil
 }
 
+// SentChunks returns the acknowledged contiguous prefix for this exact reply.
+// The digest binds content and destination, never a transient delivery lease.
+func (s *Store) SentChunks(ctx context.Context, deliveryID, digest string) ([]string, error) {
+	return readSentChunks(ctx, s.db, deliveryID, digest)
+}
+
+type chunkReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func readSentChunks(ctx context.Context, db chunkReader, deliveryID, digest string) ([]string, error) {
+	rows, err := db.QueryContext(ctx, `SELECT chunk_index, delivery_digest, provider_message_ref
+FROM sent_chunks WHERE delivery_id = ? ORDER BY chunk_index`, deliveryID)
+	if err != nil {
+		return nil, fmt.Errorf("read sent chunks: %w", err)
+	}
+	defer rows.Close()
+	var refs []string
+	for rows.Next() {
+		var index int
+		var storedDigest, ref string
+		if err := rows.Scan(&index, &storedDigest, &ref); err != nil {
+			return nil, fmt.Errorf("read chunk receipt: %w", err)
+		}
+		if index != len(refs) || index >= 8 || storedDigest != digest || validateSnowflake("id", ref) != nil {
+			return nil, errors.New("discordconnector: inconsistent reply progress")
+		}
+		refs = append(refs, ref)
+	}
+	return refs, rows.Err()
+}
+
+// RecordChunk commits each acknowledged send before another chunk is attempted.
+// Exact repeats are harmless; conflicting or noncontiguous progress is refused.
+func (s *Store) RecordChunk(ctx context.Context, deliveryID, digest string, index int, ref string, nowUnixMS int64) error {
+	if deliveryID == "" || len(digest) != 64 || index < 0 || index >= 8 || validateSnowflake("id", ref) != nil {
+		return errors.New("discordconnector: invalid chunk receipt")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin chunk receipt: %w", err)
+	}
+	defer tx.Rollback()
+	refs, err := readSentChunks(ctx, tx, deliveryID, digest)
+	if err != nil {
+		return err
+	}
+	if index < len(refs) && refs[index] == ref {
+		return nil
+	}
+	if index != len(refs) {
+		return errors.New("discordconnector: conflicting chunk receipt")
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO sent_chunks
+(delivery_id, chunk_index, delivery_digest, provider_message_ref, sent_at_unix_ms)
+VALUES (?, ?, ?, ?, ?)`, deliveryID, index, digest, ref, nowUnixMS); err != nil {
+		return fmt.Errorf("record sent chunk: %w", err)
+	}
+	return tx.Commit()
+}
+
 // PruneSent bounds this table. Core retains a delivery only while its parent
 // Run's receipt lives, so older local records can never be needed again.
 func (s *Store) PruneSent(ctx context.Context, olderThanUnixMS int64) error {
-	if _, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin sent-delivery prune: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM sent_deliveries WHERE sent_at_unix_ms < ?`, olderThanUnixMS); err != nil {
 		return fmt.Errorf("prune sent deliveries: %w", err)
 	}
-	return nil
+	// Retire a whole prefix together; removing only its older first chunks
+	// would destroy the contiguity required for a safe retry.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sent_chunks WHERE delivery_id IN
+(SELECT delivery_id FROM sent_chunks GROUP BY delivery_id HAVING MAX(sent_at_unix_ms) < ?)`, olderThanUnixMS); err != nil {
+		return fmt.Errorf("prune sent chunks: %w", err)
+	}
+	return tx.Commit()
 }
 
 func prepareStateFile(path string) (string, error) {

@@ -80,7 +80,19 @@ The Connector keeps one private SQLite database, in its own domain:
 ```text
 cursor(channel_id PRIMARY KEY, last_message_id)
 sent_deliveries(delivery_id PRIMARY KEY, provider_message_ref, sent_at_unix_ms)
+sent_chunks(delivery_id, chunk_index, delivery_digest, provider_message_ref, sent_at_unix_ms)
 ```
+
+State schema 2 adds a primary key on `(delivery_id, chunk_index)`. Startup
+migrates schema 1 transactionally, preserving its cursor and completed-delivery
+receipts; unknown or multiple version rows are rejected without a partial
+migration. The digest binds the exact reply chunks, configured channel and
+normalized reply reference. It stores no reply text or credential. Existing
+schema-1 receipts are historical facts; migration cannot reconstruct missing
+chunks from a reply previously misclassified as complete.
+Older binaries reject schema 2; rollback requires the matching pre-migration
+state backup and reconciliation of subsequent platform effects, not a version
+number edit.
 
 Each poll requests at most `catch_up_limit` messages after the cursor, oldest
 first. For every message the Connector ingests first and advances the cursor
@@ -107,10 +119,22 @@ The Connector claims a bounded batch, sends each reply and completes the lease:
 - `allowed_mentions` is sent with empty parse arrays, so a reply can never ping
   a user, role or everyone regardless of its text;
 - text longer than one Discord message is split into ordered chunks up to a
-  configured maximum; the first chunk's ID becomes `provider_message_ref`;
+  configured maximum without splitting UTF-8 code points; the first chunk's ID
+  becomes `provider_message_ref`;
+- every acknowledged chunk is recorded before the next send. A later platform
+  failure is classified as retry or permanent failure; it never marks the
+  entire reply delivered. After restart or re-lease, a matching contiguous
+  receipt prefix is skipped and only the remaining chunks are attempted;
 - before completing, the Connector durably records the delivery ID it sent. If
   the same delivery is re-leased after a crash or lost response, it completes
   from that record instead of sending again.
+
+Only acknowledgment of every chunk permits the full sent receipt. A conflicting
+digest, gap or invalid receipt stops the attempt. Pruning removes complete
+per-delivery chunk groups together, using their latest acknowledgment time.
+There is still no atomic transaction across Discord and local SQLite: response
+loss or a crash after a platform send but before its local receipt may duplicate
+that unrecorded chunk on retry. The Connector does not claim exactly-once sends.
 
 Failures map to the closed protocol classes, and provider error text never
 crosses the boundary:
@@ -124,8 +148,10 @@ crosses the boundary:
 | 400, 413 | `permanent_failure` | `content_rejected` |
 | anything else | `permanent_failure` | `connector_internal` |
 
-`agentd` owns backoff; the Connector never supplies a retry time, and it honours
-Discord's own `Retry-After` only for its own pacing, described next.
+`agentd` owns delivery backoff; the Connector never supplies a retry time. After
+acknowledging the failed lease, it retains the typed platform error for its own
+pacing, including Discord's bounded `Retry-After`. Failed attempts do not
+increment the delivered counter.
 
 ## Pacing and unattended operation
 
@@ -168,8 +194,9 @@ regular, single-link, non-group/other-readable file owned by the Connector
 identity. It is held only in memory, sent only as an `Authorization: Bot` header
 to the configured API origin, and never logged, echoed into an event, written to
 the state database or included in an error. The configuration accepts only an
-`https` origin at Discord's API host, so a redirected or plaintext origin cannot
-receive it.
+`https` origin at Discord's API host. The production HTTP client refuses every
+redirect, including a same-origin redirect, and classifies the original 3xx;
+the response cannot select another credential recipient or downgrade HTTPS.
 
 ## Platform payload parsing
 

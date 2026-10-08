@@ -286,8 +286,9 @@ func TestPlatformRateLimitBecomesARetryWithoutASentRecord(t *testing.T) {
 	service, core, platform, store := newTestService(t)
 	platform.sendErr = &APIError{Status: http.StatusTooManyRequests, RetryAfterMS: 1500}
 	core.batches = [][]connectorwire.OutboundTextV1{{delivery("d1", "discord:channel:333333333333333333", "done")}}
-	if _, err := service.DeliverOnce(context.Background()); err != nil {
-		t.Fatal(err)
+	var apiErr *APIError
+	if completed, err := service.DeliverOnce(context.Background()); completed != 0 || !errors.As(err, &apiErr) || apiErr != platform.sendErr {
+		t.Fatalf("rate limit was not propagated for pacing: %d %v", completed, err)
 	}
 	if core.completed[0].Outcome != connectorwire.DeliveryRetry ||
 		core.completed[0].FailureClass != connectorwire.FailureRateLimited {

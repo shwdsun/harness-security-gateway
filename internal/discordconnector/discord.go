@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/shwdsun/harness-security-gateway/internal/connectorwire"
 )
@@ -75,7 +76,12 @@ func NewAPI(baseURL, token string, timeout time.Duration) (*API, error) {
 	if err := validateAPIBaseURL(baseURL); err != nil {
 		return nil, err
 	}
-	return newAPI(baseURL, token, &http.Client{Timeout: timeout})
+	return newAPI(baseURL, token, &http.Client{
+		Timeout: timeout,
+		// Platform responses cannot select another credential recipient or
+		// downgrade HTTPS. Classify the original 3xx without following it.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	})
 }
 
 func newAPI(baseURL, token string, doer httpDoer) (*API, error) {
@@ -246,6 +252,9 @@ func retryAfterMS(response *http.Response) int64 {
 // SplitReply divides one bounded reply into ordered platform-sized chunks. It
 // never drops text silently: too many chunks is a rejected delivery.
 func SplitReply(text string, maxChunks int) ([]string, bool) {
+	if !utf8.ValidString(text) {
+		return nil, false
+	}
 	// A whitespace-only reply has no postable content; the platform would
 	// reject it, so it fails closed here instead.
 	remaining := strings.TrimSpace(text)
@@ -264,6 +273,9 @@ func SplitReply(text string, maxChunks int) ([]string, bool) {
 		cut := strings.LastIndexAny(remaining[:maxChunkText], "\n ")
 		if cut <= 0 {
 			cut = maxChunkText
+			for !utf8.RuneStart(remaining[cut]) {
+				cut--
+			}
 		}
 		chunks = append(chunks, strings.TrimRight(remaining[:cut], " "))
 		remaining = strings.TrimLeft(remaining[cut:], " ")
