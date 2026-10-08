@@ -17,12 +17,14 @@ For a quick review:
 - **Readers assessing AI-assisted work:** examine who owns acceptance, what
   evidence can contradict a model, and which outcomes remain unmeasured.
 
-This is a **pre-alpha development baseline**. Source integration is separate
-from product acceptance. CRED-01/M1 and V4 real-provider, natural-refresh
-and private-Discord acceptance remain open. Historical deployment witnesses
-and synthetic V4 results have separate scopes; neither establishes production
-readiness. [Implementation status](implementation-status.md) and the
-[M1 boundary](milestones.md#m1-what-completion-means) govern those claims.
+This is an **early development baseline (pre-alpha)**. Source integration is
+separate from acceptance of a real deployment. The current credential-isolation
+design still needs real-provider compatibility, credential renewal and complete
+private-Discord validation. Historical deployment observations and controlled
+tests apply only to their stated profiles. [Implementation status](implementation-status.md)
+and the [credential-isolated messaging criteria](milestones.md#credential-isolated-messaging)
+govern those claims. [Core concepts](concepts.md) define task records (`Run`),
+authorization rules (`Binding`) and execution targets before the code mappings below.
 
 ## Decisions that can be inspected
 
@@ -74,7 +76,7 @@ that abstraction; trace replay samples implementation conformance. Neither is
 a proof that Go refines the model. Atomic storage, serialized recovery, exact
 cleanup and one-shot materialization are explicit assumptions. Initial dispatch,
 credentials and real containers are outside the pilot. Its separate Create-count
-test must not be credited to the SMT proof. See the
+test must not be credited to the abstract invariant proof. See the
 [mapping, negative controls and comparison protocol](../formal/recovery/README.md).
 
 ## AI assistance and individual accountability

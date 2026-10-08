@@ -1,19 +1,36 @@
-# Codex Profile v4: owner-only authentication candidate
+# Experimental Codex execution with isolated authentication (profile v4)
 
-Status, **2026-10-08**: implemented opt-in wiring; synthetic native inference401,
-Catalog401 recovery, authenticated refresh cancellation and first-helper-loss
-safe failure and original same-DB Owner crash/restart accepted in separate
-synthetic scopes. The October 7 development commit `a168ee3` passed consolidated
-local tests/race/vet, code review and
-[its pushed-commit CI](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
-That CI result predates the October 8 Connector corrections.
-The bounded real campaign stopped at its private enrollment-completion witness
-before a task; cleanup was verified. Real-provider/refresh/Discord acceptance
-remains open. Reviewed pre-alpha source integration is separate from this
-profile's acceptance, as recorded in the [milestone decision](milestones.md#source-integration-decision--2026-10-08).
-This is the next CRED-01 candidate,
-with classification `credential-isolated-candidate`; older revisions remain
-`credential-exposed-personal`. See [current evidence](implementation-status.md).
+This reference defines an experimental execution contract. **Profile v4** is a
+revision of that Codex contract, not an HSG release. Its **Owner** is trusted
+authentication software outside the task's Runner; reusable provider tokens
+stay there. The Runner receives a disposable local authentication representation
+and a task-scoped channel. See [core concepts](concepts.md) for components,
+credentials and independent version labels.
+
+Status, **2026-10-08**: experimental integration implemented. Controlled
+provider fixtures exercise the actual client and selected failure paths.
+Real-provider compatibility, credential renewal and complete Discord task/reply
+acceptance remain unverified. The October 7 real campaign stopped during
+credential-setup completion verification, before a task; cleanup was verified.
+See [current evidence](implementation-status.md#credential-isolation).
+
+Source integration and real-profile acceptance are separate, as recorded in the
+[delivery decision](milestones.md#source-integration-decision--2026-10-08).
+The classification `credential-isolated-candidate` identifies this unaccepted
+design; earlier profiles remain `credential-exposed-personal`, meaning task
+tools can read their reusable authentication. The credential-recovery test is
+one requirement within the wider [credential-isolated messaging goal](milestones.md#credential-isolated-messaging).
+
+### Dated verification detail — 2026-10-08
+
+Separate synthetic scopes accepted native inference401 and Catalog401 recovery,
+authenticated refresh cancellation, first-helper-loss safe failure, and Owner
+crash/restart on the same database. Here `401` means an HTTP authentication
+rejection; these scenarios use controlled provider data. The October 7 source
+baseline `a168ee3` passed consolidated local tests/race/vet, code review and
+[its exact CI](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
+That result predates the October 8 Connector corrections and does not replace
+real-service acceptance.
 
 ## Immutable authority
 

@@ -1,5 +1,11 @@
 # Deployment and artifact lifecycle
 
+A **deployment** installs and configures the services for an actual workflow.
+An **artifact** is a reviewed binary, container image or other fixed execution
+input. The [core concepts](concepts.md) explain component names and evidence
+terms; the versioned Codex profiles below are experimental execution contracts,
+not product releases.
+
 This document explains what can be run from this repository today, where each
 component is intended to live, and when external artifacts may be acquired. It
 is a deployment contract and roadmap, not a claim that a production
@@ -143,7 +149,8 @@ require immutable installation, separate from service-owned mutable storage.
 Bounded synthetic native and failure scopes have evidence; required real
 provider compatibility, refresh and private Discord acceptance remain open.
 The existing `deploy/codex` bundle describes V3 and does not package or approve
-this V4 candidate. M1 integration does not itself activate a production target.
+this isolated-authentication candidate. Completing the credential-isolated
+messaging milestone does not itself activate a production target.
 
 Platform-specific behavior belongs in a Connector artifact. A Discord
 Connector image or binary contains the reviewed Connector implementation and

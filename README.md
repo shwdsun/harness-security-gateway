@@ -3,99 +3,25 @@
 [![CI](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/shwdsun/harness-security-gateway/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Harness Security Gateway (HSG) is a small, single-user gateway between a
-messaging platform and an agent *harness*: a coding-agent environment that can
-read files, run tools, use credentials, and reach networks. It turns
-authenticated messaging events into durable Runs against operator-approved,
-immutable harness targets without implementing another agent loop or
-orchestrator.
+Harness Security Gateway (HSG) is a small, self-hosted gateway for requesting
+coding work through private messaging. Its intended first workflow is to send
+a task in Discord, run it with Codex inside a locally approved environment,
+and receive the result in the same conversation.
 
-> **Status as of 2026-10-08: pre-alpha.** Default builds support the mock path;
-> native Codex execution requires an explicit opt-in build. The control plane
-> and private Discord Connector are implemented. Two September 16 live text
-> Runs exercised an older profile whose reusable provider auth remained readable
-> by its Runner. The owner-isolated V4 candidate has scoped synthetic evidence,
-> but its October 7 real campaign stopped after enrollment, before a task.
-> **CRED-01/M1, real-provider refresh and V4 Discord acceptance remain open.**
-> Reviewed source integration does not approve deployment or a production
-> release. See [implementation status](docs/implementation-status.md) and the
-> [milestone boundaries](docs/milestones.md).
+The gateway checks who may request work and records each accepted task. It
+keeps execution settings under the local operator's control: a message cannot
+choose a host path, container image, credential or network policy. Codex
+remains responsible for reasoning and tools; HSG supplies the surrounding
+authorization and execution boundary.
 
-Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
-For a code, design or research review, the
-[engineering case study](docs/engineering-case-study.md) traces key decisions
-to implementation and counterexamples, explains the AI-assisted development
-workflow, and relates its limits to July–October 2026 research. The
-[deployment guide](docs/deployment.md) separates runnable mock support,
-dated native experiments and the remaining real-path gates.
+> **Current status — 2026-10-08: early development (pre-alpha).** You can run
+> an offline security demonstration and an advanced local workflow using a
+> simulated coding agent. The Discord connector and experimental Codex
+> integration are implemented, but a supported Discord-to-Codex deployment
+> is still awaiting integrated credential-isolation and real-service testing.
+> See [current capabilities and limits](docs/implementation-status.md).
 
-> Messages may invoke an operator-preauthorized execution envelope; they may
-> never select or widen that envelope.
-
-## Why this exists
-
-The goal is a practical personal gateway: request coding work from a private
-conversation, run it within an operator-approved environment, and receive the
-result in that conversation. The first intended path is private Discord to one
-immutable Codex target.
-
-Messaging-to-agent connectivity is easy to demonstrate; authority is the
-harder problem. A message is untrusted intent entering a powerful execution
-environment. HSG is structured to keep transport identity, admission,
-execution authority, and harness reasoning in separate trust domains.
-
-It does not try to prove that a model will obey hostile text. It is designed to
-constrain what the resulting execution can reach. OS-level identity separation,
-image and profile pinning, credential reach, egress, cancellation, and teardown
-remain explicit release blockers rather than completed claims.
-
-## Architecture
-
-```text
-platform -> Connector -> agentd -> sandboxd -> ephemeral Runner -> harness
-            identity     Binding    target/runtime   HRP/1 adapter
-                         + Run
-```
-
-- A **Connector** owns one platform protocol and credential. It reports
-  authenticated platform facts but cannot choose execution resources.
-- **`agentd`** owns exact Bindings, admission, durable Runs, replay, and the
-  outbound reply scope.
-- **`sandboxd`** owns immutable target revisions, workspaces, private session
-  state, and the rootless runtime boundary.
-- A **Runner** translates the language-neutral HRP/1 stream to one harness. It
-  receives one bounded Run and never receives a control-plane or container
-  runtime socket.
-
-An `ExecutionTarget` is immutable configuration, not a permanent model
-process. A container belongs to one Run; workspace and provider-session state
-have separate, sandbox-owned lifetimes.
-
-## Current implementation
-
-The control plane is exercised with a deterministic mock Runner and a dated
-private Discord-to-Codex text deployment. Credential isolation for that useful
-workflow remains the next integration milestone.
-
-| Area | Status |
-| --- | --- |
-| Core admission, replay, Runs, and outbox | Implemented and deterministically tested |
-| Sandbox lifecycle and uncertain-create reconciliation | Implemented and deterministically tested with a fake runtime; the digest-pinned mock Runner was exercised locally on rootless Docker, outside public CI |
-| Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
-| Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
-| Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
-| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance remains open. No approved production V4 image is shipped |
-| Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
-| Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
-| Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
-| Production Codex target | Blocked on complete authority, artifact, context, provider and deployment acceptance |
-| Private Discord Connector | Implemented with exact identity/Binding admission, durable cursor and reply delivery; dated two-message deployment evidence exists |
-| Production deployment | Not ready |
-
-The detailed and authoritative status is in
-[docs/implementation-status.md](docs/implementation-status.md).
-
-## Run the security witness
+## Try the offline demonstration
 
 Requires Go 1.26.7 or newer within the Go 1 compatibility promise. The patch
 floor includes standard-library security fixes used by this codebase.
@@ -106,145 +32,118 @@ go vet ./...
 make demo-security
 ```
 
-The demo checks five narrow, deterministic properties: closed target/control
-input, exact actor/conversation admission, durable acceptance across a killed
-process, exact replay deduplication, and conflicting-replay rejection. It is
-not a container, credential, Discord, Codex, or whole-system security proof.
+The demonstration uses the actual authorization and SQLite storage code with
+test messages. It checks five specific properties: rejecting execution settings
+in message input, authorizing the exact sender/conversation pair, preserving
+acceptance after a process crash, recognizing a duplicate event, and rejecting
+changed content under the same event identity. It requires no Docker, Discord
+account or model-provider credential.
 
-The advanced rootless-Docker mock flow requires a repository-digest workflow
-(and, on engines that do not assign local RepoDigests, an operator-controlled
-registry) and is described in the
-[local runbook](docs/runbook.md).
+For a container-based simulation, follow the [local mock runbook](docs/runbook.md).
+It requires a separately prepared rootless Docker environment. A **mock** is a
+deterministic test substitute; that workflow does not contact a coding model.
 
-## Deployment model
+## How it works
 
-There is deliberately no production installer or `docker compose up` path yet.
-Today this repository supports two bounded uses: the offline security witness
-above, and the advanced mock flow in the local runbook. The latter runs the
-control services on the host and creates one digest-pinned mock Runner
-container per Run; it is not a Discord or Codex deployment.
+```text
+private message -> platform connector -> authorization and task record
+                -> approved execution environment -> coding harness -> reply
+```
 
-The [provider canary](docs/codex-provider-canary.md) and
-[fixed Codex daemon path](docs/codex-daemon-startup.md) are opt-in experiments
-requiring explicit artifacts, local prerequisites and authorization for their
-external effects. Their native entrypoints are omitted from default builds;
-neither supplies a production installer or approved production target.
+A **harness** is the coding-agent program around a model, such as Codex: it
+manages the model conversation, files and tools. HSG runs that program rather
+than adding another agent loop.
 
-The intended real topology keeps long-lived control services separate from
-ephemeral harness execution. A Connector may be packaged as one long-running
-service or container per platform credential. `agentd` owns durable admission,
-and `sandboxd` alone owns the exact local rootless-runtime socket. Each Run is
-executed in one container created from a preloaded, digest-pinned harness
-Runner image containing its thin HRP adapter and pinned harness executable.
-Secrets and deployment-local bindings are provisioned into their own trust
-domains; they are never baked into images or selected by a message.
+| Component | Responsibility | Code name |
+| --- | --- | --- |
+| Platform connector | Observe messages and send replies through one platform account | Discord Connector |
+| Gateway service | Check local authorization rules and store accepted tasks and replies | `agentd`, also called Core |
+| Execution service | Resolve the approved environment, manage containers and reconcile cleanup | `sandboxd` |
+| Per-task adapter | Translate one accepted task to the harness and report its outcome | Runner |
 
-Dependency and image acquisition is an operator-controlled build/provision
-operation, not a message-time feature. A deployment may fetch reviewed,
-version-pinned inputs or use a controlled offline cache while producing and
-recording immutable artifacts. Before a Run can execute, its target's exact
-image digest must already exist in the selected rootless image store. Run
-creation uses `--pull=never`, and the closed target/runtime contract provides
-no message-time package, harness-update, or dynamic skill/plugin mechanism.
+An **authorization rule** (`Binding`) connects one connector, sender and
+conversation to one approved execution target. A **task record** (`Run`)
+stores an accepted request and its lifecycle. An **execution target** describes
+the locally configured workspace, image, policies and limits; its
+`TargetRevision` identifies an immutable version of those settings.
+The [core concepts](docs/concepts.md) explain these terms and their lifetimes.
 
-See [Deployment and artifact lifecycle](docs/deployment.md) for the current
-paths, intended placement, dependency policy, and the gates that intentionally
-block a turnkey real-platform deployment.
+## What is implemented
 
-## Security model
-
-- An exact `(Connector, actor, conversation)` Binding selects one immutable
-  `TargetRevision`.
-- Inbound wire data cannot name a host path, image, command, argument,
-  environment variable, mount, network rule, credential, plugin, skill bundle,
-  MCP server, or runtime option.
-- Admission creates a durable Run before execution; duplicate delivery and
-  recovery reconcile the same authorization decision.
-- The outbound destination is derived from the accepted Run. Runner output
-  cannot redirect a reply.
-- An ambiguous container create is reconciled by immutable identity and is
-  never retried as a second create.
-- The mock session path keeps synthetic provider-session tokens in sandbox
-  state. Core sees exact-scope, one-use opaque references, which never authorize
-  a new Run. This does not establish secrecy of a real provider credential.
-
-The V3/provider-canary contract is explicitly `credential-exposed-personal`:
-native tools can read its dedicated credential file, and allowed provider
-requests can disclose data they can read. The runtime-owned operation endpoint
-constrains requests; it does not hide the credential from those tools. See the
-[canary's credential boundary](docs/codex-provider-canary.md).
-
-Code, deterministic tests, runtime evidence, and explicitly scoped experiments
-outrank prose or model review. See [architecture.md](docs/architecture.md) and
-[access-control.md](docs/access-control.md) for the trust and authorization
-model.
-
-## Work in progress and release blockers
-
-The following gates remain open; the repository makes no claim that they have
-passed:
-
-- close CRED-01 on the named real V4 profile, including provider compatibility,
-  required refresh and private Discord task/reply acceptance;
-- attest the accepted profile's exact artifacts, distinct service identities,
-  credential and filesystem reach, and provider-versus-tool egress;
-- complete its applicable adversarial, cancellation, crash and cleanup cases,
-  including repository customization and detached descendants;
-- establish a supported installation, update and recovery procedure with
-  predictable operator effort before a personal pilot release;
-- measure benefit and operating cost against simpler alternatives before
-  expanding the product.
-
-Some internal identifiers retain the original prototype namespace (`HG_`,
-`hgw`, and `harness-gateway`) because they participate in persisted hashes,
-labels, or local paths. They are compatibility identifiers, not the current
-product name. This pre-alpha repository otherwise makes no compatibility
-guarantee.
-
-## Repository map
-
-| Path | Responsibility |
+| Capability | Current evidence and limit |
 | --- | --- |
-| `cmd/` | Control services, local utilities, mock Runner and experimental Codex/bootstrap/canary entry points |
-| `internal/` | Closed protocols, policy, durable stores, dispatch, runtime, and adapter packages |
-| `demo/security/` | Credential-free deterministic security witness |
-| `runners/mock/` | Digest-pinnable mock Runner image |
-| `config/` | Example daemon configuration; never message-selectable |
-| `bakeoff/` | Candidate-neutral adversarial cases and result schema |
-| `formal/recovery/` | Opt-in recovery model, checked-in trace corpus and explicit proof assumptions |
-| `docs/` | Architecture, protocols, evidence limits, status, and runbook |
+| Exact authorization and duplicate-event handling | Implemented and automatically tested against production decoding, policy and storage code |
+| Durable task and reply lifecycle | Implemented, with restart and failure tests; platform delivery still has a send/receipt uncertainty window |
+| Container lifecycle and cleanup reconciliation | Implemented and automatically tested; dated local container experiments have separate environmental limits |
+| Discord message ingestion and reply delivery | Implemented; historical real-message experiments exist, but the current isolated-credential workflow needs integrated real-service validation |
+| Codex execution and credential isolation | Experimental integration with automated and controlled native tests; real-provider compatibility and credential renewal remain unverified for the isolated candidate |
+| Recovery model | An optional formal-methods experiment checks a stated abstract invariant; implementation and deployment require their own evidence |
 
-## Non-goals
+Default builds use the simulated agent. Experimental Codex execution requires
+an explicit build option and separately provisioned artifacts and credentials.
+There is no supported production installer or approved production Codex image.
+The [deployment guide](docs/deployment.md) explains prerequisites;
+[implementation status](docs/implementation-status.md) separates current
+capabilities from dated experiments.
 
-HSG is not a generic bot framework, model router, memory service, planner,
-workflow DSL, or multi-agent orchestrator. Dynamic message-selected plugins,
-images, mounts, credentials, tools, or network rules are outside the boundary.
-Multi-host scheduling, Kubernetes, high availability, and a broad platform
-matrix are deliberately deferred.
+## Security boundary
 
-## Documentation
+- Local policy authorizes an exact connector, sender and conversation together.
+- Message input cannot specify images, commands, host paths, mounts, environment
+  settings, credentials, plugins or runtime options.
+- Acceptance is stored before execution. Duplicate events and recovery refer
+  to the same recorded decision; an uncertain container creation is reconciled
+  rather than retried as another creation.
+- A reply destination comes from the accepted task. Model output cannot choose
+  another recipient.
+- Credentials, storage, runtime access and workspaces have separate owners.
+  The current isolated-credential candidate needs real-service acceptance
+  before that stronger deployment claim can be made.
 
-- [Engineering case study, AI-assisted workflow and research questions](docs/engineering-case-study.md)
-- [Current implementation status](docs/implementation-status.md)
-- [2026-09-10 checkpoint and reflection](docs/checkpoint-2026-09-10.md)
-- [Content evolution and verification scope](docs/content-evolution-and-verification.md)
-- [Controlled provider canary and evidence limits](docs/codex-provider-canary.md)
-- [First principles: axioms and what they force](docs/first-principles.md)
-- [Drift ledger: what traces and what does not](docs/drift-ledger.md)
-- [Design principles](docs/design-principles.md)
-- [Architecture](docs/architecture.md)
-- [Access-control model](docs/access-control.md)
-- [Connector protocol](docs/connector-protocol.md)
-- [Harness Runner Protocol](docs/runner-protocol.md)
-- [Deployment and artifact lifecycle](docs/deployment.md)
-- [Product scope](docs/positioning.md)
-- [Competitive security bake-off](docs/competitive-bakeoff.md)
-- [Local mock runbook](docs/runbook.md)
+The earlier real Codex experiments allowed workspace tools to read reusable
+provider authentication. Their dated successes do not establish the newer
+credential-isolation design. See the [current credential boundary](docs/implementation-status.md#credential-isolation).
+
+Authorization and containment are enforced by code and operating-system
+boundaries. Model compliance with instructions is not the security mechanism.
+The [architecture](docs/architecture.md) and [access-control contract](docs/access-control.md)
+give the precise assumptions and remaining limits.
+
+## Next delivery goals
+
+1. Validate useful Discord-to-Codex work while reusable provider credentials
+   remain inaccessible to task tools, including credential renewal.
+2. Complete the applicable isolation, cancellation, crash and cleanup cases
+   for that exact deployment.
+3. Provide a documented installation, update and recovery workflow with
+   predictable operator effort before a personal pilot release.
+4. Measure security benefit and operating cost against simpler alternatives
+   before expanding the product.
+
+The [delivery roadmap](docs/milestones.md) defines completion criteria.
+The first workflow remains one operator, one private Discord entry, one fixed
+Codex target and text tasks. Additional platforms, attachments, dynamic
+plugins, memory services and multi-host scheduling are outside the current scope.
+
+## Read the documentation
+
+| Reader goal | Start here |
+| --- | --- |
+| Understand the product and terminology | [Product scope](docs/positioning.md), then [core concepts](docs/concepts.md) |
+| Run the supported local examples | [Deployment paths](docs/deployment.md) and [mock runbook](docs/runbook.md) |
+| Review implementation and security contracts | [Design principles](docs/design-principles.md), [architecture](docs/architecture.md) and [access control](docs/access-control.md) |
+| Assess the engineering and research work | [Engineering case study](docs/engineering-case-study.md), linking code, counterexamples and July–October 2026 research |
+
+The [documentation index](docs/README.md) organizes technical references,
+experimental profiles and historical records. Internal planning and test IDs
+are reference keys, explained in the concepts page.
+
+Product code lives in `cmd/` and `internal/`; `config/` contains local examples,
+`runners/mock/` contains test images, and `formal/recovery/` contains the recovery
+model and its assumptions. HSG is developed independently with AI assistance,
+with human ownership of scope, acceptance and release decisions.
 
 ## Security and license
-
-HSG is developed independently with AI assistance; its implementation and
-verification records are also available as a reference for other projects.
 
 Please report vulnerabilities through
 [GitHub private vulnerability reporting](https://github.com/shwdsun/harness-security-gateway/security/advisories/new),

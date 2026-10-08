@@ -1,10 +1,16 @@
-# Harness Security Gateway Access Control v1
+# Access control: exact authorization rules
 
-Status: **exact EBA, peer-credential, Run-derived disclosure, bounded session lifecycle, and historical runner-state ownership code gates implemented; deployment, canary/experiment, and deny-audit gates remain open**
+This contract describes how an exact local authorization rule admits one task
+and constrains its reply and session scope. The code calls a rule a `Binding`
+and a task record a `Run`; [core concepts](concepts.md) explain those names.
 
-Date: 2026-08-28
+Contract baseline: **2026-08-28**, revision v1. Current capability and deployment
+readiness are reported in [implementation status](implementation-status.md).
 
-Model name: **Exact Binding Authorization (EBA)**
+Model name: **Exact Binding Authorization (EBA)** — authorization from the exact
+connector, sender, conversation and action together, rather than independent
+sender/conversation allowlists. Requirement priorities (`P0`–`P2`) below use the
+[documented planning meaning](concepts.md#planning-test-and-design-identifiers).
 
 > **Implemented boundary:** Exact replay of the original Run is
 > guaranteed only while its allow receipt remains inside `W_receipt`. After the

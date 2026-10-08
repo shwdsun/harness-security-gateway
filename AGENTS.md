@@ -55,6 +55,11 @@ disagreement; do not silently expand a claim to make documentation pass.
 
 ## Working rules
 
+- Public documentation starts with purpose, runnable behavior and limits. Use
+  descriptive outcomes before internal planning/test IDs; define necessary code
+  terms on first use and link `docs/concepts.md`. Qualify versions by protocol,
+  profile, configuration or store. Keep current readiness separate from dated
+  history, and organize reader routes through `docs/README.md`.
 - This repository is the sole write surface for product code, tests, and public
   specifications. Private review, runtime, credential, and host-evidence trees
   stay outside it and must never overwrite its product source.

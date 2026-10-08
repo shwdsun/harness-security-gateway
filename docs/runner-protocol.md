@@ -1,5 +1,10 @@
 # Harness Runner Protocol v1 (HRP/1)
 
+The execution service (`sandboxd`) speaks this protocol to the per-task adapter
+(**Runner**), which invokes the coding harness. A `Run` is the accepted task
+record. [Core concepts](concepts.md) distinguish these components and the
+independent protocol, profile and configuration versions used below.
+
 HRP/1 is the adapter contract intended to let `sandboxd` run different
 harnesses without knowing vendor CLI flags or event formats. The shipped target
 uses a deterministic mock Runner; a disabled Codex conformance cut exists in

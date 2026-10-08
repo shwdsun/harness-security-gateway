@@ -1,5 +1,11 @@
 # Target manifests and Runner state
 
+A **target manifest** describes an operator-approved execution environment;
+**Runner state** is harness-private state with a separately configured lifetime.
+This reference retains exact schema and API names. Manifest versions, daemon
+configuration versions and store schema versions are independent; see
+[core concepts](concepts.md#versions-name-different-things).
+
 A TargetManifest is local operator-authored data, never a remote request.
 Accepting its syntax is not permission to execute it. Local `sandboxd/v2`
 configuration accepts only `harness-target/v1`. Explicit `sandboxd/v3`

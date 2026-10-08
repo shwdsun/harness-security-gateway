@@ -1,8 +1,13 @@
 # Private Discord Connector v1
 
-Status: **implemented and offline-tested; no bot token, live channel or
-deployment identity is part of this code.** It is the first real platform
-Connector and remains disabled until its own gates below pass.
+This reference describes the implemented Discord platform adapter. **Core** is
+the gateway service; a `Binding` is an exact local authorization rule and a
+`Run` is an accepted task record. See [core concepts](concepts.md). This title's
+version names the Connector contract; database versions below name its store.
+
+Status: **implemented and automatically tested.** No bot token, live channel or
+deployment identity is part of the code. Historical experiments and current
+real-path requirements are described in [implementation status](implementation-status.md).
 
 This Connector owns exactly one platform account, one allowlisted channel and
 one dedicated `agentd` Unix socket. It has no listening port, no Core database

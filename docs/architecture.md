@@ -1,5 +1,11 @@
 # Architecture
 
+This technical reference uses **Core** for the gateway service (`agentd`) and
+**sandbox owner** for the execution service (`sandboxd`). A `Binding` is an
+exact local authorization rule; a `Run` is its accepted task record; a Runner
+is the per-task adapter to the coding harness. See [core concepts](concepts.md)
+for record lifetimes and the independently versioned protocols and profiles.
+
 ## Product boundary
 
 The intended Harness Security Gateway boundary owns transport, identity,
@@ -10,8 +16,8 @@ default build uses the deterministic mock Runner. An explicit opt-in
 native template to the same daemon/controller; production and messaging-platform
 targets remain disabled.
 
-`live` means the entrypoint and state are persistent. Harness processes are
-created for a Run and are not permanent agents.
+The intended deployment has a persistent messaging entrypoint and task store.
+Harness processes are created for individual tasks and are not permanent agents.
 
 ## Trust domains
 

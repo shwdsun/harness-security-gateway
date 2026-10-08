@@ -1,5 +1,9 @@
 # Design principles
 
+This is the design contract. The [core concepts](concepts.md) define its code
+terms: an authorization rule is a `Binding`, an accepted task record is a `Run`,
+and a fixed execution configuration is identified by its `TargetRevision`.
+
 ## Nature
 
 Harness Security Gateway is designed as a security boundary between a
@@ -116,6 +120,12 @@ real path needs it, deterministic enforcement belongs there, and a simpler
 boundary cannot preserve the same property.
 
 ## Engineering practice
+
+Public documentation is part of the interface. Explain the user's workflow and
+current limits before code terminology; define necessary concepts, qualify each
+version's subject, and keep test/planning identifiers as reference keys. Current
+capability summaries and dated historical evidence have separate reading paths
+in the [documentation guide](README.md).
 
 Work normally follows this chain:
 

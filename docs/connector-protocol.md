@@ -1,5 +1,10 @@
 # Connector protocol v1
 
+This is the local interface between a platform adapter (**Connector**) and the
+gateway service (`agentd`, also called Core). `Run` means an accepted task record
+and `Binding` means its local authorization rule; see [core concepts](concepts.md).
+The version in this title belongs to this protocol, not the product release.
+
 The Connector protocol is the narrow boundary between one platform account and
 `agentd`. Each Connector instance receives one dedicated Unix socket. Selecting
 that socket establishes `connector_id`; identity is never accepted in JSON, a

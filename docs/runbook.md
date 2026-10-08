@@ -1,5 +1,11 @@
 # Local mock runbook
 
+A **mock** is a simulated coding agent with deterministic output. This guide
+runs local gateway services and test containers; it does not contact Discord
+or a model service. `Binding` means an authorization rule, `Run` a task record,
+and target revision an immutable execution configuration. [Core concepts](concepts.md)
+explain these names and session modes before the exact commands below.
+
 This runbook exercises the implemented mock vertical slice on the prepared
 host. Run it as the unprivileged user that owns the configured rootless Docker
 daemon. Do not use `sudo`, a rootful Docker context, a real checkout, or any

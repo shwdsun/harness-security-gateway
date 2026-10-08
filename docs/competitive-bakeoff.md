@@ -1,6 +1,12 @@
-# Competitive security bake-off
+# Security and operating-cost comparison protocol
 
-Status: protocol prepared; live candidate runs have not yet been executed.
+Status: protocol prepared; no completed live comparison verdict.
+
+**Bake-off** means running comparable cases against competing systems. Case
+IDs such as `CRED-01` identify individual tests; `A`/`F` labels connect them to
+design assumptions and constraints; `P0` identifies mandatory requirements for
+the relevant acceptance scope. These are distinct reference systems, explained
+in [core concepts](concepts.md#planning-test-and-design-identifiers).
 
 ## Purpose
 

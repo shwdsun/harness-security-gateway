@@ -1,4 +1,12 @@
-# CRED-01: credential isolation work package
+# Provider credential isolation: implementation plan
+
+The goal is to keep reusable model-service authentication outside task-controlled
+code while retaining useful Codex execution. `CRED-01` is the credential-recovery
+test case in the comparison suite; `M1` is the wider delivery milestone, including
+real-service compatibility, renewal, replies and cleanup. See [delivery criteria](milestones.md#credential-isolated-messaging)
+and [core concepts](concepts.md#planning-test-and-design-identifiers).
+The dated work-package notes below retain their original evidence scope;
+[implementation status](implementation-status.md#credential-isolation) gives current readiness.
 
 Updated: **2026-10-01**. Status: **isolated runtime/profile candidate wired; composed acceptance open**.
 The client-side and trusted native-refresh offline compatibility probes below
@@ -277,7 +285,7 @@ partial writes, failed sync/readback/close, stale baseline and replaced inode,
 retained locks, shorter updates, concurrent Close and competing source modes.
 The full regression also exposed two existing controller recovery paths; their
 deterministic failures, corrections and passing final checks are recorded in
-[implementation status](implementation-status.md#owner-credential-storage--2026-09-19).
+[dated implementation record](implementation-history.md#owner-credential-storage--2026-09-19).
 
 No executable path selects the new borrow/parser and no new schema, daemon,
 container or configuration was introduced. Next implement the native consumer's

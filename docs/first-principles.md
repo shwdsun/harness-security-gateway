@@ -6,14 +6,19 @@ which states the structure it has. It records what the project assumes about the
 world and what those assumptions force. Nothing here is a preference: every
 entry is either an axiom or a consequence of one.
 
-Its purpose is traceability in one direction. Evidence accumulates in
-[implementation-status.md](implementation-status.md), which can only be read
-forward in time. This document can be read downward. A mechanism that cannot be
-traced back up through it is either a choice that must be recorded as a choice,
+Its purpose is traceability in one direction. Current readiness is summarized
+in [implementation status](implementation-status.md); dated evidence accumulates
+in [implementation history](implementation-history.md). This document can be
+read downward. A mechanism that cannot be traced back up through it is either
+a choice that must be recorded as a choice,
 or scope that entered without anything requiring it.
 
 This document makes no evidence claim. What is built, checked and still open
 remains authoritative in `implementation-status.md`.
+
+The `A` labels identify assumptions; the `F` labels identify constraints derived
+from those assumptions. They are reference keys for the tables and comparison
+tests, not components, product versions or execution options. See [core concepts](concepts.md).
 
 ## Axioms
 

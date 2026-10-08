@@ -1,10 +1,10 @@
 # Product position and scope
 
-Status as of **2026-10-08**: research prototype / pre-alpha. The historical
-private Discord-to-Codex path has scoped live witnesses, including two sequential
-text Runs on September 16. That profile exposes reusable provider auth to its
-Runner. The separate V4 candidate still needs real compatibility, refresh and
-Discord acceptance; source integration does not close those product gates.
+Status as of **2026-10-08**: early development (pre-alpha). The local simulation
+and offline demonstration are runnable. The intended real workflow is private
+Discord messaging to Codex; its isolated-credential design still needs real-
+service compatibility, credential renewal and complete task/reply validation.
+See [current capabilities](implementation-status.md) and [core concepts](concepts.md).
 
 The goal is a usable personal gateway for requesting coding work from private
 messaging, executing it within a pre-approved environment and receiving the
@@ -34,10 +34,10 @@ the workspace, model credentials, execution runtime, or target configuration.
 The intended authority chain is:
 
 ```text
-Connector observes a platform event
-  -> gateway control plane authorizes an immutable TargetRevision
-  -> sandbox executor materializes that approved target
-  -> a fresh Runner performs exactly one Run
+platform connector observes a message
+  -> gateway checks the exact local authorization rule
+  -> execution service resolves the approved environment
+  -> a per-task Runner invokes the coding harness
 ```
 
 Neither the message, model, Connector, nor Runner may select an arbitrary host
@@ -46,12 +46,13 @@ plugin, skill, or MCP server.
 
 ## Current phase
 
-The mock path, exact authorization, durable lifecycle and private Discord
-Connector are implemented. V1–V3 contracts and their dated witnesses remain
-separate from the opt-in V4 owner-isolated credential candidate. Its synthetic
-native and fault evidence does not establish real-provider compatibility. The
-October 7 real campaign stopped after enrollment, before serving or a task;
-cleanup was verified and the failed campaign remains retained.
+The simulated-agent path, exact authorization, durable task lifecycle and
+private Discord connector are implemented. Earlier real experiments used an
+execution profile whose reusable authentication was readable by task tools.
+The current isolated-authentication candidate has controlled executable and
+failure tests, but those do not establish real-provider compatibility. The
+October 7 real campaign stopped after credential setup, before serving or a
+task; cleanup was verified and the failure remains retained.
 
 Default daemon builds remain mock-only and no approved production Codex target
 is shipped. See [implementation status](implementation-status.md) for current
@@ -64,8 +65,8 @@ private Discord -> Discord Connector -> gateway control plane
                 -> sandbox executor -> immutable Codex target -> text reply
 ```
 
-V1 remains single-host, single-operator, and text-only. Execution is limited to
-one live Run per exact authorization/session scope.
+The initial product scope is single-host, single-operator and text-only.
+Execution is limited to one live task per exact authorization/session scope.
 
 ## Frozen non-goals
 
@@ -86,10 +87,11 @@ witness. The opt-in Codex experiments add scoped native/transport and cleanup
 evidence, with failed real-provider attempts explicitly retained. Historical
 Discord-to-Codex Runs under separate system identities, including a two-message
 repeat, have recorded end state. They do not establish general reliability,
-complete adversarial coverage, current V4 compatibility or production readiness.
-V3 remains
-`credential-exposed-personal`; its operation endpoint does not hide the
-dedicated credential from native tools. The formal recovery pilot proves only
+complete adversarial coverage, compatibility of the current isolated-
+authentication candidate or production readiness.
+The earlier Codex execution profile remains classified as
+`credential-exposed-personal`: its operation endpoint does not hide the
+dedicated credential from task tools. The formal recovery pilot proves only
 its stated abstract invariant and does not replace native or provider evidence.
 
 ## Competitive gate
@@ -103,14 +105,14 @@ If an existing system satisfies the required threat model with lower operating
 cost, this project should pivot to a small security test suite or stop. A broad
 feature race is explicitly not a success condition.
 
-## ACP and MCP
+## Future integration boundary
 
-ACP v2 is a non-blocking Runner-internal compatibility candidate. It cannot
-replace Connector admission, immutable target selection, Run lifecycle,
-container reconciliation, or HRP's outer security envelope. No ACP code is on
-the current critical path; adoption requires a conformance experiment with a
-real Harness.
-
-MCP is not enabled in any shipped target. A future MCP server is executable
-authority and must be pinned and reviewed as part of an immutable target, never
+Other harnesses and tool-server integrations remain future work. Any adopted
+compatibility protocol would sit inside the per-task adapter; it would not
+replace message authorization, task lifecycle or container reconciliation.
+Executable integrations must be fixed and reviewed with their target, never
 selected by chat content or discovered from an untrusted repository.
+
+Earlier exploratory protocol labels are retained in the
+[planning history](milestone-history.md#earlier-exploratory-compatibility-note),
+rather than presented as dependencies of the current product.
