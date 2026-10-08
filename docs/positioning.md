@@ -1,9 +1,10 @@
 # Product position and scope
 
-Status as of **2026-09-15**: research prototype / pre-alpha. The intended path
-has run end to end once, on one host: a real Discord message reached the fixed
-Codex target and its reply returned to the same conversation. One witness is not
-a product.
+Status as of **2026-10-08**: research prototype / pre-alpha. The historical
+private Discord-to-Codex path has scoped live witnesses, including two sequential
+text Runs on September 16. That profile exposes reusable provider auth to its
+Runner. The separate V4 candidate still needs real compatibility, refresh and
+Discord acceptance; source integration does not close those product gates.
 
 The goal is a usable personal gateway for requesting coding work from private
 messaging, executing it within a pre-approved environment and receiving the
@@ -12,7 +13,10 @@ serve that practical use. Current capabilities and remaining gates are recorded
 in [implementation status](implementation-status.md).
 
 The project is developed independently with AI assistance. Its implementation
-and verification records can also serve as a reference for others.
+and verification records can also serve as a reference for others. The
+[engineering case study](engineering-case-study.md) makes the decisions,
+evidence and open research questions inspectable without changing the practical
+product goal.
 
 ## Category
 
@@ -42,20 +46,18 @@ plugin, skill, or MCP server.
 
 ## Current phase
 
-The mock path, authorization mechanisms, credential lifecycle and offline
-security witness are implemented. V1/V2 Codex contracts are retained, while
-opt-in V3 fixtures and the runtime-owned provider canary exercise native tool,
-credential handoff and cleanup boundaries. Two real-provider Runs on 2026-09-10
-failed without the completion marker; cleanup was independently observed.
-On **2026-09-15** the private Discord Connector ran under its own locked system
-identity and one real message completed the whole path; see
-[implementation status](implementation-status.md) for what that single Run does
-and does not establish. Normal daemon configuration outside that opt-in path
-remains mock-only, no approved production Codex image/target is shipped, and no
-Connector is enabled at boot. See the [checkpoint](checkpoint-2026-09-10.md)
-for the earlier completed scope, failed experiments and work packages.
+The mock path, exact authorization, durable lifecycle and private Discord
+Connector are implemented. V1–V3 contracts and their dated witnesses remain
+separate from the opt-in V4 owner-isolated credential candidate. Its synthetic
+native and fault evidence does not establish real-provider compatibility. The
+October 7 real campaign stopped after enrollment, before serving or a task;
+cleanup was verified and the failed campaign remains retained.
 
-The first product path, now exercised once end to end:
+Default daemon builds remain mock-only and no approved production Codex target
+is shipped. See [implementation status](implementation-status.md) for current
+evidence and the [checkpoint](checkpoint-2026-09-10.md) for the earlier scope.
+
+The first product path:
 
 ```text
 private Discord -> Discord Connector -> gateway control plane
@@ -81,11 +83,11 @@ The repository demonstrates strict local protocols, exact admission, durable
 message and Run state, a digest-pinned mock Runner, rootless-runtime
 attestation, fail-closed crash reconciliation, and a credential-free security
 witness. The opt-in Codex experiments add scoped native/transport and cleanup
-evidence, with failed real-provider attempts explicitly retained. One live
-Discord-to-Codex Run under three separate system identities has now passed with
-recorded end state; that is a single witness on a single host and does not
-establish repeatability, live-channel adversarial resistance, real-traffic quota
-behaviour, credential rotation or production readiness. V3 remains
+evidence, with failed real-provider attempts explicitly retained. Historical
+Discord-to-Codex Runs under separate system identities, including a two-message
+repeat, have recorded end state. They do not establish general reliability,
+complete adversarial coverage, current V4 compatibility or production readiness.
+V3 remains
 `credential-exposed-personal`; its operation endpoint does not hide the
 dedicated credential from native tools. The formal recovery pilot proves only
 its stated abstract invariant and does not replace native or provider evidence.

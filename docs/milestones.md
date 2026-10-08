@@ -5,6 +5,18 @@ deployment authorization or a claim that the acceptance gates have passed.
 Mechanisms remain defined by the existing architecture and access-control
 contracts; evidence remains in [implementation status](implementation-status.md).
 
+## Source integration decision — 2026-10-08
+
+The maintainer has explicitly requested reviewed pre-alpha source integration
+for practical development and an inspectable engineering/research case study.
+This changes the earlier scheduling decision that coupled main integration to
+M1 completion. Main may contain the reviewed candidate after code fixes and
+required local/CI checks; default builds remain mock-only and native execution
+remains opt-in. Integration does not close CRED-01/M1, approve the real V4
+profile, publish a release or activate services. The real compatibility,
+required refresh and private-Discord acceptance requirements below are retained.
+Earlier dated merge-gate notes describe their original decision and evidence.
+
 ## Current position
 
 The first path is implemented and has scoped live evidence: one private Discord
@@ -22,7 +34,7 @@ or security claims. The earlier failed repeat is retained.
 | Separate service identities and runtime ownership | Deployed and exercised in dated witnesses; not a portable installation guarantee |
 | Rotation and permanently refused ingress | Refusal/re-enrollment and cursor recovery observed; credential secrecy is a separate property |
 | Repository and egress resistance | Structural tests and limited live cases exist; the small hostile-repository and reported-egress witnesses do not cover the complete adversarial matrix |
-| CRED-01 | Known unmet requirement in the historical profile: reusable auth is readable inside its Runner. The separate V4 owner-only runtime has accepted scoped synthetic containment/native fault witnesses and pushed-commit CI. Its October7 real campaign stopped after enrollment, before a task; real-provider/refresh/private-Discord acceptance and main integration remain |
+| CRED-01 | Known unmet requirement in the historical profile: reusable auth is readable inside its Runner. The separate V4 owner-only runtime has accepted scoped synthetic containment/native fault witnesses and pushed-commit CI. Its October7 real campaign stopped after enrollment, before a task; real-provider/refresh/private-Discord acceptance remains |
 | Operations and release | Reproducible acquisition, full accepted-profile coverage, long-running usability and activation policy still need closure |
 | Comparative bake-off | Protocol and laboratory preparation exist; no completed comparison verdict |
 
@@ -35,7 +47,7 @@ functional slice and is hardening the credential boundary of that slice.
 | Milestone | Outcome | Exit and integration decision |
 | --- | --- | --- |
 | M0 — functional private path | Authorized text work reaches Codex, returns a reply and cleans up | Scoped baseline achieved; retain historical evidence and residuals |
-| M1 — credential-isolated private path | Same useful workflow, reusable provider auth stays outside the Runner | Close CRED-01 for the named profile, renew affected integration evidence, complete review/CI/docs, then merge the accumulated development stage |
+| M1 — credential-isolated private path | Same useful workflow, reusable provider auth stays outside the Runner | Close CRED-01 for the named profile, renew affected real-path evidence and complete review/CI/docs; earlier source integration does not discharge this milestone |
 | M2 — usable personal pilot | A bounded, documented deployment can be installed, maintained and recovered with predictable operator effort | Account for every applicable P0 requirement on the accepted profile; close operational/release blockers and document supported behavior before a pilot release |
 | M3 — product direction decision | Measured benefit and operating cost against simpler alternatives | Complete the comparative gate; decide CONTINUE, PIVOT or STOP before expanding the product |
 
@@ -80,8 +92,9 @@ merge milestone requires an explicit scope decision with the operator.
 
 No reliable calendar estimate precedes that result. After it, estimate the
 remaining implementation and campaign from the actual changed components. The
-default merge point is M1 completion, rather than waiting for every later
-operations or comparative experiment.
+original default merge point was M1 completion. The October 8 source
+integration decision above supersedes that scheduling choice while keeping
+M1 acceptance and later pilot/operations gates separate.
 
 **2026-09-17 progress:** the client-side fresh/stale/persistent-401 substitution
 probe passed with synthetic owner secrets and native tool work; see the

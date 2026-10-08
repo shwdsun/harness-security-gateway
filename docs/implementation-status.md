@@ -1,5 +1,35 @@
 # Implementation status
 
+## Pre-alpha integration review and Connector corrections — 2026-10-08
+
+The maintainer requested careful review, tests and main integration as a usable
+development baseline and an engineering/research case study. The
+[source integration decision](milestones.md#source-integration-decision--2026-10-08)
+separates this from CRED-01/M1 acceptance and production activation. The
+[case study](engineering-case-study.md) maps design choices to code and tests,
+records AI-assisted development accountability and identifies falsifiable
+questions informed by dated July–October primary research.
+
+The review reproduced and corrected three Connector defects: HTTP redirects
+could forward bot authorization outside the fixed HTTPS request; a later chunk
+failure could acknowledge an incomplete reply as delivered; byte-based splitting
+could corrupt a Unicode code point. The related delivery loop also counted
+failed completions as delivered and discarded outbound rate-limit pacing.
+Redirects are now refused, Unicode boundaries retained, and schema-2 private
+chunk receipts permit retrying only the acknowledged prefix's remainder.
+Known schema-1 state migrates transactionally; unknown/duplicate versions refuse.
+Typed platform failures retain pacing and only delivered completions increment
+the delivery counter. Regressions exercise restart, changed reply identity,
+lost Core completion, receipt-write failure and the migration/refusal boundaries.
+
+These are code and deterministic-test claims, not new live-platform evidence.
+The unavoidable platform-send/local-receipt gap may still duplicate an
+unrecorded chunk after a crash or lost response. Future deployment must rebuild
+and attest the changed Connector artifact; old native witnesses retain their
+original artifact scope. Default builds remain mock-only. Real V4 provider,
+required refresh and private-Discord acceptance remain unobserved; CRED-01/M1
+is open. Earlier dated entries retain their historical merge decisions.
+
 ## Real campaign stopped at enrollment witness; M1 remains open — 2026-10-07
 
 The development candidate `a168ee306ad839634e4143334209ff21f178068f` was

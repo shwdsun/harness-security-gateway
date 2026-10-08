@@ -10,41 +10,24 @@ authenticated messaging events into durable Runs against operator-approved,
 immutable harness targets without implementing another agent loop or
 orchestrator.
 
-> **Status as of 2026-10-07: pre-alpha.** The control plane and private Discord
-> Connector are implemented. A dated September 16 deployment witness completed
-> two Discord-to-Codex text Runs, replies and sequential cleanup. That historical
-> profile lets the Runner read reusable provider auth; CRED-01 is still unmet.
-> The separate opt-in V4 candidate has bounded synthetic native execution evidence, with
-> synthetic inference401/Catalog401 recovery and refresh cancellation accepted.
-> First-helper-loss safe failure and original same-DB Owner crash/restart are
-> accepted within their separate synthetic scopes. The accumulated V4 candidate
-> passed local normal/tagged tests, race checks, vet and
-> [CI on the pushed development commit](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
-> The October 7 real campaign stopped after credential enrollment when its
-> private service-completion witness failed; no task was posted and cleanup was
-> verified. Real-provider/refresh/Discord acceptance and M1/main integration
-> remain open.
-> Fixed Codex startup requires an
-> explicit opt-in build; default builds remain mock-only. No production release
-> or approved V4 deployment follows from these observations. See the
-> [current implementation status](docs/implementation-status.md) and
-> [M1 acceptance boundary](docs/milestones.md).
+> **Status as of 2026-10-08: pre-alpha.** Default builds support the mock path;
+> native Codex execution requires an explicit opt-in build. The control plane
+> and private Discord Connector are implemented. Two September 16 live text
+> Runs exercised an older profile whose reusable provider auth remained readable
+> by its Runner. The owner-isolated V4 candidate has scoped synthetic evidence,
+> but its October 7 real campaign stopped after enrollment, before a task.
+> **CRED-01/M1, real-provider refresh and V4 Discord acceptance remain open.**
+> Reviewed source integration does not approve deployment or a production
+> release. See [implementation status](docs/implementation-status.md) and the
+> [milestone boundaries](docs/milestones.md).
 
 Start with `make demo-security` or the [local mock runbook](docs/runbook.md).
-The [2026-09-10 checkpoint](docs/checkpoint-2026-09-10.md) records local Go/race/vet
-results, scoped native experiments and the initial failed real Runs. The
-[fifth Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) records the
-subsequent scoped success and remaining product gates.
-The [fixed Codex startup guide](docs/codex-daemon-startup.md) covers local
-configuration, scope export, explicit enrollment and the
-[first ordinary-service Run](docs/codex-daemon-startup.md#first-ordinary-service-run--2026-09-11).
-The [offline deployment preparation](deploy/codex/README.md) packages pinned
-development inputs and supplies separate service-identity templates for review.
-It does not install or activate services.
-The [native identity witness](internal/localhttp/testdata/identity-witness/README.md)
-passed on September 11 with distinct kernel UIDs in an offline rootless
-container; host service provisioning and activation remain separate gates.
-Those dated observations are separate from the CI badge and release status.
+For a code, design or research review, the
+[engineering case study](docs/engineering-case-study.md) traces key decisions
+to implementation and counterexamples, explains the AI-assisted development
+workflow, and relates its limits to July–October 2026 research. The
+[deployment guide](docs/deployment.md) separates runnable mock support,
+dated native experiments and the remaining real-path gates.
 
 > Messages may invoke an operator-preauthorized execution envelope; they may
 > never select or widen that envelope.
@@ -101,7 +84,7 @@ workflow remains the next integration milestone.
 | Exact scoped session lifecycle | Implemented and tested with one-use references, age/turn bounds, and one live Run per exact scope |
 | Offline security witness | Implemented; uses production decoding, policy, service, and Core SQLite code |
 | Credential lifecycle | Immutable source/proof/generation binding, held-source handoff and ordered cleanup/release implemented; explicit local enrollment is wired in the opt-in fixed Codex build |
-| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance and main integration remain open. No approved production V4 image is shipped |
+| Codex adapter and isolated V4 candidate | V1–V3 contracts retained; opt-in V4 separates owner auth from the Runner. Bounded synthetic native execution, recovery and fault scopes are accepted separately; real acceptance remains open. No approved production V4 image is shipped |
 | Controlled provider canary | The [fifth real Run](docs/codex-provider-canary.md#fifth-real-run--2026-09-10) passed native completion, tool marker, local delivery and independent cleanup checks on 2026-09-10; four earlier failures remain retained. Separate opt-in owner; production acceptance remains open |
 | Fixed Codex daemon startup | Explicit configuration/enrollment and existing recovery integrated; one fake-ingress Run through ordinary services passed on 2026-09-11 with native reply, tool marker, local delivery and independent cleanup. Production deployment acceptance remains open |
 | Recovery verification | Opt-in formal model with explicit assumptions and sampled implementation conformance; ordinary tests and native witnesses retain their separate scopes |
@@ -201,16 +184,16 @@ model.
 The following gates remain open; the repository makes no claim that they have
 passed:
 
-- deploy distinct service UIDs and verify private path ownership, setgid
-  directory traversal, and `0660` socket access;
-- build and digest-pin the Codex image, then bind resolved auth, network,
-  context, and runtime profiles into the target revision;
-- close repository/system skill and customization injection, then test
-  credential reach, refresh, revocation, and provider-versus-tool egress;
-- prove cancellation, detached-descendant cleanup, and container quiescence;
-- implement a Discord Connector with stable-ID admission and Connector-owned
-  durable cursor, spool, reconnect, and catch-up behavior;
-- complete the deny audit and isolated private-Discord adversarial experiments.
+- close CRED-01 on the named real V4 profile, including provider compatibility,
+  required refresh and private Discord task/reply acceptance;
+- attest the accepted profile's exact artifacts, distinct service identities,
+  credential and filesystem reach, and provider-versus-tool egress;
+- complete its applicable adversarial, cancellation, crash and cleanup cases,
+  including repository customization and detached descendants;
+- establish a supported installation, update and recovery procedure with
+  predictable operator effort before a personal pilot release;
+- measure benefit and operating cost against simpler alternatives before
+  expanding the product.
 
 Some internal identifiers retain the original prototype namespace (`HG_`,
 `hgw`, and `harness-gateway`) because they participate in persisted hashes,
@@ -241,6 +224,7 @@ matrix are deliberately deferred.
 
 ## Documentation
 
+- [Engineering case study, AI-assisted workflow and research questions](docs/engineering-case-study.md)
 - [Current implementation status](docs/implementation-status.md)
 - [2026-09-10 checkpoint and reflection](docs/checkpoint-2026-09-10.md)
 - [Content evolution and verification scope](docs/content-evolution-and-verification.md)

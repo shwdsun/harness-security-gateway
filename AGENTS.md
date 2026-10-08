@@ -72,6 +72,9 @@ disagreement; do not silently expand a claim to make documentation pass.
 - Compliance with the operator's development agreement is part of task
   acceptance. Minimize operator involvement and honor stricter stage budgets;
   existing authorization must not be requested again without a scope change.
+- Before yielding unfinished work or requesting operator action, complete all
+  currently authorized implementation, verification, diagnosis and recovery
+  preparation. Identify any unavoidable external dependency with evidence.
 - Count manual-action requests across the same objective. Before a third
   request for commands, authentication, platform steps, approval or evidence
   transfer, stop adding operator work, record the process failure and redesign

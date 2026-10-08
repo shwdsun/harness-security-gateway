@@ -156,6 +156,15 @@ AI-assisted development follows the same authority rule as the product:
   finding is accepted;
 - model agreement never authorizes a design change by itself.
 
+The development interaction also has an acceptance boundary. Complete available
+implementation, verification and recovery preparation before requiring an
+operator handoff; an installation dependency does not block ordinary debugging.
+Count manual steps and rework across the objective, and redesign a workflow
+that repeatedly returns unfinished agent work to its operator. Functional
+success, security acceptance and process compliance are separate outcomes.
+The [engineering case study](engineering-case-study.md) connects these choices
+to inspectable evidence and recent research, without claiming measured speedup.
+
 ## Change test
 
 Before widening the system, answer:

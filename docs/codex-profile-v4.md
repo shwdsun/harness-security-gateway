@@ -1,13 +1,16 @@
 # Codex Profile v4: owner-only authentication candidate
 
-Status, **2026-10-07**: implemented opt-in wiring; synthetic native inference401,
+Status, **2026-10-08**: implemented opt-in wiring; synthetic native inference401,
 Catalog401 recovery, authenticated refresh cancellation and first-helper-loss
 safe failure and original same-DB Owner crash/restart accepted in separate
-synthetic scopes. Consolidated local tests/race/vet and code review passed;
-[pushed-commit CI passed](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
+synthetic scopes. The October 7 development commit `a168ee3` passed consolidated
+local tests/race/vet, code review and
+[its pushed-commit CI](https://github.com/shwdsun/harness-security-gateway/actions/runs/37683057049).
+That CI result predates the October 8 Connector corrections.
 The bounded real campaign stopped at its private enrollment-completion witness
 before a task; cleanup was verified. Real-provider/refresh/Discord acceptance
-and main integration remain open.
+remains open. Reviewed pre-alpha source integration is separate from this
+profile's acceptance, as recorded in the [milestone decision](milestones.md#source-integration-decision--2026-10-08).
 This is the next CRED-01 candidate,
 with classification `credential-isolated-candidate`; older revisions remain
 `credential-exposed-personal`. See [current evidence](implementation-status.md).
