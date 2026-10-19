@@ -70,7 +70,8 @@ In the isolated Codex design, the **authentication owner** is trusted software
 outside the Runner that holds real provider authentication and mediates narrowly
 allowed requests. It is a technical component, not another human account. The
 Runner receives a disposable local representation and a task-scoped channel.
-Integrated real-service acceptance of this design remains open.
+One fixed deployment passed [bounded real-service acceptance on October 19](real-service-acceptance-2026-10-19.md).
+That dated observation does not establish general deployment support.
 
 ## Capability and evidence language
 

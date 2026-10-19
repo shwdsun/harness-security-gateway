@@ -1,6 +1,6 @@
 # Current implementation status
 
-Snapshot: **2026-10-08**. HSG is in early development. The source implements a
+Snapshot: **2026-10-19**. HSG is in early development. The source implements a
 personal messaging gateway, but a supported real Discord-to-Codex installation
 is not ready. [Core concepts](concepts.md) define the names and evidence language
 used here; [deployment paths](deployment.md) give prerequisites.
@@ -30,8 +30,8 @@ Codex image is supplied.
 | Execution lifecycle | One-task containers, workspace ownership, cancellation and reconciliation of uncertain creation or cleanup | Automatic tests use controlled runtimes; native observations apply only to their named environment and artifacts |
 | Harness continuity | Bounded one-use private session references for targets supporting continuity | Current experimental Codex targets use a fresh harness session for each task |
 | Credential lifecycle | Explicit enrollment, generation binding, source verification, retirement and occupancy tracking | Lifecycle bookkeeping alone does not hide readable authentication from task tools |
-| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | Historical live text experiments do not establish the current credential-isolated deployment |
-| Experimental Codex isolation | Trusted authentication owner, task-scoped provider mediation and disposable local client representation | Integrated real-provider compatibility, renewal and private-Discord acceptance remain open |
+| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | One fixed isolated deployment completed a real task and independently verified reply on October 19; general deployment support remains open |
+| Experimental Codex isolation | Trusted authentication owner, task-scoped provider mediation and disposable local client representation | Bounded real-service acceptance passed on October 19, including qualified natural-renewal evidence and finite real-token observations; not universal secrecy or production approval |
 
 See [architecture](architecture.md), [access control](access-control.md) and the
 [Discord contract](discord-connector.md) for precise mechanisms. Changed images
@@ -51,10 +51,20 @@ The current [isolated-authentication candidate](codex-profile-v4.md), technicall
 called **Codex Profile v4**, keeps real authentication in trusted software
 outside the Runner. Automated tests and scoped experiments exercise its native
 client, authentication substitution, renewal, cancellation and owner recovery
-with controlled provider data. Those observations do not establish compatibility
-and renewal against the real model service.
+with controlled provider data. A [bounded real-service acceptance](real-service-acceptance-2026-10-19.md)
+passed on October 19 for fixed artifacts in one private experimental deployment.
+It completed one authorized task, verified the actual Discord reply, observed
+containment and cleanup, and supported accepted natural renewal through an
+in-place access-token change. Renewal is a qualified inference, not a captured
+upstream authentication exchange.
 
-The next integrated acceptance must establish:
+The real-token witness found no exact matches in its bounded live and retained
+surfaces. It did not intercept active protocol streams or scan every raw tool
+argument, response or discarded diagnostic. Earlier synthetic mechanism and
+failure-path results retain their dates and assumptions; the linked result
+explains which unchanged source and artifacts support their reuse.
+
+The integrated acceptance criteria remain:
 
 1. Useful Codex work and replies through the intended private Discord path.
 2. Reusable credentials remaining inaccessible to task-controlled tools.
@@ -65,7 +75,10 @@ The next integrated acceptance must establish:
 These criteria define the [credential-isolated messaging delivery goal](milestones.md#credential-isolated-messaging).
 Historical references call that goal `M1`; its credential-recovery test is
 `CRED-01`. [Identifier meanings](concepts.md#planning-test-and-design-identifiers)
-explain their distinct roles.
+explain their distinct roles. On October 19, the combined real-path, mechanism
+and failure-path evidence was accepted for that goal and test **only for the
+named profile, exact artifacts and tested deployment**, under their stated trust
+assumptions. This does not approve a new deployment or establish universal secrecy.
 
 ## Dated evidence
 
@@ -76,23 +89,24 @@ explain their distinct roles.
 | 2026-09-16 | Two sequential private Discord text tasks completed with replies and sequential container cleanup | Earlier credential-exposed profile, one host and bounded tasks; earlier failed repeat retained |
 | 2026-10-07 | The isolated-profile real campaign stopped at credential-setup completion verification, before a task or serving started; cleanup was verified | Operations failure retained; no real task/provider/renewal acceptance for the isolated candidate |
 | 2026-10-08 | Source review repaired redirect credential exposure, partial-reply completion, Unicode splitting, and outbound pacing/counting defects; automated checks passed | [Regression tests](../internal/discordconnector/delivery_progress_test.go) and [response-boundary tests](../internal/discordconnector/response_boundaries_test.go); no new live-platform result |
+| 2026-10-19 | One isolated-profile Discord-to-Codex task, exact file/output state, independently checked platform reply and owned cleanup passed | [Fixed-deployment acceptance](real-service-acceptance-2026-10-19.md); natural-renewal inference and bounded real-token scans, with earlier failures preserved |
 
 The reviewed source baseline was merged as
 [`0dadcfb`](https://github.com/shwdsun/harness-security-gateway/commit/0dadcfb716e8c17fdd5e59b670148dbcfa9d276e).
 [CI for that commit](https://github.com/shwdsun/harness-security-gateway/actions/runs/37707842453)
 passed normal and experimental component checks, mock-image builds and reachable
 Go vulnerability checks. Skipped or excluded native/provider tests retain their
-stated scope. Source integration does not complete real-service acceptance or
-activate a deployment.
+stated scope. That source merge did not establish real-service acceptance; the
+October 19 result supplies its own bounded evidence. Neither activates a
+production deployment.
 
 ## Remaining delivery work
 
-- Finish the integrated credential-isolation acceptance described above.
-- Attest the exact deployed images, service identities, credential/filesystem
-  reach and provider-versus-tool network access.
-- Complete applicable adversarial, cancellation, crash and cleanup scenarios.
 - Establish supported installation, update and recovery with predictable
   operator effort before a personal pilot release.
+- Renew artifact, identity, filesystem and network observations when the
+  accepted deployment inputs change; retain unchanged mechanism evidence
+  with its original date and assumptions.
 - Measure benefit and operating cost against simpler alternatives before
   expanding the product.
 

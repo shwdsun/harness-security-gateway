@@ -1,8 +1,8 @@
 # Content evolution and verification scope
 
 Adopted **2026-09-09 UTC**. This is an evolution and engineering contract;
-implemented V1 interfaces remain text-only, and the real target remains blocked.
-The synthetic V3 composition and opt-in provider canary have since advanced;
+implemented V1 interfaces remain text-only, and real execution is experimental.
+The synthetic composition and bounded real-service evidence have since advanced;
 [implementation status](implementation-status.md) records their dated evidence
 and remaining gates. Images, files, a new wire schema or artifact storage are
 not implemented by this decision.

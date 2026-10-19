@@ -7,17 +7,19 @@ stay there. The Runner receives a disposable local authentication representation
 and a task-scoped channel. See [core concepts](concepts.md) for components,
 credentials and independent version labels.
 
-Status, **2026-10-08**: experimental integration implemented. Controlled
-provider fixtures exercise the actual client and selected failure paths.
-Real-provider compatibility, credential renewal and complete Discord task/reply
-acceptance remain unverified. The October 7 real campaign stopped during
-credential-setup completion verification, before a task; cleanup was verified.
+Status, **2026-10-19**: one fixed experimental deployment passed
+[bounded real-service acceptance](real-service-acceptance-2026-10-19.md): useful
+Codex work, an independently verified Discord reply, containment, cleanup and
+evidence supporting accepted natural renewal. The real-token witness is finite
+and passive; active protocol streams retain separate synthetic mechanism
+evidence. This result is not a supported installation or production approval.
 See [current evidence](implementation-status.md#credential-isolation).
 
 Source integration and real-profile acceptance are separate, as recorded in the
 [delivery decision](milestones.md#source-integration-decision--2026-10-08).
-The classification `credential-isolated-candidate` identifies this unaccepted
-design; earlier profiles remain `credential-exposed-personal`, meaning task
+The classification `credential-isolated-candidate` continues to identify this
+unreleased experimental profile; it is not a general deployment guarantee.
+Earlier profiles remain `credential-exposed-personal`, meaning task
 tools can read their reusable authentication. The credential-recovery test is
 one requirement within the wider [credential-isolated messaging goal](milestones.md#credential-isolated-messaging).
 
@@ -120,7 +122,18 @@ releases occupancy/publication last. Lost retirement responses remain retryable;
 resource-map deletion cannot erase credential taint. Owner loss requires startup
 helper absence and the existing durable retirement/recovery, never auth replay.
 
-## Remaining acceptance
+<a id="remaining-acceptance"></a>
+
+## Acceptance and dated verification
+
+The [October 19 result](real-service-acceptance-2026-10-19.md) records the
+current fixed-deployment real-path pass and its limits. On October 19, final
+review accepted credential-isolated messaging, including the credential-recovery
+condition, only for this profile, exact artifacts and tested deployment. That
+decision combines the real result with the separately accepted native mechanisms
+below; it does not approve arbitrary deployments or a production release.
+The earlier entries preserve what was known at their dates; their old open-gate
+statements are historical, rather than a replacement for current status.
 
 **October7 real campaign:** credential enrollment succeeded according to the
 service journal, but the private driver's completion condition timed out and

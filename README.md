@@ -14,12 +14,13 @@ choose a host path, container image, credential or network policy. Codex
 remains responsible for reasoning and tools; HSG supplies the surrounding
 authorization and execution boundary.
 
-> **Current status — 2026-10-08: early development (pre-alpha).** You can run
-> an offline security demonstration and an advanced local workflow using a
-> simulated coding agent. The Discord connector and experimental Codex
-> integration are implemented, but a supported Discord-to-Codex deployment
-> is still awaiting integrated credential-isolation and real-service testing.
-> See [current capabilities and limits](docs/implementation-status.md).
+> **Current status — 2026-10-19: early development (pre-alpha).** You can run
+> an offline security demonstration and an advanced local simulated workflow.
+> A bounded real Discord-to-Codex experiment has also passed, with explicit
+> credential-isolation limits and evidence supporting natural credential renewal.
+> A supported real installation and personal pilot are not ready. See
+> [current capabilities](docs/implementation-status.md) and the
+> [dated acceptance result](docs/real-service-acceptance-2026-10-19.md).
 
 ## Try the offline demonstration
 
@@ -75,8 +76,8 @@ The [core concepts](docs/concepts.md) explain these terms and their lifetimes.
 | Exact authorization and duplicate-event handling | Implemented and automatically tested against production decoding, policy and storage code |
 | Durable task and reply lifecycle | Implemented, with restart and failure tests; platform delivery still has a send/receipt uncertainty window |
 | Container lifecycle and cleanup reconciliation | Implemented and automatically tested; dated local container experiments have separate environmental limits |
-| Discord message ingestion and reply delivery | Implemented; historical real-message experiments exist, but the current isolated-credential workflow needs integrated real-service validation |
-| Codex execution and credential isolation | Experimental integration with automated and controlled native tests; real-provider compatibility and credential renewal remain unverified for the isolated candidate |
+| Discord message ingestion and reply delivery | One authorized real task and its independently observed reply passed on October 19 for a fixed experimental deployment |
+| Codex execution and credential isolation | Real-service compatibility, bounded real-token observations and natural-renewal evidence passed for that deployment; controlled native failure tests retain their separate scope |
 | Recovery model | An optional formal-methods experiment checks a stated abstract invariant; implementation and deployment require their own evidence |
 
 Default builds use the simulated agent. Experimental Codex execution requires
@@ -97,8 +98,8 @@ capabilities from dated experiments.
 - A reply destination comes from the accepted task. Model output cannot choose
   another recipient.
 - Credentials, storage, runtime access and workspaces have separate owners.
-  The current isolated-credential candidate needs real-service acceptance
-  before that stronger deployment claim can be made.
+  The [October 19 experiment](docs/real-service-acceptance-2026-10-19.md)
+  supports the isolated boundary for its fixed artifacts and stated assumptions.
 
 The earlier real Codex experiments allowed workspace tools to read reusable
 provider authentication. Their dated successes do not establish the newer
@@ -111,13 +112,10 @@ give the precise assumptions and remaining limits.
 
 ## Next delivery goals
 
-1. Validate useful Discord-to-Codex work while reusable provider credentials
-   remain inaccessible to task tools, including credential renewal.
-2. Complete the applicable isolation, cancellation, crash and cleanup cases
-   for that exact deployment.
-3. Provide a documented installation, update and recovery workflow with
+1. Provide a documented installation, update and recovery workflow with
    predictable operator effort before a personal pilot release.
-4. Measure security benefit and operating cost against simpler alternatives
+2. Renew affected evidence when an artifact or deployment boundary changes.
+3. Measure security benefit and operating cost against simpler alternatives
    before expanding the product.
 
 The [delivery roadmap](docs/milestones.md) defines completion criteria.

@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-Current planning summary: **2026-10-08**. The first product path remains one
+Current planning summary: **2026-10-19**. The first product path remains one
 operator, one private Discord entry, one fixed Codex target and text tasks.
 [Implementation status](implementation-status.md) reports evidence;
 [core concepts](concepts.md) define technical terms and reference labels.
@@ -9,8 +9,8 @@ operator, one private Discord entry, one fixed Codex target and text tasks.
 
 | Goal | Completion criteria | Current position |
 | --- | --- | --- |
-| Functional private messaging | Authorized text work reaches Codex, replies to the accepted conversation and cleans up | Observed in bounded September experiments under an earlier credential-exposed profile |
-| Credential-isolated messaging | The same useful work, with reusable provider credentials inaccessible to task tools; real-service compatibility and renewal verified | Implemented candidate with scoped automated/native results; integrated real-service acceptance remains open |
+| Functional private messaging | Authorized text work reaches Codex, replies to the accepted conversation and cleans up | Observed in September under an earlier credential-exposed profile and on October 19 in the fixed isolated deployment |
+| Credential-isolated messaging | The same useful work, with reusable provider credentials inaccessible to task tools; real-service compatibility and renewal verified | Accepted October 19 for the named profile, exact artifacts and tested deployment, combining bounded real observations with separately scoped native mechanism and failure evidence |
 | Usable personal pilot | Install, update, operate and recover a bounded deployment with predictable operator effort; applicable security requirements satisfied | Planned; supported real deployment is not ready |
 | Product direction decision | Compare repeatable security benefit and operating cost with simpler alternatives | Comparison protocol exists; no completed comparative verdict |
 
@@ -53,6 +53,16 @@ The credential-recovery requirement is test case `CRED-01` in
 [`bakeoff/cases.json`](../bakeoff/cases.json). It is one necessary condition
 inside this delivery milestone (`M1`), not another name for the entire milestone.
 Two synthetic successes or passing source CI are insufficient.
+
+The [October 19 acceptance](real-service-acceptance-2026-10-19.md) now supplies
+one real useful task, independent reply and cleanup evidence, bounded token
+observations and qualified natural-renewal evidence. It is scoped to fixed
+artifacts and one deployment. Final review accepted the credential-isolated
+messaging goal (`M1`), including its credential-recovery condition (`CRED-01`),
+for that scope by combining the real result with unchanged, separately accepted
+failure-path and protocol-boundary mechanisms. A single task or finite scan
+alone cannot establish universal credential secrecy. New deployments and a
+supported personal pilot retain their own acceptance requirements.
 
 An unresolved compatibility result remains an unmet acceptance condition. If
 isolation would require widening authority or adding a disproportionate subsystem,

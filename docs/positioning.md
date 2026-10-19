@@ -1,9 +1,10 @@
 # Product position and scope
 
-Status as of **2026-10-08**: early development (pre-alpha). The local simulation
-and offline demonstration are runnable. The intended real workflow is private
-Discord messaging to Codex; its isolated-credential design still needs real-
-service compatibility, credential renewal and complete task/reply validation.
+Status as of **2026-10-19**: early development (pre-alpha). The local simulation
+and offline demonstration are runnable. One fixed isolated Discord-to-Codex
+deployment passed [bounded real-service acceptance](real-service-acceptance-2026-10-19.md),
+including a task, actual reply, cleanup and evidence supporting natural credential
+renewal. A supported real installation and personal pilot are not ready.
 See [current capabilities](implementation-status.md) and [core concepts](concepts.md).
 
 The goal is a usable personal gateway for requesting coding work from private
@@ -49,10 +50,11 @@ plugin, skill, or MCP server.
 The simulated-agent path, exact authorization, durable task lifecycle and
 private Discord connector are implemented. Earlier real experiments used an
 execution profile whose reusable authentication was readable by task tools.
-The current isolated-authentication candidate has controlled executable and
-failure tests, but those do not establish real-provider compatibility. The
-October 7 real campaign stopped after credential setup, before serving or a
-task; cleanup was verified and the failure remains retained.
+The isolated-authentication profile now has a bounded October 19 real-service
+result alongside the separately scoped executable and failure tests. Its
+credential-isolated messaging milestone was accepted only for the named profile,
+exact artifacts and tested deployment. Earlier failures, including the October 7
+credential-setup failure before a task, remain retained.
 
 Default daemon builds remain mock-only and no approved production Codex target
 is shipped. See [implementation status](implementation-status.md) for current
@@ -70,7 +72,8 @@ Execution is limited to one live task per exact authorization/session scope.
 
 ## Frozen non-goals
 
-Until the Discord-and-Codex path passes its security gates, do not add:
+The bounded acceptance does not authorize expansion. The following remain
+outside the current product scope:
 
 - Claude Code or WhatsApp production integrations;
 - attachments, buttons, remote approvals, or rich message schemas;
@@ -84,11 +87,12 @@ The repository demonstrates strict local protocols, exact admission, durable
 message and Run state, a digest-pinned mock Runner, rootless-runtime
 attestation, fail-closed crash reconciliation, and a credential-free security
 witness. The opt-in Codex experiments add scoped native/transport and cleanup
-evidence, with failed real-provider attempts explicitly retained. Historical
-Discord-to-Codex Runs under separate system identities, including a two-message
-repeat, have recorded end state. They do not establish general reliability,
-complete adversarial coverage, compatibility of the current isolated-
-authentication candidate or production readiness.
+evidence, with failed real-provider attempts explicitly retained. The October 19
+result adds real compatibility and qualified renewal evidence for fixed isolated
+artifacts. Historical Discord-to-Codex Runs under earlier profiles, including a
+two-message repeat, retain their separate scope. These observations do not
+establish general reliability, complete adversarial coverage or production
+readiness.
 The earlier Codex execution profile remains classified as
 `credential-exposed-personal`: its operation endpoint does not hide the
 dedicated credential from task tools. The formal recovery pilot proves only

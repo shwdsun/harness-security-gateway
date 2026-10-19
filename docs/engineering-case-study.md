@@ -1,6 +1,6 @@
 # Engineering case study: authority and evidence in AI-assisted development
 
-Case study updated **2026-10-08**; literature snapshot **2026-10-07**.
+Case study updated **2026-10-19**; literature snapshot **2026-10-07**.
 
 Harness Security Gateway is an independently developed, single-user gateway
 for requesting coding work through private messaging. Its first intended path
@@ -18,10 +18,12 @@ For a quick review:
   evidence can contradict a model, and which outcomes remain unmeasured.
 
 This is an **early development baseline (pre-alpha)**. Source integration is
-separate from acceptance of a real deployment. The current credential-isolation
-design still needs real-provider compatibility, credential renewal and complete
-private-Discord validation. Historical deployment observations and controlled
-tests apply only to their stated profiles. [Implementation status](implementation-status.md)
+separate from acceptance of a real deployment. A fixed isolated deployment
+passed [bounded real-service acceptance on October 19](real-service-acceptance-2026-10-19.md),
+including a useful task, actual reply, cleanup and evidence supporting natural
+credential renewal. Its finite secret scans and the earlier controlled tests
+retain their distinct scopes; general deployment support is not established.
+[Implementation status](implementation-status.md)
 and the [credential-isolated messaging criteria](milestones.md#credential-isolated-messaging)
 govern those claims. [Core concepts](concepts.md) define task records (`Run`),
 authorization rules (`Binding`) and execution targets before the code mappings below.
@@ -109,6 +111,13 @@ overall workflow unsuccessful when diagnosis and recovery repeatedly return to
 the operator. The repository contract therefore counts manual-action requests
 across an objective and requires redesign before a third request. Preparation,
 verification and recoverable agent work should precede a necessary handoff.
+
+The October 19 acceptance exercised the revised process: the agent used two
+operator-approved Bot identities, prepared its own bounded VM and diagnostic
+path, preserved failed attempts, repaired a demonstrated provisioning defect,
+and completed one real task without another manual step during that campaign.
+[The result](real-service-acceptance-2026-10-19.md) reports both the outcome and
+its evidence limits.
 
 That protocol is a design constraint and a response to process failure, not a
 measured productivity result. Request counts alone also miss manual substeps,

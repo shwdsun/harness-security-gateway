@@ -44,8 +44,8 @@ repository. Human maintainers own scope, security claims, and release decisions.
   profile and its native Codex instruction mapping.
 - `docs/codex-profile-v3.md`: blocked native tool-package template, startup
   checks and component/runtime evidence boundaries.
-- `docs/codex-profile-v4.md`: blocked owner-only auth/runtime candidate and its
-  remaining real-provider and deployment acceptance.
+- `docs/codex-profile-v4.md`: experimental owner-only auth/runtime contract,
+  dated fixed-deployment acceptance and remaining support limits.
 - `docs/discord-connector.md`: the private Discord Connector's ingress,
   identity, delivery and credential contract.
 - `docs/runbook.md`: local mock execution.

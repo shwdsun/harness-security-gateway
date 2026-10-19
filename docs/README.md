@@ -45,8 +45,9 @@ These profiles are experimental execution-contract revisions, not product
 releases. Read the [current credential boundary](implementation-status.md#credential-isolation)
 before selecting an earlier profile or a technical experiment.
 
-- [Isolated-authentication candidate](codex-profile-v4.md): current experimental
-  direction, with real-service acceptance still open.
+- [Isolated-authentication profile](codex-profile-v4.md): current experimental
+  direction, with a [bounded October 19 real-service result](real-service-acceptance-2026-10-19.md)
+  and separately scoped native mechanism evidence.
 - [Earlier execution contracts](codex-profile-v1.md), [messaging behavior](codex-profile-v2.md)
   and [native tool package](codex-profile-v3.md): earlier revisions and their limits.
 - [Fixed daemon startup](codex-daemon-startup.md), [provider experiment](codex-provider-canary.md)

@@ -24,7 +24,7 @@ protocol behavior remain authoritative in [architecture.md](architecture.md),
 | Offline witness | production decoders, policy, service, and Core store with synthetic input | none required | five narrow deterministic security properties |
 | Local mock runbook | fake Connector, `agentd`, `sandboxd`, rootless Docker, and one mock Runner container per Run | no platform/model credential; a controlled registry may be needed before execution | protocol, persistence, and local runtime integration under the runbook's stated limits |
 | Opt-in fixed Codex experiment | fake Connector, ordinary `agentd`, opt-in `sandboxd` and fixed native Runner | dedicated provider credential and explicitly approved fixed upstream operations | one controlled local Run passed on 2026-09-11; manual provisioning, not production acceptance |
-| Real Discord to Codex | not shipped | would require both platform and provider credentials | no public deployment or security claim |
+| Real Discord to Codex | fixed experimental isolated profile; no supported installer | dedicated platform and provider credentials | [one bounded deployment passed on October 19](real-service-acceptance-2026-10-19.md); no general support or production claim |
 
 Use `make demo-security` for the first path. Use the
 [local mock runbook](runbook.md) for the second. The runbook is deliberately
@@ -146,8 +146,9 @@ artifact. Reusable provider auth and the fixed trusted refresh helper stay in
 the Owner domain; the Runner receives a Run-scoped channel and non-secret local
 auth representation. Native CLI, launcher, companion host and helper artifacts
 require immutable installation, separate from service-owned mutable storage.
-Bounded synthetic native and failure scopes have evidence; required real
-provider compatibility, refresh and private Discord acceptance remain open.
+Bounded synthetic native and failure scopes have evidence. A fixed deployment
+passed [real-service acceptance on October 19](real-service-acceptance-2026-10-19.md),
+including qualified natural-renewal and finite real-token observations.
 The existing `deploy/codex` bundle describes V3 and does not package or approve
 this isolated-authentication candidate. Completing the credential-isolated
 messaging milestone does not itself activate a production target.
@@ -281,8 +282,9 @@ passed on **2026-09-11 at 04:29 UTC** with distinct kernel UIDs, synthetic state
 and the production Unix transport. It establishes the tested Linux permission
 and peer-authentication layout inside one rootless container. It does not
 establish host service accounts, a new runtime owner or credential transition.
-The scoped fake-ingress witness above is complete; production target
-and isolated private-Discord acceptance remain open. A turnkey installer becomes appropriate
+The scoped fake-ingress witness above and the separately scoped October 19
+private-Discord experiment are complete. Production deployment remains open.
+A turnkey installer becomes appropriate
 after that exact path has repeatable provisioning, rollback, and adversarial
 evidence. Until then, use the credential-free flows or an explicitly scoped
 fixed-Codex experiment, preserving each manual precondition as observable evidence.

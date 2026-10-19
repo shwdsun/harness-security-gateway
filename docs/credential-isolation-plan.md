@@ -8,6 +8,14 @@ and [core concepts](concepts.md#planning-test-and-design-identifiers).
 The dated work-package notes below retain their original evidence scope;
 [implementation status](implementation-status.md#credential-isolation) gives current readiness.
 
+## Historical planning baseline — 2026-10-01
+
+The planning status and exposed-credential mechanism below describe the
+earlier baseline, not the current isolated deployment. Later dated notes retain
+their own scope. Read the [current isolated profile](codex-profile-v4.md) and
+[October 19 acceptance](real-service-acceptance-2026-10-19.md) for its present
+credential boundary and limited deployment result.
+
 Updated: **2026-10-01**. Status: **isolated runtime/profile candidate wired; composed acceptance open**.
 The client-side and trusted native-refresh offline compatibility probes below
 have scoped positive evidence. Owner-only storage and managed-auth parsing are
@@ -20,7 +28,9 @@ This narrows the existing [F7 gap](drift-ledger.md#missing--f7-credential-isolat
 It does not change the deployed `credential-exposed-personal` classification,
 authorize a live provider call, or supersede an immutable TargetRevision.
 
-## Claim and present mechanism
+<a id="claim-and-present-mechanism"></a>
+
+## Requirement and historical exposed-credential mechanism
 
 [CRED-01](../bakeoff/cases.json) requires model-controlled tools to be unable to
 recover reusable provider credentials from files, environment, process state,
@@ -483,10 +493,17 @@ profile/image/TargetRevision, explicit credential migration and bounded provider
 effects. An exposed old target is not an automatic fallback. No new device login
 is assumed necessary until the prepared migration shows it.
 
-Current position, **2026-10-05**: the owner storage/parser, native consumer and
+Historical position, **2026-10-05**: the owner storage/parser, native consumer and
 provider adapter are wired into the opt-in V4 runtime as of October 1. The
 September component records above retain their original scope and dates.
 V4 remains blocked pending final composed and real-path acceptance; see
 [the current profile](codex-profile-v4.md). The existing deployed authentication
 path and credentials have not migrated. This plan and its opt-in fixtures do
 not activate a profile or close CRED-01.
+
+Update, **2026-10-19**: a fixed deployment passed
+[bounded real-service acceptance](real-service-acceptance-2026-10-19.md), with
+useful work, independently verified reply, cleanup, natural-renewal evidence
+and finite real-token observations. That result and the unchanged native
+mechanism evidence have separate scopes; supported installation and production
+activation remain outside this acceptance.

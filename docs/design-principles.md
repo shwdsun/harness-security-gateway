@@ -8,9 +8,10 @@ and a fixed execution configuration is identified by its `TargetRevision`.
 
 Harness Security Gateway is designed as a security boundary between a
 natural-language request and a coding harness that can act on a machine. The
-current pre-alpha proves only the implemented control-plane properties and mock
-path described in [implementation-status.md](implementation-status.md); it is
-not yet a production containment boundary or an agent platform.
+current pre-alpha has scoped control-plane, mock and fixed-deployment real-service
+evidence described in [implementation-status.md](implementation-status.md). It
+has not established a supported production containment boundary and is not an
+agent platform.
 
 The axioms this design rests on, and the consequences those axioms force, are
 separated out in [first-principles.md](first-principles.md). This document
