@@ -72,6 +72,14 @@ The Connector was the October 8 rebuild containing the reviewed delivery and
 response-boundary corrections. This was not a newly reproduced build or a
 post-task hash scan of every installed file.
 
+These dated artifacts were built with Go 1.26.7. A
+[later CI scan](https://github.com/shwdsun/harness-security-gateway/actions/runs/39242807980)
+reported standard-library advisories in that compiler version; current source
+builds now require [Go 1.26.9 security fixes](https://go.dev/doc/devel/release#go1.26.9).
+The experiment does not recommend deploying the old binaries or transfer its
+acceptance automatically to newly compiled artifacts. Future deployment must
+bind the new hashes and validate the affected boundaries.
+
 | Artifact | SHA-256 |
 | --- | --- |
 | Gateway service (`agentd`) | `704a63ddc2d638f024de1d57b32963c724b7f76053df43cdcfd8f6dd1843a550` |

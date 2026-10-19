@@ -4,8 +4,9 @@ Harness Security Gateway uses third-party Go modules listed in `go.mod` and
 `go.sum`. Those modules remain subject to their respective licenses.
 
 No dependency source or compiled release binary is distributed in this
-repository. The following modules were linked into at least one command by the
-Go 1.26.7 release-candidate build:
+repository. The following inventory identifies modules linked by the earlier
+builds. Current source builds require Go 1.26.9 or newer; updating the compiler
+does not change these module versions or licenses:
 
 | Module | Version | License |
 | --- | --- | --- |

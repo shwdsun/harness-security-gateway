@@ -1,6 +1,6 @@
 module github.com/shwdsun/harness-security-gateway
 
-go 1.26.7
+go 1.26.9
 
 require (
 	golang.org/x/sys v0.46.0

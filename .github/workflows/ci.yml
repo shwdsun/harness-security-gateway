@@ -17,7 +17,7 @@ jobs:
   test:
     name: Build, test, and deterministic witnesses
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,7 +98,12 @@ jobs:
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
         with:
           repo-checkout: false
-          go-version-input: 1.26.7
+          # Clear the action's default stable version so go.mod is authoritative.
+          go-version-input: ''
+          go-version-file: go.mod
           check-latest: false
           cache-dependency-path: go.sum
           go-package: ./...
+
+      - name: Scan opt-in Codex integration
+        run: '"$(go env GOPATH)/bin/govulncheck" -tags=codexintegration ./...'
