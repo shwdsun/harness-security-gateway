@@ -25,8 +25,9 @@ authorization and execution boundary.
 
 ## Try the offline demonstration
 
-Requires Go 1.26.9 or newer within the Go 1 compatibility promise. The patch
-floor includes the [October 8 standard-library security fixes](https://go.dev/doc/devel/release#go1.26.9).
+Requires Go 1.26.10 or a newer security-patched Go release within the Go 1
+compatibility promise. Go 1.27 users need 1.27.3 or newer. These patch floors
+include the [certificate-chain verification fix](https://go.dev/doc/devel/release#go1.26.10).
 
 ```bash
 go test ./...

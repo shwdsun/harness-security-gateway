@@ -1,7 +1,7 @@
 {
   "schema": "hsg-codex-offline-inputs/v1",
   "status": "measured-development-inputs",
-  "go_version": "go1.26.9",
+  "go_version": "go1.26.10",
   "image": "golang@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd",
   "profile_sha256": "8bbae8b91929e32c4eca53270716c35e03999ec03d535f7011a088472b80ce50",
   "native": {

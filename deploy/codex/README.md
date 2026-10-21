@@ -9,7 +9,7 @@ without Docker, network acquisition, credentials, enrollment or service startup.
 It is not a production image, installer or authorization to activate a target.
 The native tuple retains the scoped September 10–11, 2026 evidence; rebuilding
 the host owner changes its hash and requires a new exact deployment authority.
-The current source recipe uses Go 1.26.9 for security fixes. Its native, tool,
+The current source recipe uses Go 1.26.10 for security fixes. Its native, tool,
 profile and image pins retain their measured values; this compiler update does
 not reapprove them or extend earlier real-task acceptance to rebuilt services.
 
@@ -50,7 +50,7 @@ export GOMODCACHE=/absolute/offline-go-modules
 export GOCACHE=/absolute/private-go-cache
 export GOTMPDIR=/absolute/private-build-temp
 python3 deploy/codex/build.py \
-  --go /absolute/go1.26.9/bin/go \
+  --go /absolute/go1.26.10/bin/go \
   --native-artifacts /absolute/verified-native-artifacts \
   --tool-package /absolute/verified-six-file-package \
   --output /absolute/new-bundle-directory
