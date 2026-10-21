@@ -14,13 +14,14 @@ choose a host path, container image, credential or network policy. Codex
 remains responsible for reasoning and tools; HSG supplies the surrounding
 authorization and execution boundary.
 
-> **Current status — 2026-10-19: early development (pre-alpha).** You can run
+> **Current status — 2026-10-21: early development (pre-alpha).** You can run
 > an offline security demonstration and an advanced local simulated workflow.
-> A bounded real Discord-to-Codex experiment has also passed, with explicit
-> credential-isolation limits and evidence supporting natural credential renewal.
+> A bounded real Discord-to-Codex workflow passed with newly built Go 1.26.9
+> artifacts. Credential-isolation observations are finite; the separate
+> natural-renewal evidence remains dated October 19.
 > A supported real installation and personal pilot are not ready. See
 > [current capabilities](docs/implementation-status.md) and the
-> [dated acceptance result](docs/real-service-acceptance-2026-10-19.md).
+> [patched-artifact result](docs/real-service-verification-2026-10-21.md).
 
 ## Try the offline demonstration
 
@@ -76,8 +77,8 @@ The [core concepts](docs/concepts.md) explain these terms and their lifetimes.
 | Exact authorization and duplicate-event handling | Implemented and automatically tested against production decoding, policy and storage code |
 | Durable task and reply lifecycle | Implemented, with restart and failure tests; platform delivery still has a send/receipt uncertainty window |
 | Container lifecycle and cleanup reconciliation | Implemented and automatically tested; dated local container experiments have separate environmental limits |
-| Discord message ingestion and reply delivery | One authorized real task and its independently observed reply passed on October 19 for a fixed experimental deployment |
-| Codex execution and credential isolation | Real-service compatibility, bounded real-token observations and natural-renewal evidence passed for that deployment; controlled native failure tests retain their separate scope |
+| Discord message ingestion and reply delivery | One new real task and independently observed reply passed with patched artifacts on October 21 in the fixed experimental deployment |
+| Codex execution and credential isolation | Real-service compatibility and bounded real-token observations passed on October 21; natural renewal is supported by qualified October 19 inference for that older artifact scope |
 | Recovery model | An optional formal-methods experiment checks a stated abstract invariant; implementation and deployment require their own evidence |
 
 Default builds use the simulated agent. Experimental Codex execution requires
@@ -98,8 +99,8 @@ capabilities from dated experiments.
 - A reply destination comes from the accepted task. Model output cannot choose
   another recipient.
 - Credentials, storage, runtime access and workspaces have separate owners.
-  The [October 19 experiment](docs/real-service-acceptance-2026-10-19.md)
-  supports the isolated boundary for its fixed artifacts and stated assumptions.
+  The [dated experiments](docs/real-service-verification-2026-10-21.md)
+  support the isolated boundary for their fixed artifacts and stated assumptions.
 
 The earlier real Codex experiments allowed workspace tools to read reusable
 provider authentication. Their dated successes do not establish the newer

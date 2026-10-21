@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-Current planning summary: **2026-10-19**. The first product path remains one
+Current planning summary: **2026-10-21**. The first product path remains one
 operator, one private Discord entry, one fixed Codex target and text tasks.
 [Implementation status](implementation-status.md) reports evidence;
 [core concepts](concepts.md) define technical terms and reference labels.
@@ -49,7 +49,7 @@ profile, exact artifacts and deployment:
 5. **Consolidation.** Resolve defects in the changed boundary, attest affected
    artifacts and update contracts, tests, documentation and review evidence.
 
-The credential-recovery requirement is test case `CRED-01` in
+The credential-isolation requirement is test case `CRED-01` in
 [`bakeoff/cases.json`](../bakeoff/cases.json). It is one necessary condition
 inside this delivery milestone (`M1`), not another name for the entire milestone.
 Two synthetic successes or passing source CI are insufficient.
@@ -58,11 +58,17 @@ The [October 19 acceptance](real-service-acceptance-2026-10-19.md) now supplies
 one real useful task, independent reply and cleanup evidence, bounded token
 observations and qualified natural-renewal evidence. It is scoped to fixed
 artifacts and one deployment. Final review accepted the credential-isolated
-messaging goal (`M1`), including its credential-recovery condition (`CRED-01`),
+messaging goal (`M1`), including its credential-isolation condition (`CRED-01`),
 for that scope by combining the real result with unchanged, separately accepted
 failure-path and protocol-boundary mechanisms. A single task or finite scan
 alone cannot establish universal credential secrecy. New deployments and a
 supported personal pilot retain their own acceptance requirements.
+
+[October 21](real-service-verification-2026-10-21.md) renewed affected-artifact
+and real-path evidence for seven Go 1.26.9 rebuilds. It verified another useful
+task, reply, containment, finite token observations and cleanup; it did not
+observe a new credential refresh. The October 19 renewal inference and earlier
+controlled failure mechanisms keep their original dates and scopes.
 
 An unresolved compatibility result remains an unmet acceptance condition. If
 isolation would require widening authority or adding a disproportionate subsystem,

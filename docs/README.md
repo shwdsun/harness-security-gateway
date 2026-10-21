@@ -46,7 +46,8 @@ releases. Read the [current credential boundary](implementation-status.md#creden
 before selecting an earlier profile or a technical experiment.
 
 - [Isolated-authentication profile](codex-profile-v4.md): current experimental
-  direction, with a [bounded October 19 real-service result](real-service-acceptance-2026-10-19.md)
+  direction, with [patched-artifact verification on October 21](real-service-verification-2026-10-21.md),
+  [October 19 acceptance and renewal inference](real-service-acceptance-2026-10-19.md),
   and separately scoped native mechanism evidence.
 - [Earlier execution contracts](codex-profile-v1.md), [messaging behavior](codex-profile-v2.md)
   and [native tool package](codex-profile-v3.md): earlier revisions and their limits.

@@ -1,6 +1,6 @@
 # Engineering case study: authority and evidence in AI-assisted development
 
-Case study updated **2026-10-19**; literature snapshot **2026-10-07**.
+Case study updated **2026-10-21**; literature snapshot **2026-10-07**.
 
 Harness Security Gateway is an independently developed, single-user gateway
 for requesting coding work through private messaging. Its first intended path
@@ -23,6 +23,9 @@ passed [bounded real-service acceptance on October 19](real-service-acceptance-2
 including a useful task, actual reply, cleanup and evidence supporting natural
 credential renewal. Its finite secret scans and the earlier controlled tests
 retain their distinct scopes; general deployment support is not established.
+[October 21 verification](real-service-verification-2026-10-21.md) binds seven
+patched Go rebuilds to another real task, reply and cleanup. No new credential
+refresh was observed; the earlier renewal inference keeps its date and scope.
 [Implementation status](implementation-status.md)
 and the [credential-isolated messaging criteria](milestones.md#credential-isolated-messaging)
 govern those claims. [Core concepts](concepts.md) define task records (`Run`),
@@ -118,6 +121,16 @@ path, preserved failed attempts, repaired a demonstrated provisioning defect,
 and completed one real task without another manual step during that campaign.
 [The result](real-service-acceptance-2026-10-19.md) reports both the outcome and
 its evidence limits.
+
+The October 21 compiler update required new artifact/runtime evidence, rather
+than repeating all unchanged protocol and failure research. Two private
+pre-task checks failed and were preserved. Read-only reconciliation retained
+the committed credential generation; authenticated application readiness
+replaced a check whose failure evidence was consistent with a startup race.
+The single actual task and cleanup
+then passed with zero additional operator steps. This illustrates why an
+automation receipt must distinguish a committed effect, process start and
+application readiness; it does not establish a general efficiency improvement.
 
 That protocol is a design constraint and a response to process failure, not a
 measured productivity result. Request counts alone also miss manual substeps,

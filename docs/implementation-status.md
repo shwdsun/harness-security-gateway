@@ -1,6 +1,6 @@
 # Current implementation status
 
-Snapshot: **2026-10-19**. HSG is in early development. The source implements a
+Snapshot: **2026-10-21**. HSG is in early development. The source implements a
 personal messaging gateway, but a supported real Discord-to-Codex installation
 is not ready. [Core concepts](concepts.md) define the names and evidence language
 used here; [deployment paths](deployment.md) give prerequisites.
@@ -30,8 +30,8 @@ Codex image is supplied.
 | Execution lifecycle | One-task containers, workspace ownership, cancellation and reconciliation of uncertain creation or cleanup | Automatic tests use controlled runtimes; native observations apply only to their named environment and artifacts |
 | Harness continuity | Bounded one-use private session references for targets supporting continuity | Current experimental Codex targets use a fresh harness session for each task |
 | Credential lifecycle | Explicit enrollment, generation binding, source verification, retirement and occupancy tracking | Lifecycle bookkeeping alone does not hide readable authentication from task tools |
-| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | One fixed isolated deployment completed a real task and independently verified reply on October 19; general deployment support remains open |
-| Experimental Codex isolation | Trusted authentication owner, task-scoped provider mediation and disposable local client representation | Bounded real-service acceptance passed on October 19, including qualified natural-renewal evidence and finite real-token observations; not universal secrecy or production approval |
+| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | One new real task and independent reply passed with patched Go artifacts on October 21; general deployment support remains open |
+| Experimental Codex isolation | Trusted authentication owner, task-scoped provider mediation and disposable local client representation | October 21 renewed artifact/compatibility and finite token observations; qualified natural-renewal evidence remains dated October 19; not universal secrecy or production approval |
 
 See [architecture](architecture.md), [access control](access-control.md) and the
 [Discord contract](discord-connector.md) for precise mechanisms. Changed images
@@ -58,6 +58,13 @@ containment and cleanup, and supported accepted natural renewal through an
 in-place access-token change. Renewal is a qualified inference, not a captured
 upstream authentication exchange.
 
+[October 21 verification](real-service-verification-2026-10-21.md) rebuilt seven
+project Go executables with Go 1.26.9, checked their installed hashes and sampled
+the actual service executables, then completed one new task and independent
+reply with containment and cleanup. The finite token witness passed, but source
+content and access-token values did not change: this is no new refresh result.
+The old binaries' acceptance was not automatically transferred to the rebuild.
+
 The real-token witness found no exact matches in its bounded live and retained
 surfaces. It did not intercept active protocol streams or scan every raw tool
 argument, response or discarded diagnostic. Earlier synthetic mechanism and
@@ -73,7 +80,8 @@ The integrated acceptance criteria remain:
    artifacts and deployment.
 
 These criteria define the [credential-isolated messaging delivery goal](milestones.md#credential-isolated-messaging).
-Historical references call that goal `M1`; its credential-recovery test is
+Historical references call that goal `M1`; its test of whether task tools can
+extract reusable provider credentials is
 `CRED-01`. [Identifier meanings](concepts.md#planning-test-and-design-identifiers)
 explain their distinct roles. On October 19, the combined real-path, mechanism
 and failure-path evidence was accepted for that goal and test **only for the
@@ -90,6 +98,7 @@ assumptions. This does not approve a new deployment or establish universal secre
 | 2026-10-07 | The isolated-profile real campaign stopped at credential-setup completion verification, before a task or serving started; cleanup was verified | Operations failure retained; no real task/provider/renewal acceptance for the isolated candidate |
 | 2026-10-08 | Source review repaired redirect credential exposure, partial-reply completion, Unicode splitting, and outbound pacing/counting defects; automated checks passed | [Regression tests](../internal/discordconnector/delivery_progress_test.go) and [response-boundary tests](../internal/discordconnector/response_boundaries_test.go); no new live-platform result |
 | 2026-10-19 | One isolated-profile Discord-to-Codex task, exact file/output state, independently checked platform reply and owned cleanup passed | [Fixed-deployment acceptance](real-service-acceptance-2026-10-19.md); natural-renewal inference and bounded real-token scans, with earlier failures preserved |
+| 2026-10-21 | Seven project Go artifacts rebuilt with Go 1.26.9; installed/live identity checks, one new task, independent reply, containment, finite token observations and cleanup passed | [Patched-artifact verification](real-service-verification-2026-10-21.md); no new refresh observed, unchanged third-party/C/image pins and prior native fault evidence retain their own scope |
 
 The reviewed source baseline was merged as
 [`0dadcfb`](https://github.com/shwdsun/harness-security-gateway/commit/0dadcfb716e8c17fdd5e59b670148dbcfa9d276e).

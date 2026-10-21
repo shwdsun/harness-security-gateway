@@ -126,11 +126,13 @@ The relationship previously abbreviated `M1/CRED-01` is:
 
 ```text
 delivery goal: useful messaging with isolated provider credentials (M1)
-    includes the credential-recovery test requirement (CRED-01)
+    includes testing that task tools cannot extract reusable credentials (CRED-01)
     plus real-service compatibility, renewal, reply and cleanup acceptance
 ```
 
 Passing one test or merging source does not complete that delivery goal.
+Here, extracting credentials means obtaining reusable authentication material;
+it is separate from the trusted Owner renewing an expired credential.
 The [roadmap](milestones.md#delivery-goals) states the whole outcome;
 the [credential-isolation plan](credential-isolation-plan.md) is its detailed
 technical work package.

@@ -7,7 +7,10 @@ stay there. The Runner receives a disposable local authentication representation
 and a task-scoped channel. See [core concepts](concepts.md) for components,
 credentials and independent version labels.
 
-Status, **2026-10-19**: one fixed experimental deployment passed
+Status, **2026-10-21**: [patched-artifact verification](real-service-verification-2026-10-21.md)
+completed one new real task with Go 1.26.9 project executables, independent
+Discord reply, containment, finite token observations and cleanup. No refresh
+was observed in this task. On October 19, one fixed deployment passed
 [bounded real-service acceptance](real-service-acceptance-2026-10-19.md): useful
 Codex work, an independently verified Discord reply, containment, cleanup and
 evidence supporting accepted natural renewal. The real-token witness is finite
@@ -20,7 +23,7 @@ Source integration and real-profile acceptance are separate, as recorded in the
 The classification `credential-isolated-candidate` continues to identify this
 unreleased experimental profile; it is not a general deployment guarantee.
 Earlier profiles remain `credential-exposed-personal`, meaning task
-tools can read their reusable authentication. The credential-recovery test is
+tools can read their reusable authentication. The credential-isolation test is
 one requirement within the wider [credential-isolated messaging goal](milestones.md#credential-isolated-messaging).
 
 ### Dated verification detail — 2026-10-08
@@ -128,10 +131,13 @@ helper absence and the existing durable retirement/recovery, never auth replay.
 
 The [October 19 result](real-service-acceptance-2026-10-19.md) records the
 current fixed-deployment real-path pass and its limits. On October 19, final
-review accepted credential-isolated messaging, including the credential-recovery
+review accepted credential-isolated messaging, including the credential-isolation
 condition, only for this profile, exact artifacts and tested deployment. That
 decision combines the real result with the separately accepted native mechanisms
 below; it does not approve arbitrary deployments or a production release.
+The [October 21 result](real-service-verification-2026-10-21.md) adds measured
+new-artifact/runtime and real-task evidence after the compiler security update;
+it does not claim a new renewal or rerun the earlier real-provider fault cases.
 The earlier entries preserve what was known at their dates; their old open-gate
 statements are historical, rather than a replacement for current status.
 
