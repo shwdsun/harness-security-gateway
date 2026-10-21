@@ -30,7 +30,7 @@ Codex image is supplied.
 | Execution lifecycle | One-task containers, workspace ownership, cancellation and reconciliation of uncertain creation or cleanup | Automatic tests use controlled runtimes; native observations apply only to their named environment and artifacts |
 | Harness continuity | Bounded one-use private session references for targets supporting continuity | Current experimental Codex targets use a fresh harness session for each task |
 | Credential lifecycle | Explicit enrollment, generation binding, source verification, retirement and occupancy tracking | Lifecycle bookkeeping alone does not hide readable authentication from task tools |
-| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | One new real task and independent reply passed with patched Go artifacts on October 21; general deployment support remains open |
+| Discord connector | Exact platform identity normalization, durable polling cursor, reply splitting and rate-limit pacing | One fresh real task and independent reply passed with Go 1.26.10 artifacts on October 21; general deployment support remains open |
 | Experimental Codex isolation | Trusted authentication owner, task-scoped provider mediation and disposable local client representation | October 21 renewed artifact/compatibility and finite token observations; qualified natural-renewal evidence remains dated October 19; not universal secrecy or production approval |
 
 See [architecture](architecture.md), [access control](access-control.md) and the
@@ -59,11 +59,14 @@ in-place access-token change. Renewal is a qualified inference, not a captured
 upstream authentication exchange.
 
 [October 21 verification](real-service-verification-2026-10-21.md) rebuilt seven
-project Go executables with Go 1.26.9, checked their installed hashes and sampled
-the actual service executables, then completed one new task and independent
-reply with containment and cleanup. The finite token witness passed, but source
-content and access-token values did not change: this is no new refresh result.
-The old binaries' acceptance was not automatically transferred to the rebuild.
+project Go executables with Go 1.26.10, checked installed hashes and sampled the
+actual service executables, then completed one fresh task and independent reply
+with containment and cleanup at 06:27 UTC. The earlier 05:43 UTC Go 1.26.9 result
+remains separate historical evidence: the first check missed a security patch
+floor, and fresh main CI blocked completion on GO-2026-6809. The corrected
+artifacts received their own new task rather than inheriting the earlier pass.
+Neither October 21 task observed source-content or access-token change; the
+qualified October 19 renewal inference keeps its original scope.
 
 The real-token witness found no exact matches in its bounded live and retained
 surfaces. It did not intercept active protocol streams or scan every raw tool
@@ -98,7 +101,8 @@ assumptions. This does not approve a new deployment or establish universal secre
 | 2026-10-07 | The isolated-profile real campaign stopped at credential-setup completion verification, before a task or serving started; cleanup was verified | Operations failure retained; no real task/provider/renewal acceptance for the isolated candidate |
 | 2026-10-08 | Source review repaired redirect credential exposure, partial-reply completion, Unicode splitting, and outbound pacing/counting defects; automated checks passed | [Regression tests](../internal/discordconnector/delivery_progress_test.go) and [response-boundary tests](../internal/discordconnector/response_boundaries_test.go); no new live-platform result |
 | 2026-10-19 | One isolated-profile Discord-to-Codex task, exact file/output state, independently checked platform reply and owned cleanup passed | [Fixed-deployment acceptance](real-service-acceptance-2026-10-19.md); natural-renewal inference and bounded real-token scans, with earlier failures preserved |
-| 2026-10-21 | Seven project Go artifacts rebuilt with Go 1.26.9; installed/live identity checks, one new task, independent reply, containment, finite token observations and cleanup passed | [Patched-artifact verification](real-service-verification-2026-10-21.md); no new refresh observed, unchanged third-party/C/image pins and prior native fault evidence retain their own scope |
+| 2026-10-21, 05:43 UTC | Seven project Go artifacts rebuilt with Go 1.26.9; installed/live identity checks, one new task, independent reply, containment, finite token observations and cleanup passed | [Patched-artifact verification](real-service-verification-2026-10-21.md); no new refresh observed, unchanged third-party/C/image pins and prior native fault evidence retain their own scope |
+| 2026-10-21, 06:27 UTC | After fresh CI exposed a missed `crypto/x509` security floor, seven Go 1.26.10 artifacts passed a separate new task, independent reply, containment, finite token observations and cleanup | [Corrected-artifact verification](real-service-verification-2026-10-21.md); generation 3 and a new immutable target retain the prior Owner/database lineage; no new refresh observed |
 
 The reviewed source baseline was merged as
 [`0dadcfb`](https://github.com/shwdsun/harness-security-gateway/commit/0dadcfb716e8c17fdd5e59b670148dbcfa9d276e).

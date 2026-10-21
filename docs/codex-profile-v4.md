@@ -8,9 +8,11 @@ and a task-scoped channel. See [core concepts](concepts.md) for components,
 credentials and independent version labels.
 
 Status, **2026-10-21**: [patched-artifact verification](real-service-verification-2026-10-21.md)
-completed one new real task with Go 1.26.9 project executables, independent
-Discord reply, containment, finite token observations and cleanup. No refresh
-was observed in this task. On October 19, one fixed deployment passed
+completed a fresh real task with Go 1.26.10 project executables, independent
+Discord reply, containment, finite token observations and cleanup. The separate
+Go 1.26.9 task remains dated evidence after CI exposed its missed security floor;
+its result was not relabelled for the corrected artifacts. Neither October 21
+task observed a refresh. On October 19, one fixed deployment passed
 [bounded real-service acceptance](real-service-acceptance-2026-10-19.md): useful
 Codex work, an independently verified Discord reply, containment, cleanup and
 evidence supporting accepted natural renewal. The real-token witness is finite
@@ -135,9 +137,11 @@ review accepted credential-isolated messaging, including the credential-isolatio
 condition, only for this profile, exact artifacts and tested deployment. That
 decision combines the real result with the separately accepted native mechanisms
 below; it does not approve arbitrary deployments or a production release.
-The [October 21 result](real-service-verification-2026-10-21.md) adds measured
-new-artifact/runtime and real-task evidence after the compiler security update;
-it does not claim a new renewal or rerun the earlier real-provider fault cases.
+The [October 21 result](real-service-verification-2026-10-21.md) records separate
+Go 1.26.9 and corrected Go 1.26.10 artifact/runtime tasks. The latter binds a new
+immutable target and generation 3 to the retained physical source and database
+history. Neither claims a new renewal or reruns the earlier real-provider fault
+cases; the missed security-floor check and subsequent CI failure are retained.
 The earlier entries preserve what was known at their dates; their old open-gate
 statements are historical, rather than a replacement for current status.
 

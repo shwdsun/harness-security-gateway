@@ -427,3 +427,23 @@ real Harness.
 MCP is not enabled in any shipped target. A future MCP server is executable
 authority and must be pinned and reviewed as part of an immutable target, never
 selected by chat content or discovered from an untrusted repository.
+
+## Security-floor correction and fresh artifact task — 2026-10-21
+
+A fixed real task with seven Go 1.26.9 artifacts passed at 05:43 UTC. Its dated
+result, artifact hashes and two preserved pre-task failures remain in the
+[verification record](real-service-verification-2026-10-21.md). Fresh CI for its
+first documentation publication then found GO-2026-6809 in `crypto/x509` and
+blocked final completion: the verification had missed the Go 1.26.10 security
+floor released on October 19.
+
+A separate fresh task with seven Go 1.26.10 artifacts passed at 06:27 UTC, with
+its own task/reply correlation, installed/live artifact checks, containment,
+finite token witness and owned cleanup. Generation 2 was retired once and
+canonical generation 3/new target retained the same physical source and all
+prior Owner history/database objects. This phase did not remove old Core rows;
+normal expiration observed in the earlier phase remains separately dated.
+Neither October 21 task observed a new refresh. The October 19 renewal inference
+and controlled fault cases keep their original artifact scope. Source review,
+regression, publication and exact-head CI remain distinct gates; this dated
+real-task result does not establish supported installation or a personal pilot.

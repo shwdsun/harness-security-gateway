@@ -16,9 +16,10 @@ authorization and execution boundary.
 
 > **Current status — 2026-10-21: early development (pre-alpha).** You can run
 > an offline security demonstration and an advanced local simulated workflow.
-> A bounded real Discord-to-Codex workflow passed with newly built Go 1.26.9
-> artifacts. Credential-isolation observations are finite; the separate
-> natural-renewal evidence remains dated October 19.
+> A bounded real Discord-to-Codex workflow passed with newly built Go 1.26.10
+> artifacts after correcting a missed security patch floor. The earlier 1.26.9
+> result remains dated evidence. Credential-isolation observations are finite;
+> the separate natural-renewal evidence remains dated October 19.
 > A supported real installation and personal pilot are not ready. See
 > [current capabilities](docs/implementation-status.md) and the
 > [patched-artifact result](docs/real-service-verification-2026-10-21.md).
@@ -78,7 +79,7 @@ The [core concepts](docs/concepts.md) explain these terms and their lifetimes.
 | Exact authorization and duplicate-event handling | Implemented and automatically tested against production decoding, policy and storage code |
 | Durable task and reply lifecycle | Implemented, with restart and failure tests; platform delivery still has a send/receipt uncertainty window |
 | Container lifecycle and cleanup reconciliation | Implemented and automatically tested; dated local container experiments have separate environmental limits |
-| Discord message ingestion and reply delivery | One new real task and independently observed reply passed with patched artifacts on October 21 in the fixed experimental deployment |
+| Discord message ingestion and reply delivery | One fresh task and independently observed reply passed with Go 1.26.10 artifacts on October 21 in the fixed experimental deployment |
 | Codex execution and credential isolation | Real-service compatibility and bounded real-token observations passed on October 21; natural renewal is supported by qualified October 19 inference for that older artifact scope |
 | Recovery model | An optional formal-methods experiment checks a stated abstract invariant; implementation and deployment require their own evidence |
 

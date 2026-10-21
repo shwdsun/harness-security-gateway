@@ -65,10 +65,13 @@ alone cannot establish universal credential secrecy. New deployments and a
 supported personal pilot retain their own acceptance requirements.
 
 [October 21](real-service-verification-2026-10-21.md) renewed affected-artifact
-and real-path evidence for seven Go 1.26.9 rebuilds. It verified another useful
-task, reply, containment, finite token observations and cleanup; it did not
-observe a new credential refresh. The October 19 renewal inference and earlier
-controlled failure mechanisms keep their original dates and scopes.
+and real-path evidence with seven Go 1.26.10 rebuilds and one fresh task, reply,
+containment, finite token observations and cleanup. The earlier Go 1.26.9 task
+remains dated evidence after fresh CI exposed a missed security patch floor;
+its pass was not transferred to the new bytes. Neither task observed a new
+credential refresh. The October 19 renewal inference and earlier controlled
+failure mechanisms keep their original dates and scopes. Current source checks
+and final integration remain separate from a successful real task.
 
 An unresolved compatibility result remains an unmet acceptance condition. If
 isolation would require widening authority or adding a disproportionate subsystem,

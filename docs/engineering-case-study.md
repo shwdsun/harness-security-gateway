@@ -24,8 +24,10 @@ including a useful task, actual reply, cleanup and evidence supporting natural
 credential renewal. Its finite secret scans and the earlier controlled tests
 retain their distinct scopes; general deployment support is not established.
 [October 21 verification](real-service-verification-2026-10-21.md) binds seven
-patched Go rebuilds to another real task, reply and cleanup. No new credential
-refresh was observed; the earlier renewal inference keeps its date and scope.
+Go 1.26.10 rebuilds to a fresh real task, reply and cleanup. A separate earlier
+Go 1.26.9 task remains dated evidence after current CI exposed a missed security
+patch floor. Neither observed a new credential refresh; the earlier renewal
+inference keeps its date and scope.
 [Implementation status](implementation-status.md)
 and the [credential-isolated messaging criteria](milestones.md#credential-isolated-messaging)
 govern those claims. [Core concepts](concepts.md) define task records (`Run`),
@@ -127,10 +129,25 @@ than repeating all unchanged protocol and failure research. Two private
 pre-task checks failed and were preserved. Read-only reconciliation retained
 the committed credential generation; authenticated application readiness
 replaced a check whose failure evidence was consistent with a startup race.
-The single actual task and cleanup
-then passed with zero additional operator steps. This illustrates why an
-automation receipt must distinguish a committed effect, process start and
-application readiness; it does not establish a general efficiency improvement.
+The first October 21 task and cleanup
+then passed with Go 1.26.9 and zero additional operator steps. This illustrates
+why an automation receipt must distinguish a committed effect, process start
+and application readiness.
+
+That task did not establish that its compiler met the current security floor.
+The primary coding agent reused dated source CI and omitted a fresh advisory
+scan before the first rebuild, selecting Go 1.26.9. Go 1.26.10 had already been
+released on October 19. Fresh main CI then reported GO-2026-6809 in
+`crypto/x509` and blocked final completion.
+Fresh-cache scans reproduced the finding on Go 1.26.9 and were negative on
+1.26.10 for the default and experimental Go build graphs. Seven corrected executables were
+rebuilt, bound to a new immutable target/generation on the same retained
+source/database lineage, and accepted through one separate fresh task and
+cleanup. This renewed the changed deployed-artifact boundary without claiming
+another execution of the unchanged fault matrix. The earlier pass remains
+attached to its old bytes. Compatibility, advisory scanning, artifact identity
+and final CI are distinct evidence; none establishes a general efficiency
+improvement.
 
 That protocol is a design constraint and a response to process failure, not a
 measured productivity result. Request counts alone also miss manual substeps,
